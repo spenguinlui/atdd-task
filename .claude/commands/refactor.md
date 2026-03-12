@@ -12,7 +12,7 @@ description: 啟動重構任務（確保不破壞現有功能）
 
 ---
 
-## 初始化流程
+## 執行步驟（嚴格按順序，不得增加額外步驟）
 
 1. **Git Branch 選擇**：參考 `shared/git-branch-selection.md`，建議命名 `refactor/{short-description}`
 2. **Epic 子任務偵測**：參考 `shared/epic-task-flow.md`
@@ -20,10 +20,13 @@ description: 啟動重構任務（確保不破壞現有功能）
 4. **更新 Kanban**：執行 `shared/kanban-operations.md` 的「新增卡片」（含 Jira 開票確認）
 5. **回寫 Jira Issue Key**（僅選擇開立 Jira 票時）：從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），寫入任務 JSON 的 `jira.issueKey` 和 `jira.url`（`{base_url}/browse/{KEY}`）
 6. **輸出任務建立訊息**：類型、專案、標題、ID、Jira 連結（若有）
+7. **立即呼叫 specist Agent**（見下方）
+
+⛔ **步驟 1-6 期間禁止讀取**：domain 知識、既有 requirement/spec、程式碼。這些全部是 specist 的職責。main 只做任務建立，不做需求研究。
 
 ---
 
-## 呼叫 specist Agent
+## 呼叫 specist Agent（Step 7）
 
 參考：`shared/agent-call-patterns.md`
 
