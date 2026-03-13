@@ -163,3 +163,40 @@ gate → GO
 ```
 
 > 其他命令（/status、/fix-*、/done 等）不需要列出，用戶已知。只列主要動作。
+
+### Review 階段完成後的輸出規範
+
+Review 結果必須列出**所有嚴重等級的所有項目**，不得省略任何等級：
+
+```
+Review 完成
+
+Style Review: Grade {grade} ({score}/100)
+- Critical: {N}
+  - {id}: {description}
+- High: {N}
+  - {id}: {description}
+- Major: {N}
+  - {id}: {description}
+- Suggestion: {N}（非必要）
+  - {id}: {description}
+
+Risk Review: {risk_level}
+- Critical: {N}
+  - {id}: {description}
+- High: {N}
+  - {id}: {description}
+- Medium: {N}
+  - {id}: {description}
+- Low: {N}
+  - {id}: {description}
+
+📌 下一步：
+• /continue {task_id}     - 進入 gate 階段
+• /fix-critical {task_id} - 修復 Critical 問題
+• /fix-high {task_id}     - 修復 Critical + High
+• /fix-all {task_id}      - 修復所有問題
+• /abort {task_id}        - 放棄當前任務
+```
+
+> 數量為 0 的等級可省略整行。但有數量的等級**必須逐條列出**，禁止只寫數量不列內容。
