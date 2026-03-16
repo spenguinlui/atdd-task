@@ -182,6 +182,11 @@ end
 - **Worker**：有**排程性質**的非同步任務（非同步不一定要放 Worker）
 - **Rake**：一次性的資料變更、讀取或產出任務
 
+## 資料庫查詢規範
+
+- 優先使用 **Rails ActiveRecord** 查詢，避免寫 raw SQL
+- 必須寫 raw SQL 時，確保使用 **PostgreSQL 語法**（如位置參數 `$1, $2`，而非 `?`）
+
 ## 檢查清單
 
 style-reviewer 應檢查：
@@ -201,3 +206,4 @@ style-reviewer 應檢查：
 - [ ] **Slices ViewModel** 繼承 BaseIndex / BaseShow，實作所有必要方法
 - [ ] **Slices ViewModel** namespace 與 Controller、Form 三者對齊
 - [ ] **Slices Form** 只做格式驗證，業務邏輯驗證在 Domain 層
+- [ ] **資料庫查詢** 優先使用 Rails ActiveRecord，raw SQL 須用 PostgreSQL 語法
