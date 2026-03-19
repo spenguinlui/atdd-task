@@ -81,7 +81,7 @@ get_next_step() {
                         echo "→ /e2e-manual - 人工 E2E"
                     else
                         echo "→ 下一步：review"
-                        echo "→ 動作：平行呼叫 style-reviewer 和 risk-reviewer"
+                        echo "→ 動作：呼叫 risk-reviewer"
                     fi
                     ;;
                 "review")
@@ -106,7 +106,7 @@ get_next_step() {
                     ;;
                 "development")
                     echo "→ 下一步：review"
-                    echo "→ 動作：呼叫 risk-reviewer（fix 只需風險審查）"
+                    echo "→ 動作：呼叫 risk-reviewer"
                     ;;
                 "review")
                     echo "→ 下一步：gate"
@@ -150,7 +150,7 @@ get_next_step() {
                     ;;
                 "development")
                     echo "→ 下一步：review"
-                    echo "→ 動作：呼叫 style-reviewer（refactor 只需風格審查）"
+                    echo "→ 動作：平行呼叫 style-reviewer 和 risk-reviewer（refactor 預設含風格審查）"
                     ;;
                 "review")
                     echo "→ 下一步：gate"

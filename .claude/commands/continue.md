@@ -42,9 +42,9 @@ description: 確認進入下一個任務階段
 
 | type | Reviewer |
 |------|----------|
-| feature | style + risk |
+| feature | risk only |
 | fix | risk only |
-| refactor | style only |
+| refactor | style + risk |
 
 ---
 
@@ -171,7 +171,7 @@ Review 結果必須列出**所有嚴重等級的所有項目**，不得省略任
 ```
 Review 完成
 
-Style Review: Grade {grade} ({score}/100)
+Style Review: Grade {grade} ({score}/100)  ← 僅 refactor 時顯示
 - Critical: {N}
   - {id}: {description}
 - High: {N}

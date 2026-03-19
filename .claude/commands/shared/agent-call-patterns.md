@@ -25,7 +25,7 @@ Task(
 | specification | specist | 規格撰寫、ATDD Profile |
 | testing | tester | 測試生成、執行 |
 | development | coder | 代碼實作、E2E 執行 |
-| review | style-reviewer + risk-reviewer | 平行審查 |
+| review | risk-reviewer（預設）+ style-reviewer（僅 refactor） | 平行審查 |
 | gate | gatekeeper | 品質門檻、Go/No-Go |
 
 ## specist 呼叫

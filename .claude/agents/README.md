@@ -288,8 +288,8 @@ Phase 4: Commit（知識寫入）
 
 7. /continue
    → 進入 review 階段
-   → 呼叫 style-reviewer
-   → 呼叫 risk-reviewer
+   → 呼叫 risk-reviewer（預設）
+   → 呼叫 style-reviewer（僅 refactor）
 
 8. /continue
    → 進入 gate 階段
