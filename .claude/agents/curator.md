@@ -66,16 +66,6 @@ tools: Read, Glob, Grep, Write, Edit, AskUserQuestion
 
 其他任何情境需要更新商務邏輯知識時，都必須透過上述 3 個入口啟動 Curator。
 
-## Tool Access
-
-**You have access to:**
-- `Read`, `Glob`, `Grep`: 讀取知識文件**和專案程式碼**
-- `Write`, `Edit`: 寫入更新（確認後）
-- `AskUserQuestion`: 深度訪談
-
-**You do NOT have access to:**
-- `Bash`, `Task`
-
 ## 強制規則
 
 | 規則 | 後果 |

@@ -91,62 +91,10 @@ bundle exec rspec {project_path}/spec/
 
 ## 命令速查
 
-### 任務啟動
-```
-/feature {project}, {標題}     # 新功能開發
-/fix {project}, {標題}         # Bug 修復
-/refactor {project}, {標題}    # 程式碼重構
-/test {project}, {標題}        # 建立 E2E 測試套件
-```
-
-### 任務控制
-```
-/continue          # 繼續到下一階段
-/status            # 查看當前進度
-/abort             # 放棄當前任務
-/e2e-manual        # 標記使用人工 E2E 驗證
-```
-
-### 結案
-```
-/done              # Commit + 結案（最常用）
-/commit            # 僅 Commit
-/close             # 僅結案
-```
-
-### 測試套件
-```
-/test-list {project}                  # 列出測試套件
-/test-run {project}, {suite-id}       # 執行測試套件
-/test-history {project}, {suite-id}   # 查看執行歷史
-/test-edit {project}, {suite-id}      # 修改測試套件
-```
-
-### 知識管理
-```
-/knowledge {project}, {主題描述}              # 知識討論（自動偵測 domain）
-```
-
-### Review 後修復
-```
-/fix-critical      # 修復 Critical 問題
-/fix-high          # 修復 Critical + High 問題
-/fix-all           # 修復所有問題
-```
-
-### /test 執行控制
-| 命令 | 說明 | 測試繼續？ |
-|------|------|-----------|
-| `/test-pause` | 暫停等待人工介入 | 暫停 |
-| `/test-resume` | 繼續暫停的測試 | 繼續 |
-| `/test-skip` | 跳過當前步驟/場景 | 繼續 |
-| `/test-fail` | 標記失敗並停止 | 停止 |
-| `/test-fix` | 開 Fix 票並繼續 | 繼續 |
-| `/test-fix-stop` | 開 Fix 票並停止 | 停止 |
-| `/test-revise` | 修正場景預期（系統正確，測試錯） | 暫停確認 |
-| `/test-knowledge` | 測試不該存在，退回 requirement | 停止 (invalid) |
-| `/test-feature` | 發現缺少功能，建立 Feature 任務 | 繼續 |
-| `/test-refactor` | 發現架構問題，建立 Refactor 任務 | 繼續 |
+所有可用命令詳見 Skill 列表。常用啟動命令：
+- `/feature`, `/fix`, `/refactor`, `/test` — 任務啟動
+- `/continue`, `/status`, `/abort` — 任務控制
+- `/done`, `/commit`, `/close` — 結案
 
 ---
 
@@ -156,22 +104,3 @@ bundle exec rspec {project_path}/spec/
 
 用戶可在任何階段轉移時安全地 `/clear` 清理對話。`/continue` 會自動讀取任務 JSON 恢復狀態。
 
----
-
-# 架構文檔索引
-
-以下資源由系統在對應時機自動載入，不需要手動讀取：
-
-| 資源 | 位置 | 載入時機 |
-|------|------|----------|
-| Agent 定義與職責 | `.claude/agents/*.md` | Task tool 生成 agent 時 |
-| 命令邏輯 | `.claude/commands/*.md` | Slash command 執行時 |
-| 任務 JSON 格式 | `.claude/commands/shared/task-json-template.md` | 命令引用 |
-| 階段流程圖 | `.claude/commands/shared/task-flow-diagrams.md` | 命令引用 |
-| Agent 呼叫模式 | `.claude/commands/shared/agent-call-patterns.md` | 命令引用 |
-| Kanban 操作 | `.claude/commands/shared/kanban-operations.md` | 命令引用 |
-| Kanban 卡片模板 | `.claude/templates/kanban-card.md` | 命令引用 |
-| 驗收框架 | `acceptance/registry.yml` | Agent 讀取 |
-| 風格指南 | `style-guides/*.md` | style-reviewer 讀取 |
-| 專案配置 | `.claude/config/projects.yml` | Hooks + 命令讀取 |
-| Domain 知識 | `domains/{project}/*.md` | Agent 讀取 |
