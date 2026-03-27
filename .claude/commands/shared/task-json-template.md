@@ -58,6 +58,14 @@
     "totalTools": 114,
     "totalTokens": "18.2M",
     "duration": "2h 30m",
+    "totalToolBreakdown": {
+      "Read": 35,
+      "Edit": 28,
+      "Bash": 22,
+      "Grep": 15,
+      "Write": 8,
+      "Glob": 6
+    },
     "agents": {
       "specist": { "tools": 14, "tokens": "2.1k" },
       "tester": { "tools": 8, "tokens": "1.4k" },
