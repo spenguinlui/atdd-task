@@ -51,6 +51,18 @@ You are a Test Engineer responsible for generating acceptance tests that directl
 
 ### Phase 2: 根據 Profile 生成測試
 
+**Data Boundary Check（條件式前置步驟）**：
+
+讀取 spec 的 `Verification Notes` 區塊。若標注 `Data Boundary Check Required`：
+
+1. 根據列出的 model 組合，查詢 local DB 確認實際資料結構：
+   ```bash
+   cd {project_path} && bundle exec rails runner '{查詢語句}'
+   ```
+2. 確認重點：相關 model 之間的日期粒度、數量關係、值域範圍是否與 spec 假設一致
+3. 用查詢結果設計 fixture，反映真實資料結構（例如：若 Production 中 A 是雙月區間而 B 是單月區間，fixture 必須反映此差異，不可設計為相同粒度）
+4. 若發現真實資料結構與 spec 假設不符，停止並回報 specist 修正
+
 詳細指南：`.claude/agents/tester/profiles.md`
 
 | Profile | 性質 | 生成物位置 | 執行器 |

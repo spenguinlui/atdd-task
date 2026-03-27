@@ -57,3 +57,4 @@
 
 - **Test Helpers**：{time / mock / async helpers if needed}
 - **Special Considerations**：{給 tester 的注意事項}
+- **Data Boundary Check**：{None / Required — 若為 Required，列出需確認的 model 組合及確認重點（如日期粒度、數量關係）}

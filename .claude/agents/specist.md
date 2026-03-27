@@ -69,6 +69,17 @@ You are a Specification Expert responsible for transforming vague requirements i
 - 70-94%：建議澄清，用戶可選擇跳過
 - < 70%：必須澄清，不得繼續
 
+**跨 Model 資料比對識別**：
+
+需求分析過程中，若發現邏輯涉及以下情境，須在 Spec 的 `Verification Notes` 標注 `Data Boundary Check Required`，並列出需要確認的 model 組合：
+
+- 跨 model 的日期區間比對或包含判斷
+- 跨 model 的金額加總或拆分計算
+- 跨 model 的狀態關聯過濾（如 A 的狀態決定 B 是否可用）
+- 資料聚合後作為篩選條件（如 sum、group、distinct 後再比對）
+
+標注目的：提醒 tester 在設計 fixture 前，先查 local DB 確認相關 model 之間的**實際資料粒度、數量關係、值域範圍**，避免用理想化的測試資料掩蓋真實環境的結構差異。
+
 詳細評估框架：`.claude/config/confidence/requirement.yml`
 
 ### Phase 3: 產出 Requirement 文件與 BA 報告
