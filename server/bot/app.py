@@ -10,9 +10,24 @@ from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
+import re as _re
 from claude_bridge import run_claude, pull_project, get_project_path
 from slack_blocks import questions_to_blocks, result_to_blocks, action_buttons
 import state
+
+
+def _extract_confidence(text: str) -> float | None:
+    """Extract confidence percentage from Claude's response."""
+    patterns = [
+        r'需求信心度[：:]\s*\*{0,2}(\d+(?:\.\d+)?)\s*%',
+        r'信心度[達約為：:]\s*\*{0,2}(\d+(?:\.\d+)?)\s*%',
+        r'信心度\s*\*{0,2}(\d+(?:\.\d+)?)\s*%',
+    ]
+    for pattern in patterns:
+        match = _re.search(pattern, text)
+        if match:
+            return float(match.group(1))
+    return None
 
 load_dotenv()
 
@@ -104,12 +119,19 @@ def _process_claude(prompt: str, thread_ts: str, channel: str,
             )
             return
 
-        # Always show action buttons (PM decides when BA is done)
+        # Show action buttons — only show Confirm BA if confidence >= 95%
+        confidence = _extract_confidence(text)
+        show_confirm = confidence is not None and confidence >= 95.0
+
+        if confidence is not None:
+            conv["last_confidence"] = confidence
+            logger.info(f"Confidence: {confidence}%, show_confirm={show_confirm}")
+
         conv["status"] = "waiting_answer"
         state.set(thread_ts, conv)
         app.client.chat_postMessage(
             channel=channel, thread_ts=thread_ts,
-            blocks=action_buttons(),
+            blocks=action_buttons(show_confirm=show_confirm),
             text="Choose an action or reply to continue.",
         )
 

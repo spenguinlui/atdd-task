@@ -1,36 +1,42 @@
 """Convert Claude output to Slack Block Kit."""
 
 
-def action_buttons() -> list[dict]:
-    """Persistent action buttons shown after each Bot reply."""
+def action_buttons(show_confirm: bool = True) -> list[dict]:
+    """Action buttons shown after each Bot reply.
+
+    show_confirm: Only show Confirm BA when confidence >= 95%.
+    """
+    elements = [
+        {
+            "type": "button",
+            "text": {"type": "plain_text", "text": ":mag: Analyze Code"},
+            "action_id": "analyze_code",
+        },
+    ]
+
+    if show_confirm:
+        elements.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": ":white_check_mark: Confirm BA"},
+            "style": "primary",
+            "action_id": "confirm_ba",
+        })
+
+    elements.append({
+        "type": "button",
+        "text": {"type": "plain_text", "text": ":no_entry_sign: Cancel"},
+        "style": "danger",
+        "action_id": "cancel_task",
+    })
+
+    hint = "Reply to continue discussion, or click a button."
+    if not show_confirm:
+        hint = ":lock: Confirm BA unlocks at 95% confidence. Reply to continue."
+
     return [
         {"type": "divider"},
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": ":mag: Analyze Code"},
-                    "action_id": "analyze_code",
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": ":white_check_mark: Confirm BA"},
-                    "style": "primary",
-                    "action_id": "confirm_ba",
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": ":no_entry_sign: Cancel"},
-                    "style": "danger",
-                    "action_id": "cancel_task",
-                },
-            ],
-        },
-        {
-            "type": "context",
-            "elements": [{"type": "mrkdwn", "text": "Reply to continue discussion, or click a button."}],
-        },
+        {"type": "actions", "elements": elements},
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": hint}]},
     ]
 
 
