@@ -13,6 +13,8 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 import re as _re
 from claude_bridge import run_claude, pull_project, get_project_path
 from slack_blocks import questions_to_blocks, result_to_blocks, action_buttons
+from ul_filter import apply_ul_filter
+from git_sync import sync as git_sync
 import state
 
 
@@ -106,6 +108,12 @@ def _process_claude(prompt: str, thread_ts: str, channel: str,
             return
 
         text = result["result"] or ""
+
+        # Apply UL filter: replace English code names with Chinese business terms
+        project = conv.get("project", "")
+        if project and text:
+            text = apply_ul_filter(text, project)
+
         if text:
             _send_long_message(channel, thread_ts, text)
 
@@ -134,6 +142,11 @@ def _process_claude(prompt: str, thread_ts: str, channel: str,
             blocks=action_buttons(show_confirm=show_confirm),
             text="Choose an action or reply to continue.",
         )
+
+        # Auto sync any file changes to GitHub
+        sync_err = git_sync(f"bot: {conv.get('type', 'feature')} — {conv.get('project', '?')}")
+        if sync_err:
+            logger.warning(f"Git sync failed: {sync_err}")
 
     except Exception as e:
         logger.exception(f"Error in _process_claude: {e}")
@@ -352,12 +365,17 @@ def handle_knowledge_submit(ack, body, client):
         f"3. Read domains/{project}/business-rules.md for existing rules\n"
         f"4. Read domains/{project}/strategic/{{Domain}}.md for domain knowledge\n"
         f"5. Read domains/{project}/tactical/{{Domain}}.md if exists\n"
-        f"6. Audit: compare existing knowledge vs the topic, identify gaps\n"
-        f"7. If project codebase is available, use Glob/Grep/Read to investigate code\n"
-        f"8. Ask PM clarification questions to fill knowledge gaps (one topic at a time)\n"
-        f"9. After enough Q&A (3+ rounds), propose knowledge updates\n"
-        f"10. Show the full proposed text for each file to be updated\n"
-        f"11. Wait for PM confirmation before writing\n\n"
+        f"6. If project codebase is available, use Glob/Grep/Read to investigate code\n"
+        f"7. After reading code, re-read ul.md and knowledge files to compare\n"
+        f"8. Present audit report with clear separation:\n"
+        f"   *:blue_book: 知識庫記載* — what knowledge files say\n"
+        f"   *:computer: 程式碼現況* — what code actually does (in business terms)\n"
+        f"   *:warning: 落差* — differences between knowledge and code\n"
+        f"   *:question: 知識缺口* — gaps that need PM input\n"
+        f"9. Ask PM clarification questions to fill knowledge gaps (one topic at a time)\n"
+        f"10. After enough Q&A (3+ rounds), propose knowledge updates\n"
+        f"11. Show the full proposed text for each file to be updated\n"
+        f"12. Wait for PM confirmation before writing\n\n"
         f"Rules:\n"
         f"- Every knowledge item must have a source tag: [doc], [code], [user], [derived]\n"
         f"- [derived] must show reasoning chain\n"
@@ -365,6 +383,21 @@ def handle_knowledge_submit(ack, body, client):
         f"- Mark uncertain items as [unconfirmed]\n"
         f"- Only modify files under domains/{project}/\n"
         f"- All writing needs PM's explicit confirmation\n\n"
+        f"Language rules (CRITICAL — strictly enforced):\n"
+        f"- BEFORE writing any report or reply to PM, you MUST:\n"
+        f"  1. Read domains/{project}/ul.md\n"
+        f"  2. For EVERY code concept you plan to mention, search ul.md for its Chinese name\n"
+        f"  3. Replace the English code name with the Chinese term\n"
+        f"- Example: if ul.md defines 'Entry' as '電費項目', you MUST write '電費項目' not 'Entry'\n"
+        f"- Example: if ul.md defines 'ActualEntry' as '實際電費項目', write '實際電費項目' not 'ActualEntry'\n"
+        f"- If a code concept has NO matching ul.md entry: '程式中有一個概念 `ClassName`，知識庫尚未定義對應名稱'\n"
+        f"- NEVER use English class names, method names, or column names when a Chinese term exists in ul.md\n"
+        f"- This applies to all output: audit reports, questions, proposals, everything\n\n"
+        f"Slack format rules:\n"
+        f"- Use *bold* not # headers\n"
+        f"- Use bullet lists (•) not markdown tables\n"
+        f"- No ASCII box drawing (┌──┐)\n"
+        f"- No --- dividers\n\n"
         f"Start with step 1."
     )
 
@@ -373,6 +406,97 @@ def handle_knowledge_submit(ack, body, client):
         args=(prompt, thread_ts, channel),
         daemon=True,
     ).start()
+
+
+# --- App Home Tab ---
+
+
+@app.event("app_home_opened")
+def handle_app_home(event, client):
+    """Render the App Home tab with action buttons."""
+    user = event["user"]
+
+    # Get recent conversations for this user
+    recent = []
+    for ts in state.keys():
+        conv = state.get(ts)
+        if conv and conv.get("user") == user:
+            project = conv.get("project", "?")
+            status = conv.get("status", "?")
+            confidence = conv.get("last_confidence")
+            conf_str = f" ({confidence:.0f}%)" if confidence else ""
+            conv_type = conv.get("type", "feature")
+            emoji = ":sparkles:" if conv_type != "knowledge" else ":books:"
+            recent.append(f"{emoji} `{project}` — {status}{conf_str}")
+
+    recent_text = "\n".join(recent[-5:]) if recent else "_No recent conversations_"
+
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "ATDD Bot"},
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Welcome! Start a new conversation or check recent activity.",
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": ":rocket: New Feature"},
+                    "style": "primary",
+                    "action_id": "home_new_feature",
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": ":books: Knowledge Discussion"},
+                    "action_id": "home_new_knowledge",
+                },
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Recent conversations:*\n{recent_text}",
+            },
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "You can also type `/feature` or `/knowledge` in any channel.",
+                }
+            ],
+        },
+    ]
+
+    client.views_publish(
+        user_id=user,
+        view={"type": "home", "blocks": blocks},
+    )
+
+
+@app.action("home_new_feature")
+def handle_home_feature(ack, body, client):
+    """Open feature modal from Home tab."""
+    ack()
+    handle_feature_command(ack=lambda: None, body=body, client=client)
+
+
+@app.action("home_new_knowledge")
+def handle_home_knowledge(ack, body, client):
+    """Open knowledge modal from Home tab."""
+    ack()
+    handle_knowledge_command(ack=lambda: None, body=body, client=client)
 
 
 # --- Event Handlers ---
@@ -501,6 +625,20 @@ def _confirm_ba_and_upload(prompt, thread_ts, channel, session_id, lock):
                 text=f":label: *Task ID:* `{task_id}`\n\nDev can pick up this task with `git pull`.",
             )
 
+        # Git sync — push BA + requirement + task JSON to GitHub
+        sync_err = git_sync(f"bot: BA confirmed — {conv.get('project', '?')}")
+        if sync_err:
+            logger.warning(f"Git sync failed: {sync_err}")
+            app.client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts,
+                text=f":warning: Git sync failed: {sync_err}",
+            )
+        else:
+            app.client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts,
+                text=":white_check_mark: Changes pushed to GitHub. Dev can `git pull` now.",
+            )
+
         # Mark conversation as completed
         conv["status"] = "completed"
         conv.pop("pending_action", None)
@@ -558,10 +696,28 @@ def handle_analyze_code(ack, body):
 
         session_id = conv.get("session_id")
         prompt = (
-            f"Please analyze the current codebase for project '{project}'. "
-            f"{path_hint} "
-            f"Read the relevant source code related to the topic we've been discussing. "
-            f"Explain how it currently works, then return to our requirement discussion."
+            f"Step 1: Re-read domains/{project}/ul.md to refresh the ubiquitous language.\n\n"
+            f"Step 2: Summarize what we've established so far from the knowledge files "
+            f"and our discussion.\n\n"
+            f"Step 3: Analyze the codebase for project '{project}'. {path_hint} "
+            f"Focus only on code directly related to our topic — do not read unrelated files.\n\n"
+            f"Step 4: Re-read the relevant domain knowledge files:\n"
+            f"- domains/{project}/strategic/{{Domain}}.md\n"
+            f"- domains/{project}/business-rules.md\n"
+            f"Compare code findings against knowledge files.\n\n"
+            f"Step 5: Report to PM using this structure (use Slack format, no tables):\n\n"
+            f"*:blue_book: 知識庫記載*\n"
+            f"• summarize what the knowledge files say about this topic\n\n"
+            f"*:computer: 程式碼現況*\n"
+            f"• describe what the code actually does\n"
+            f"• CRITICAL: for every code concept, search ul.md for its Chinese name and use it\n"
+            f"• e.g. if ul.md says Entry='電費項目', write '電費項目' not 'Entry'\n"
+            f"• ONLY use `ClassName` if ul.md has no matching entry, and explicitly say '知識庫尚未定義'\n\n"
+            f"*:warning: 落差*\n"
+            f"• list any differences between knowledge and code (or '無落差' if consistent)\n\n"
+            f"*:dart: 對本次需求的影響*\n"
+            f"• how this affects our requirement discussion\n\n"
+            f"Then continue our requirement discussion."
         )
 
         threading.Thread(
