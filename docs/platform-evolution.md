@@ -28,6 +28,26 @@
 - Core: TaskService, DomainHealthService, CausationService, KnowledgeService, ReportService
 - Outbound Ports: TaskRepository, KnowledgeRepository, NotificationPort, GitPort, CodeAnalysisPort
 
+### Multi-Organization（多組織支援）
+- 最外層 context boundary = Organization（公司 vs 個人 vs 其他）
+- Core 不感知 org，org_id 像 request scope 從最外層傳入
+- 每個 org 獨立的：projects, tasks, domains, knowledge, reports
+- 每個 org 可自訂：gate 標準、health 閾值、部署策略、整合設定
+- DB 用 `organizations` 表 + `org_id` FK 隔離
+- Dashboard 用 org switcher 切換
+- Claude Code MCP 用 `ATDD_ORG` env 指定
+- 實作方式：Phase 2 DB schema 加 org_id，Phase 4 Dashboard 加 switcher
+
+```
+Organization: "公司"           Organization: "個人"
+├─ core_web                   ├─ side-project
+├─ sf_project                 ├─ open-source-x
+├─ aws_infra                  └─ ...
+├─ Server: EC2                ├─ Server: localhost or same EC2
+├─ Gate: 嚴格(95%, E2E必要)   ├─ Gate: 輕量(85%, E2E可選)
+└─ Team: PM, Dev, Manager     └─ Team: 只有自己
+```
+
 ### CQRS Lite
 - Write Path: Claude Code / Slack Bot → API → PostgreSQL
 - Read Path: Dashboard / API → PostgreSQL
