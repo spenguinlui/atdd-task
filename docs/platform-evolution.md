@@ -96,21 +96,22 @@ Organization: "公司"           Organization: "個人"
 
 ---
 
-## Phase 1: 核心引擎 ⬜ 待做
+## Phase 1: 核心引擎 ✅ 完成
 
-### 1-1. Agent Context Injection
-- specist：讀取 domain-health.json，高風險 domain 自動警告
-- risk-reviewer：新增 Domain Impact Assessment 區段
-- gatekeeper：新增 Domain Health Gate
+### 1-1. Agent Context Injection ✅ 完成
+- specist：Phase 1 Domain 識別後讀取 domain-health.json，degraded/critical 自動警告
+- risk-reviewer：新增 Phase 4 Domain Impact Assessment，評估跨域風險
+- gatekeeper：新增 Domain Health Gate，影響部署建議（healthy→/done, critical→/done --deploy）
 
-### 1-2. Causation Tracer Script
-- `causation-tracer.sh`：git blame → commit hash → 反查 task JSON
-- specist fix 調查時呼叫
+### 1-2. Causation Tracer Script ✅ 完成
+- Script: `.claude/scripts/causation-tracer.py`
+- 功能：git blame → commit hash → 反查 task JSON（by commitHash 精確匹配 + commit message fuzzy 匹配）
+- 用法：`python3 causation-tracer.py <repo-path> <file> <line> [hub-path]`
 
-### 1-3. /domain-diagnose Skill
-- 新增 Slash Command
-- 執行: 任務健康度 + 程式碼品質(RuboCop/Reek/Flog) + 邊界分析 + 命名一致性
-- 輸出: `diagnostics/{project}/{domain}-{date}.md`
+### 1-3. /domain-diagnose Skill ✅ 完成
+- Command: `.claude/commands/domain-diagnose.md`
+- 5 階段：任務健康度 → 程式碼品質(RuboCop/Reek/Flog) → 邊界分析 → 命名一致性 → 報告
+- 輸出：結構化診斷報告含 Health Card、Code Quality、Boundary Violations、UL Alignment
 
 ---
 

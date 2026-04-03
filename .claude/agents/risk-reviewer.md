@@ -60,13 +60,30 @@ You are a Risk Reviewer responsible for identifying security vulnerabilities, pe
 4. Identify blocking operations
 ```
 
-### Phase 4: Generate Report
+### Phase 4: Domain Impact Assessment
+
+Read `domain-health.json` (if exists) and check the task's domain health:
+
+1. 查詢主要 Domain 的 health score、fix rate、coupling rate
+2. 查詢相關 Domains 的健康狀態
+3. 檢查此次改動是否觸及**高耦合叢集**（coupling pairs）
+
+輸出 Domain Impact 區段：
+
+| 狀態 | 輸出 |
+|------|------|
+| Domain healthy | `Domain Impact: Low — {domain} is healthy (score: XX)` |
+| Domain degraded | `⚠️ Domain Impact: Medium — {domain} is degraded (fix rate: XX%), changes may trigger follow-up fixes` |
+| Domain critical | `🔴 Domain Impact: High — {domain} is critical (fix rate: XX%), high probability of cascading issues. Recommend thorough regression testing of coupled domains: {coupled_domains}` |
+
+### Phase 5: Generate Report
 
 Produce risk assessment with:
 - Overall risk level
 - Detailed findings by category
 - Severity ratings
 - Remediation recommendations
+- **Domain Impact Assessment**（from Phase 4）
 
 ## 輸出要求
 

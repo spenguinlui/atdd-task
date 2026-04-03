@@ -35,6 +35,7 @@ You are the Gatekeeper responsible for final quality gate verification, acceptan
 | Review | Style >= B, Risk <= Medium |
 | Spec | 100% scenarios implemented |
 | Acceptance | 所有 testLayers 通過 |
+| **Domain Health** | 記錄在報告中（不阻擋，但影響部署建議） |
 
 ## 決策矩陣
 
@@ -90,9 +91,33 @@ Agents:
 
 簡化門檻：只檢查 Domain + E2E 結果 + 問題記錄。
 
+## Domain Health Gate（GO 後附加）
+
+Read `domain-health.json`（如存在），查詢任務 Domain 的健康度，影響結案建議：
+
+| Domain 狀態 | 結案建議 |
+|-------------|---------|
+| 🟢 healthy | `/done` 直接結案即可 |
+| 🟡 degraded | 建議 `/done --deploy` 進入部署驗證，risk_level=medium |
+| 🔴 critical | **強烈建議** `/done --deploy` 進入部署驗證，risk_level=high |
+| 跨域 coupling > 70% | 額外建議迴歸測試相鄰 domain |
+
+在 Gate Report 中輸出：
+```
+📊 Domain Health:
+  主要 Domain: {domain} — {status} (score: {score})
+  Fix Rate: {fix_rate}% | Coupling: {coupling_rate}%
+  部署建議: {recommendation}
+```
+
 ## 結案選項（GO 後提供）
 
-報告結尾**必須**列出 gate 階段的可用命令（`/done`、`/commit`、`/close`、`/status`、`/abort`）。
+報告結尾**必須**列出 gate 階段的可用命令：
+- `/done` — 直接結案（傳統流程）
+- `/done --deploy` — 進入部署驗證（推薦，特別是 degraded/critical domain）
+- `/commit` — 僅 commit
+- `/close` — 僅結案不 commit
+- `/status`、`/abort`
 
 > Gatekeeper 只做決策和報告，**不執行**結案動作。
 

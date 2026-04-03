@@ -29,13 +29,14 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 ## 工作流程
 
-### Phase 1: Domain 識別
+### Phase 1: Domain 識別 + 健康度檢查
 
 ```
 1. Read: domains/{project}/domain-map.md
 2. Read: domains/{project}/ul.md（從需求關鍵術語反向定位 Domain）
 3. 識別主要 Domain（使用完整名稱如 Accounting::AccountsReceivable）
 4. 識別相關 Domains
+5. Read: domain-health.json（如存在）→ 查詢主要 Domain 和相關 Domains 的健康度
 ```
 
 **識別方式**：
@@ -46,6 +47,21 @@ You are a Specification Expert responsible for transforming vague requirements i
 ```
 🏷️ 主要 Domain：{domain_id}
 🔗 相關 Domains：{related_domains}
+```
+
+### Domain 健康度警告（Phase 1 識別後）
+
+讀取 `domain-health.json`，查詢 `domains.{domain_name}`。依健康狀態產出警告：
+
+| 狀態 | 動作 |
+|------|------|
+| 🟢 healthy (score >= 70) | 不顯示警告，正常流程 |
+| 🟡 degraded (40-69) | 顯示：`⚠️ Domain 健康度：degraded (score: XX, fix rate: XX%)，建議增加邊界測試` |
+| 🔴 critical (< 40) | 顯示：`🔴 Domain 健康度：critical (score: XX, fix rate: XX%)，此 domain 歷史問題頻繁，建議：(1) 確認需求邊界是否清晰 (2) 增加相鄰 domain 迴歸場景 (3) 考慮是否需要先重構再開發` |
+
+如果**相關 Domains 中有 critical**，額外警告：
+```
+🔴 注意：相關 Domain {name} 為 critical 狀態，跨域改動風險高
 ```
 
 ### Phase 2: 需求分析
