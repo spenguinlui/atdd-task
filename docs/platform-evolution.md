@@ -85,11 +85,14 @@ Organization: "公司"           Organization: "個人"
 - Top critical: ElectricityAccounting (35), Accounting::AccountsPayable (38)
 - Top coupling: DigiwinErp↔ErpPeriod (29), ElecAccounting↔ErpPeriod (18)
 
-### 0-4. Deployed/Verified/Escaped 狀態 ⬜ 待做
-- 擴充 `task-flow-diagrams.md`：gate → deployed → verified | escaped
-- 擴充 `task-state-update.md`：新增 deployed/verified/escaped 事件處理
-- 擴充 `workflow-router.sh`：新增 deployed/verified 路由
-- 風險分級邏輯：Low/Medium/High → 不同驗證策略
+### 0-4. Deployed/Verified/Escaped 狀態 ✅ 完成
+- 擴充 `task-flow-diagrams.md`：gate → deployed → verified | escaped，含風險分級表
+- 擴充 `task-state-update.md`：新增 Event 4/5/6（deployed/verified/escaped）
+- 擴充 `workflow-router.sh`：gate 和 deployed 階段顯示新選項
+- 新增 `/verify` command：確認 production 正常 → deployed → completed
+- 新增 `/escape` command：回報 production 問題 → deployed → escaped，建議建 fix 票
+- 檔案移動：active/ → deployed/ → completed/ 或 escaped/
+- 向後相容：`/done` 傳統流程不受影響，`/done --deploy` 為新流程
 
 ---
 

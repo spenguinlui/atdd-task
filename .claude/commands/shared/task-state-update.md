@@ -222,3 +222,156 @@ bash .claude/scripts/kanban-adapter.sh fail \
   --project {project} \
   --title "{description}"
 ```
+
+---
+
+## Event 4: `task-deployed`
+
+**觸發時機**：`/done --deploy` 啟用部署驗證時（取代直接 completed）
+
+**輸入**：
+- task JSON path
+- commit_hash
+- metrics（optional）
+- risk_level（low | medium | high，由 domain health 自動判斷）
+
+**副作用**：
+
+### 1. 更新 Task JSON
+
+```json
+{
+  "status": "deployed",
+  "history": [
+    ...existing_history,
+    { "phase": "deployed", "timestamp": "{ISO timestamp}", "riskLevel": "{risk_level}" }
+  ],
+  "context": {
+    ...existing_context,
+    "commitHash": "{commit_hash}",
+    "deployedAt": "{ISO timestamp}",
+    "riskLevel": "{risk_level}",
+    "verifyDeadline": "{根據 risk_level 計算的自動驗證期限}"
+  },
+  "metrics": "{metrics 如有提供}",
+  "updatedAt": "{ISO timestamp}"
+}
+```
+
+### 2. 移動檔案
+
+```bash
+mkdir -p tasks/{project}/deployed/
+mv tasks/{project}/active/{uuid}.json tasks/{project}/deployed/
+```
+
+### 3. 更新 Kanban
+
+```bash
+bash .claude/scripts/kanban-adapter.sh move \
+  --project {project} \
+  --title "{description}" \
+  --from gate \
+  --to deployed
+```
+
+---
+
+## Event 5: `task-verified`
+
+**觸發時機**：`/verify` 確認 production 正常時
+
+**輸入**：
+- task JSON path
+- verified_by（user | auto | client）
+
+**副作用**：
+
+### 1. 更新 Task JSON
+
+```json
+{
+  "status": "verified",
+  "history": [
+    ...existing_history,
+    { "phase": "verified", "timestamp": "{ISO timestamp}", "verifiedBy": "{verified_by}" }
+  ],
+  "context": {
+    ...existing_context,
+    "verifiedAt": "{ISO timestamp}",
+    "verifiedBy": "{verified_by}"
+  },
+  "updatedAt": "{ISO timestamp}"
+}
+```
+
+### 2. 移動檔案
+
+```bash
+mv tasks/{project}/deployed/{uuid}.json tasks/{project}/completed/
+```
+
+### 3. 更新 Kanban
+
+```bash
+bash .claude/scripts/kanban-adapter.sh complete \
+  --project {project} \
+  --title "{description}" \
+  --commit {commit_hash} \
+  ...（同 task-completed 的 kanban 參數）
+```
+
+---
+
+## Event 6: `task-escaped`
+
+**觸發時機**：`/escape` 發現 production 問題時
+
+**輸入**：
+- task JSON path
+- escape_reason（問題描述）
+- fix_task_id（若已建立 fix 票則填入）
+
+**副作用**：
+
+### 1. 更新 Task JSON
+
+```json
+{
+  "status": "escaped",
+  "history": [
+    ...existing_history,
+    { "phase": "escaped", "timestamp": "{ISO timestamp}", "reason": "{escape_reason}" }
+  ],
+  "context": {
+    ...existing_context,
+    "escapedAt": "{ISO timestamp}",
+    "escapeReason": "{escape_reason}",
+    "fixTaskId": "{fix_task_id 或 null}"
+  },
+  "updatedAt": "{ISO timestamp}"
+}
+```
+
+### 2. 移動檔案
+
+```bash
+mv tasks/{project}/deployed/{uuid}.json tasks/{project}/escaped/
+```
+
+### 3. 更新 Kanban
+
+```bash
+bash .claude/scripts/kanban-adapter.sh fail \
+  --project {project} \
+  --title "{description}"
+```
+
+### 4. 建議建立 Fix 票
+
+輸出提示：
+```
+⚠️ 任務 [{description}] 已標記為 escaped
+建議執行：/fix {project}, {escape_reason}
+新 fix 票的 causation.causedBy 將自動指向此任務
+```

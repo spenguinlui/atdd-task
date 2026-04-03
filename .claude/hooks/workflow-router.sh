@@ -90,7 +90,13 @@ get_next_step() {
                     ;;
                 "gate")
                     echo "✅ 任務已通過 Gate"
-                    echo "→ 使用 /done 結案"
+                    echo "→ /done 直接結案（傳統流程）"
+                    echo "→ /done --deploy 進入部署驗證（推薦）"
+                    ;;
+                "deployed")
+                    echo "📦 任務已部署，等待驗證"
+                    echo "→ /verify 確認 production 正常"
+                    echo "→ /escape 回報 production 問題"
                     ;;
             esac
             ;;
@@ -114,7 +120,13 @@ get_next_step() {
                     ;;
                 "gate")
                     echo "✅ 任務已通過 Gate"
-                    echo "→ 使用 /done 結案"
+                    echo "→ /done 直接結案（傳統流程）"
+                    echo "→ /done --deploy 進入部署驗證（推薦）"
+                    ;;
+                "deployed")
+                    echo "📦 任務已部署，等待驗證"
+                    echo "→ /verify 確認 production 正常"
+                    echo "→ /escape 回報 production 問題"
                     ;;
             esac
             ;;
@@ -158,7 +170,13 @@ get_next_step() {
                     ;;
                 "gate")
                     echo "✅ 任務已通過 Gate"
-                    echo "→ 使用 /done 結案"
+                    echo "→ /done 直接結案（傳統流程）"
+                    echo "→ /done --deploy 進入部署驗證（推薦）"
+                    ;;
+                "deployed")
+                    echo "📦 任務已部署，等待驗證"
+                    echo "→ /verify 確認 production 正常"
+                    echo "→ /escape 回報 production 問題"
                     ;;
             esac
             ;;

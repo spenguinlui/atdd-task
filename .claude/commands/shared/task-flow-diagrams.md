@@ -154,6 +154,39 @@ cleanup.rb 清理時
         （不影響其他測試）
 ```
 
+## 部署驗證流程（Gate 後）
+
+```
+gate 通過 (GO)
+    │
+    ├── /done（傳統流程）── commit ──→ ✅ COMPLETED
+    │   （無部署驗證時直接完成）
+    │
+    └── /done --deploy（啟用部署驗證時）
+        │
+        ▼
+┌─────────────────┐
+│ 7. DEPLOYED     │ ← 等待人工驗證
+│    部署觀察期   │
+│                 │   風險分級決定驗證策略：
+│                 │   Low:  7天自動 verified
+│                 │   Med:  你 production 驗證
+│                 │   High: 你驗 + 客戶確認
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+/verify    /escape
+    │         │
+    ▼         ▼
+✅ VERIFIED  ⚠️ ESCAPED
+ (真正完成)   │
+              ▼
+         自動建立 /fix 任務
+         （帶 causedBy 指向原任務）
+```
+
 ## 階段轉移
 
 | 從 | 到 | 觸發 |
@@ -163,7 +196,11 @@ cleanup.rb 清理時
 | testing | development | /continue |
 | development | review | 測試通過 |
 | review | gate | /continue |
-| gate | completed | /done, /close |
+| gate | completed | /done, /close（傳統流程） |
+| gate | deployed | /done --deploy（啟用部署驗證） |
+| deployed | verified | /verify（人工確認 production 正常） |
+| deployed | escaped | /escape（production 發現問題） |
+| verified | completed | 自動（verified 即為真正完成） |
 
 ## 允許循環
 
@@ -171,3 +208,11 @@ cleanup.rb 清理時
 testing ↔ development  # 測試失敗時
 review → testing       # /fix-critical 等
 ```
+
+## 風險分級（Deployed 狀態的驗證策略）
+
+| 風險等級 | 判斷條件 | 驗證策略 |
+|---------|---------|---------|
+| Low | refactor 或 domain=healthy 且 fix rate < 20% | 7 天無 fix 票自動 verified |
+| Medium | 一般 feature 或 domain=degraded | 你 production 點一輪後 /verify |
+| High | 核心計算/金流 或 domain=critical 或 跨域 > 70% | 你驗 + 客戶確認後 /verify |
