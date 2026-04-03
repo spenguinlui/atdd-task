@@ -182,6 +182,57 @@ end
 - **Worker**：有**排程性質**的非同步任務（非同步不一定要放 Worker）
 - **Rake**：一次性的資料變更、讀取或產出任務
 
+## 測試規範
+
+### Production Code 純淨性
+
+- **禁止為了測試在 production code 加 workaround**。如果測試需要 stub/mock 某個方法但遇到技術限制（如 prepended module），應在測試端解決，不可在 production code 加空 override
+- **禁止為了測試建立頂層常數 alias**（如 `Entities = SomeModule::Entities`）。測試應使用完整 namespace 引用
+
+```ruby
+# ❌ 不要在 production code 加空 override 讓測試能 mock
+def broadcast(*args)
+  super
+end
+
+# ❌ 不要建立 spec/support/xxx_alias.rb
+Entities = PowerWheeling::AccountingResult::Entities
+
+# ✅ 測試直接用完整 namespace
+allow(PowerWheeling::AccountingResult::Entities::AccountCode).to receive(:calculate)
+```
+
+### RSpec Stub 偏好
+
+- **避免 `allow_any_instance_of`**，優先使用 instance stub 或 dependency injection
+- 如果 `any_instance` 因 prepended module 失敗，改 stub 更高層級的方法（如 stub `broadcast_event` 而非 `broadcast`）
+
+```ruby
+# ❌ any_instance 容易因 prepend 失敗
+allow_any_instance_of(MyUseCase).to receive(:broadcast)
+
+# ✅ 使用 instance stub
+instance = MyUseCase.new(client: mock_client)
+allow(instance).to receive(:broadcast_event)
+```
+
+### 資料庫操作一律使用 ActiveRecord ORM
+
+- 所有對資料庫的操作**一律使用 ActiveRecord ORM**（包含 Migration、UseCase、Repository、Rake 等）
+- 禁止 raw SQL 字串插值（`"#{var}"`），避免 SQL Injection 風險
+- **唯一例外**：Relation 物件（view、複雜查詢）可使用 raw SQL，但必須用 bind parameters（`$1, $2`）
+
+```ruby
+# ❌ raw SQL 字串插值（任何場景都禁止）
+execute "UPDATE fees SET rate = #{rate} WHERE category = '#{category}'"
+
+# ✅ ActiveRecord ORM
+MyModel.where(category: category).update_all(rate: rate)
+
+# ✅ Relation 物件例外，但須用 bind parameters
+connection.exec_query("SELECT * FROM fees WHERE category = $1", "SQL", [category])
+```
+
 ## 資料庫查詢規範
 
 - 優先使用 **Rails ActiveRecord** 查詢，避免寫 raw SQL
@@ -207,3 +258,6 @@ style-reviewer 應檢查：
 - [ ] **Slices ViewModel** namespace 與 Controller、Form 三者對齊
 - [ ] **Slices Form** 只做格式驗證，業務邏輯驗證在 Domain 層
 - [ ] **資料庫查詢** 優先使用 Rails ActiveRecord，raw SQL 須用 PostgreSQL 語法
+- [ ] **測試純淨性** Production code 無為測試加的 workaround（空 override、頂層 alias）
+- [ ] **測試 Stub** 避免 `any_instance`，優先用 instance stub 或 DI
+- [ ] **資料庫操作** 一律使用 ActiveRecord ORM，禁止 raw SQL 字串插值（Relation 物件例外，須用 bind parameters）
