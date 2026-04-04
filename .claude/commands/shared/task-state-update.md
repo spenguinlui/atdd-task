@@ -1,6 +1,9 @@
 # 任務狀態更新（事件驅動）
 
 > 統一的狀態更新入口。所有命令透過觸發事件來更新任務狀態，由本模組統一處理所有副作用。
+> 
+> **Dual-Write 原則**：每個事件先呼叫 MCP tool 寫入 DB，再更新本地 JSON + 檔案操作。
+> MCP 失敗時 fallback 到純本地模式，記錄警告但不阻斷流程。
 
 ---
 
@@ -10,13 +13,36 @@
 
 **輸入**：
 - task JSON path
+- task_id（UUID）
 - from_stage（原階段）
 - to_stage（目標階段）
 - agent_name（下一階段的 Agent）
 
 **副作用**：
 
-### 1. 更新 Task JSON
+### 1. MCP 同步（Primary）
+
+```
+atdd_task_update(
+  task_id: "{task_id}",
+  status: "{to_stage}",
+  phase: "{to_stage}",
+  metadata: {
+    "workflow": { "currentAgent": "{agent_name}" }
+  }
+)
+
+atdd_task_add_history(
+  task_id: "{task_id}",
+  phase: "{to_stage}",
+  status: "{to_stage}",
+  note: "Stage changed: {from_stage} → {to_stage}"
+)
+```
+
+> MCP 失敗時記錄警告，繼續本地操作。
+
+### 2. 更新 Task JSON（Local Sync）
 
 ```json
 {
@@ -33,7 +59,7 @@
 }
 ```
 
-### 2. 更新 Kanban
+### 3. 更新 Kanban
 
 檢查任務 JSON 的 `jira.issueKey`：
 - **不為 null** → `KANBAN_BACKEND=jira`
@@ -47,7 +73,7 @@ bash .claude/scripts/kanban-adapter.sh move \
   --to {to_stage}
 ```
 
-### 3. 描述更新（條件式：進入 testing 且非 test 類型）
+### 4. 描述更新（條件式：進入 testing 且非 test 類型）
 
 當 `to_stage == testing` 且任務 `type != test` 時，額外執行「更新描述」。
 
@@ -118,12 +144,43 @@ bash .claude/scripts/kanban-adapter.sh update \
 
 **輸入**：
 - task JSON path
+- task_id（UUID）
 - commit_hash（optional，`/close` 可能沒有）
 - metrics（optional，session 統計數據）
 
 **副作用**：
 
-### 1. 更新 Task JSON
+### 1. MCP 同步（Primary）
+
+```
+atdd_task_update(
+  task_id: "{task_id}",
+  status: "completed",
+  metadata: {
+    "context": { "completedAt": "{ISO timestamp}", "commit": "{commit_hash or null}", "closedWithoutCommit": {true if no commit_hash} },
+    "metrics": {metrics if provided}
+  }
+)
+
+atdd_task_add_history(
+  task_id: "{task_id}",
+  phase: "completed",
+  status: "completed",
+  note: "{結案方式描述}"
+)
+```
+
+如有 metrics 的 agent 數據，逐個記錄：
+```
+atdd_task_add_metrics(
+  task_id: "{task_id}",
+  agent: "{agent_name}",
+  tool_uses: {tools},
+  tokens: {tokens}
+)
+```
+
+### 2. 更新 Task JSON（Local Sync）
 
 ```json
 {
@@ -143,13 +200,13 @@ bash .claude/scripts/kanban-adapter.sh update \
 }
 ```
 
-### 2. 移動檔案
+### 3. 移動檔案
 
 ```bash
 mv tasks/{project}/active/{uuid}.json tasks/{project}/completed/
 ```
 
-### 3. 更新 Kanban
+### 4. 更新 Kanban
 
 ```bash
 # 先取得 metrics
@@ -168,7 +225,7 @@ bash .claude/scripts/kanban-adapter.sh complete \
   --metrics-file /tmp/kanban-metrics.txt
 ```
 
-### 4. Epic 同步（條件式）
+### 5. Epic 同步（條件式）
 
 讀取任務 JSON 的 `epic` 字段：
 - **有 epic 字段** → 執行 `shared/epic-sync-on-complete.md`
@@ -186,11 +243,31 @@ bash .claude/scripts/kanban-adapter.sh complete \
 
 **輸入**：
 - task JSON path
+- task_id（UUID）
 - reason（放棄原因）
 
 **副作用**：
 
-### 1. 更新 Task JSON
+### 1. MCP 同步（Primary）
+
+```
+atdd_task_update(
+  task_id: "{task_id}",
+  status: "failed",
+  metadata: {
+    "context": { "failureReason": "{reason}", "abortedAt": "{當前階段}", "abortedBy": "user" }
+  }
+)
+
+atdd_task_add_history(
+  task_id: "{task_id}",
+  phase: "failed",
+  status: "failed",
+  note: "Aborted: {reason}"
+)
+```
+
+### 2. 更新 Task JSON（Local Sync）
 
 ```json
 {
@@ -209,13 +286,13 @@ bash .claude/scripts/kanban-adapter.sh complete \
 }
 ```
 
-### 2. 移動檔案
+### 3. 移動檔案
 
 ```bash
 mv tasks/{project}/active/{uuid}.json tasks/{project}/failed/
 ```
 
-### 3. 更新 Kanban
+### 4. 更新 Kanban
 
 ```bash
 bash .claude/scripts/kanban-adapter.sh fail \
@@ -231,13 +308,34 @@ bash .claude/scripts/kanban-adapter.sh fail \
 
 **輸入**：
 - task JSON path
+- task_id（UUID）
 - commit_hash
 - metrics（optional）
 - risk_level（low | medium | high，由 domain health 自動判斷）
 
 **副作用**：
 
-### 1. 更新 Task JSON
+### 1. MCP 同步（Primary）
+
+```
+atdd_task_update(
+  task_id: "{task_id}",
+  status: "deployed",
+  metadata: {
+    "context": { "commitHash": "{commit_hash}", "deployedAt": "{ISO timestamp}", "riskLevel": "{risk_level}", "verifyDeadline": "{deadline}" },
+    "metrics": {metrics if provided}
+  }
+)
+
+atdd_task_add_history(
+  task_id: "{task_id}",
+  phase: "deployed",
+  status: "deployed",
+  note: "Deployed with risk level: {risk_level}"
+)
+```
+
+### 2. 更新 Task JSON（Local Sync）
 
 ```json
 {
@@ -258,14 +356,14 @@ bash .claude/scripts/kanban-adapter.sh fail \
 }
 ```
 
-### 2. 移動檔案
+### 3. 移動檔案
 
 ```bash
 mkdir -p tasks/{project}/deployed/
 mv tasks/{project}/active/{uuid}.json tasks/{project}/deployed/
 ```
 
-### 3. 更新 Kanban
+### 4. 更新 Kanban
 
 ```bash
 bash .claude/scripts/kanban-adapter.sh move \
@@ -283,11 +381,31 @@ bash .claude/scripts/kanban-adapter.sh move \
 
 **輸入**：
 - task JSON path
+- task_id（UUID）
 - verified_by（user | auto | client）
 
 **副作用**：
 
-### 1. 更新 Task JSON
+### 1. MCP 同步（Primary）
+
+```
+atdd_task_update(
+  task_id: "{task_id}",
+  status: "verified",
+  metadata: {
+    "context": { "verifiedAt": "{ISO timestamp}", "verifiedBy": "{verified_by}" }
+  }
+)
+
+atdd_task_add_history(
+  task_id: "{task_id}",
+  phase: "verified",
+  status: "verified",
+  note: "Verified by: {verified_by}"
+)
+```
+
+### 2. 更新 Task JSON（Local Sync）
 
 ```json
 {
@@ -305,13 +423,13 @@ bash .claude/scripts/kanban-adapter.sh move \
 }
 ```
 
-### 2. 移動檔案
+### 3. 移動檔案
 
 ```bash
 mv tasks/{project}/deployed/{uuid}.json tasks/{project}/completed/
 ```
 
-### 3. 更新 Kanban
+### 4. 更新 Kanban
 
 ```bash
 bash .claude/scripts/kanban-adapter.sh complete \
@@ -329,12 +447,32 @@ bash .claude/scripts/kanban-adapter.sh complete \
 
 **輸入**：
 - task JSON path
+- task_id（UUID）
 - escape_reason（問題描述）
 - fix_task_id（若已建立 fix 票則填入）
 
 **副作用**：
 
-### 1. 更新 Task JSON
+### 1. MCP 同步（Primary）
+
+```
+atdd_task_update(
+  task_id: "{task_id}",
+  status: "escaped",
+  metadata: {
+    "context": { "escapedAt": "{ISO timestamp}", "escapeReason": "{escape_reason}", "fixTaskId": "{fix_task_id or null}" }
+  }
+)
+
+atdd_task_add_history(
+  task_id: "{task_id}",
+  phase: "escaped",
+  status: "escaped",
+  note: "Escaped: {escape_reason}"
+)
+```
+
+### 2. 更新 Task JSON（Local Sync）
 
 ```json
 {
@@ -353,13 +491,13 @@ bash .claude/scripts/kanban-adapter.sh complete \
 }
 ```
 
-### 2. 移動檔案
+### 3. 移動檔案
 
 ```bash
 mv tasks/{project}/deployed/{uuid}.json tasks/{project}/escaped/
 ```
 
-### 3. 更新 Kanban
+### 4. 更新 Kanban
 
 ```bash
 bash .claude/scripts/kanban-adapter.sh fail \
@@ -367,7 +505,7 @@ bash .claude/scripts/kanban-adapter.sh fail \
   --title "{description}"
 ```
 
-### 4. 建議建立 Fix 票
+### 5. 建議建立 Fix 票
 
 輸出提示：
 ```

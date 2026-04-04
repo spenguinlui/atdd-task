@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Overview — ATDD Dashboard{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h2>Executive Overview</h2>
+  <p>Delivery, quality, and cost metrics</p>
+</hgroup>
+
+{% include "partials/_time_selector.html" %}
+
+<div id="metrics">
+{% include "pages/_overview_metrics.html" %}
+</div>
+{% endblock %}

@@ -6,22 +6,25 @@ description: 查看當前任務狀態和進度
 
 ## 資料搜集（一次完成）
 
-### Step 1: 用 Glob 找檔案，用 jq 批次提取
+### Step 1: MCP 任務查詢
 
-**不要逐一讀取 JSON！** 用一次 Bash 呼叫完成所有資料搜集：
+**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務。從結果中：
+- **Active 任務**：status 不是 `completed`、`aborted`、`verified` 的
+- 提取：id, type, description, status, project, domain, phase, metadata（含 workflow, epic 等）
 
+> **Fallback**：如果 MCP 不可用，改用本地搜尋：
+> ```bash
+> for f in tasks/*/active/*.json; do
+>   jq -c '{id: .id, type: .type, desc: .description, status: .status, project: .projectId, epic: .epic, agent: .workflow.currentAgent}' "$f" 2>/dev/null
+> done
+> ```
+
+**Active Epics**（仍讀本地 epic.yml，DB 未追蹤）：
 ```bash
-# 1) Active 任務摘要（一次提取所有 active tasks 的關鍵欄位）
-for f in tasks/*/active/*.json; do
-  jq -c '{id: .id, type: .type, desc: .description, status: .status, project: .projectId, epic: .epic, phase: .phase, taskCode: .taskCode, agent: .workflow.currentAgent, confidence: .workflow.confidence, pendingAction: .workflow.pendingAction}' "$f" 2>/dev/null
-done
-
-# 2) Active Epics 摘要（grep 過濾非 completed 的 epic.yml）
 for f in epics/*/*/epic.yml; do
   epic_status=$(grep '^status:' "$f" | awk '{print $2}')
   if [ "$epic_status" != "completed" ] && [ "$epic_status" != "cancelled" ]; then
     echo "=== $f (status: $epic_status) ==="
-    # 提取 title 和 phases 進度
     grep -E '^(title:|id:)' "$f"
     grep -c 'status: completed' "$f" | xargs -I{} echo "completed_tasks: {}"
     grep -c 'status: pending' "$f" | xargs -I{} echo "pending_tasks: {}"
@@ -34,10 +37,12 @@ done
 
 ### Step 2: 最近完成的任務（僅在無 active task 時）
 
-```bash
-# 最近 3 個 completed 任務
-ls -t tasks/*/completed/*.json 2>/dev/null | head -3 | xargs -I{} jq -c '{id: .id, type: .type, desc: .description, project: .projectId}' "{}"
-```
+**MCP 優先**：`atdd_task_list(status='completed', limit=3)` 取最近 3 筆。
+
+> **Fallback**：
+> ```bash
+> ls -t tasks/*/completed/*.json 2>/dev/null | head -3 | xargs -I{} jq -c '{id: .id, type: .type, desc: .description, project: .projectId}' "{}"
+> ```
 
 ---
 

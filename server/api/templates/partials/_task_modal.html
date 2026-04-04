@@ -1,0 +1,27 @@
+{% if task %}
+<p><strong>{{ task.type|upper }}</strong> — {{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}</p>
+<p>{{ task.description or '(no description)' }}</p>
+<p><small>Status: <strong>{{ task.status }}</strong> | Created: {{ task.created_at.strftime('%Y-%m-%d') if task.created_at else 'N/A' }}</small></p>
+
+{% if task.causation %}
+<details>
+  <summary>Causation</summary>
+  <pre style="font-size:0.75rem;">{{ task.causation }}</pre>
+</details>
+{% endif %}
+
+{% if history %}
+<h4>History</h4>
+<div class="timeline">
+  {% for h in history %}
+  <div class="timeline-event">
+    <div><strong>{{ h.phase or h.status or 'event' }}</strong>{% if h.agent %} ({{ h.agent }}){% endif %}</div>
+    {% if h.note %}<div style="font-size:0.8rem;">{{ h.note }}</div>{% endif %}
+    <div class="timeline-time">{{ h.timestamp.strftime('%Y-%m-%d %H:%M') if h.timestamp else '' }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% else %}
+<p>Task not found.</p>
+{% endif %}

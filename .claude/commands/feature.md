@@ -18,7 +18,7 @@ description: 啟動新功能開發任務（Guided 模式）
 2. **Epic 子任務偵測**：參考 `shared/epic-task-flow.md`
 3. **建立任務 JSON**：參考 `shared/task-json-template.md`，type=feature
 4. **更新 Kanban**：執行 `shared/kanban-operations.md` 的「新增卡片」（含 Jira 開票確認）
-5. **回寫 Jira Issue Key**（僅選擇開立 Jira 票時）：從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），寫入任務 JSON 的 `jira.issueKey` 和 `jira.url`（`{base_url}/browse/{KEY}`）
+5. **回寫 Jira Issue Key**（僅選擇開立 Jira 票時）：從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），寫入任務 JSON 的 `jira.issueKey` 和 `jira.url`（`{base_url}/browse/{KEY}`），並同步 MCP：`atdd_task_update(task_id, metadata={"jira": {"issueKey": "{KEY}", "url": "{url}"}})`
 6. **輸出任務建立訊息**：類型、專案、標題、ID、Jira 連結（若有）
 7. **立即呼叫 specist Agent**（見下方）
 

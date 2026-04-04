@@ -6,7 +6,9 @@ description: 確認進入下一個任務階段
 
 ## Step 1: 檢查 Active 任務
 
-搜尋 `tasks/*/active/*.json`，收集：id, projectId, description, status, type
+**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務，過濾出 status 不是 `completed`、`aborted`、`verified` 的為 active 任務。收集：id, project, description, status, type。
+
+> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active/*.json` 搜尋本地檔案。
 
 | 情況 | 處理 |
 |------|------|
@@ -15,6 +17,8 @@ description: 確認進入下一個任務階段
 | 多個任務 | AskUserQuestion 選擇 |
 
 支援：`/continue {task_id}` 或 `/continue {project}`
+
+> **task_id 匹配**：支援完整 UUID 或 UUID 前綴（前 8 碼）匹配。
 
 ---
 
@@ -143,11 +147,12 @@ gate → GO
 執行 `shared/task-state-update.md` 的 **`stage-changed`** 事件：
 
 - task JSON path
+- task_id = 任務 UUID
 - from_stage = 當前階段
 - to_stage = 目標階段
 - agent_name = 下一階段的 Agent
 
-> 此事件會統一處理：Task JSON 更新、Kanban 移動、描述更新（進入 testing 時）。
+> 此事件會統一處理：MCP 同步、Task JSON 更新、Kanban 移動、描述更新（進入 testing 時）。
 
 ---
 

@@ -11,11 +11,14 @@ Task(
     任務類型：{type}
     任務 ID：{uuid}
     任務 JSON 路徑：tasks/{project}/active/{uuid}.json
+    任務 DB ID：{uuid}
 
     {具體指令}
   "
 )
 ```
+
+> **任務 DB ID** 與檔案路徑的 UUID 相同。Agent 目前仍讀本地 JSON，DB ID 為未來 Phase 3-3 遷移準備。
 
 ## 各階段對應 Agent
 

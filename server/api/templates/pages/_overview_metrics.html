@@ -1,0 +1,74 @@
+<!-- HTMX partial: overview metrics content -->
+<div class="dashboard-grid">
+  <article class="metric-card">
+    <h3>Tasks Created</h3>
+    <p class="metric-value">{{ total_created }}</p>
+    <p class="metric-label">Total tasks in period</p>
+  </article>
+  <article class="metric-card">
+    <h3>Completion Rate</h3>
+    <p class="metric-value">{{ completion_rate }}%</p>
+    <p class="metric-label">{{ total_completed }} completed</p>
+  </article>
+  <article class="metric-card">
+    <h3>Fix Rate</h3>
+    <p class="metric-value">{{ fix_rate }}%</p>
+    <p class="metric-label">Fixes / Features ratio</p>
+  </article>
+  <article class="metric-card">
+    <h3>Escape Rate</h3>
+    <p class="metric-value">{{ escape_rate }}%</p>
+    <p class="metric-label">Bugs discovered in production</p>
+  </article>
+</div>
+
+<div class="dashboard-grid" style="margin-top: 1.5rem;">
+  <article>
+    <h4>Task Trend (Weekly)</h4>
+    <div class="chart-container">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </article>
+  <article>
+    <h4>Cost by Task Type</h4>
+    <div class="chart-container">
+      <canvas id="costChart"></canvas>
+    </div>
+  </article>
+</div>
+
+<script>
+// Trend chart
+const trendCtx = document.getElementById('trendChart');
+if (trendCtx) {
+  if (trendCtx._chart) trendCtx._chart.destroy();
+  trendCtx._chart = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: {{ trend_labels|safe }},
+      datasets: [
+        { label: 'Created', data: {{ trend_created|safe }}, borderColor: '#2563eb', tension: 0.3 },
+        { label: 'Completed', data: {{ trend_completed|safe }}, borderColor: '#16a34a', tension: 0.3 },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+// Cost chart
+const costCtx = document.getElementById('costChart');
+if (costCtx) {
+  if (costCtx._chart) costCtx._chart.destroy();
+  costCtx._chart = new Chart(costCtx, {
+    type: 'bar',
+    data: {
+      labels: {{ cost_labels|safe }},
+      datasets: [
+        { label: 'Tool Uses', data: {{ cost_tools|safe }}, backgroundColor: '#2563eb' },
+        { label: 'Tokens (k)', data: {{ cost_tokens|safe }}.map(v => Math.round(v/1000)), backgroundColor: '#7c3aed' },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+</script>

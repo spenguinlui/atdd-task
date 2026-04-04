@@ -14,6 +14,14 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 # Allow importing db module from api directory
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
@@ -194,7 +202,7 @@ def save_report(report_data: dict, org_id: str = DEFAULT_ORG):
             RETURNING id
             """,
             (org_id, report_data["project"], report_data["week"],
-             json.dumps(report_data)),
+             json.dumps(report_data, cls=DecimalEncoder)),
         )
         result = cur.fetchone()
         return result["id"] if result else None
