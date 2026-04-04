@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Domain Health — ATDD Dashboard{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h2>Domain Health Map</h2>
+  <p>Health scores and coupling relationships</p>
+</hgroup>
+
+<fieldset role="group" class="time-selector">
+  <select name="project" onchange="window.location='/dashboard/domains?project='+this.value">
+    <option value="">All projects</option>
+    {% for p in projects %}
+    <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
+    {% endfor %}
+  </select>
+</fieldset>
+
+{% if domains %}
+<h3>Health Scores</h3>
+<div class="health-grid">
+  {% for d in domains %}
+  <a href="/dashboard/domains/{{ d.name }}{% if d.project %}?project={{ d.project }}{% endif %}"
+     class="domain-tile health-{{ d.status or 'degraded' }}">
+    <div class="domain-score">{{ d.health_score|round(0)|int if d.health_score else '?' }}</div>
+    <div class="domain-name">{{ d.name }}</div>
+    <div style="font-size:0.7rem; opacity:0.8;">{{ d.project }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if couplings %}
+<h3 style="margin-top:2rem;">Top Couplings</h3>
+<figure>
+  <table class="coupling-matrix">
+    <thead>
+      <tr><th>Domain A</th><th>Domain B</th><th>Co-occurrences</th></tr>
+    </thead>
+    <tbody>
+      {% for c in couplings %}
+      <tr>
+        <td><a href="/dashboard/domains/{{ c.domain_a }}">{{ c.domain_a }}</a></td>
+        <td><a href="/dashboard/domains/{{ c.domain_b }}">{{ c.domain_b }}</a></td>
+        <td>{{ c.co_occurrence_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <p>No domain health data available.</p>
+  <p><small>Run the domain health calculator to populate this page.</small></p>
+</div>
+{% endif %}
+{% endblock %}

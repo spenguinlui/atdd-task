@@ -15,6 +15,7 @@ from claude_bridge import run_claude, pull_project, get_project_path
 from slack_blocks import questions_to_blocks, result_to_blocks, action_buttons
 from ul_filter import apply_ul_filter
 from git_sync import sync as git_sync
+import api_client
 import state
 
 
@@ -577,6 +578,34 @@ def _run_and_release(prompt, thread_ts, channel, session_id, lock):
         lock.release()
 
 
+def _sync_task_to_api(task_filepath: str, project: str):
+    """Sync a task JSON file to the API (Phase 2 dual-write)."""
+    try:
+        import json as _json
+        with open(task_filepath) as f:
+            data = _json.load(f)
+
+        task_type = data.get("type", "feature")
+        description = data.get("description", "")
+        domain = data.get("domain")
+        task_id = data.get("id")
+
+        result = api_client.create_task(
+            project=project,
+            task_type=task_type,
+            description=description,
+            domain=domain,
+            metadata={"source": "slack-bot", "original_id": task_id},
+        )
+        if result:
+            logger.info(f"Task synced to API: {task_id}")
+        else:
+            logger.warning(f"Failed to sync task to API: {task_id}")
+    except Exception as e:
+        # Non-fatal: API sync is best-effort during dual-write phase
+        logger.warning(f"API sync error: {e}")
+
+
 def _confirm_ba_and_upload(prompt, thread_ts, channel, session_id, lock):
     """Run confirm BA, then upload BA file and show Task ID."""
     try:
@@ -614,7 +643,7 @@ def _confirm_ba_and_upload(prompt, thread_ts, channel, session_id, lock):
                 except Exception:
                     pass
 
-        # Extract Task ID from result
+        # Extract Task ID and sync to API
         task_id_pattern = os.path.join(ATDD_HUB_PATH, f"tasks/{project}/active/*.json")
         task_files = sorted(globmod.glob(task_id_pattern), key=os.path.getmtime, reverse=True)
         if task_files:
@@ -624,6 +653,9 @@ def _confirm_ba_and_upload(prompt, thread_ts, channel, session_id, lock):
                 channel=channel, thread_ts=thread_ts,
                 text=f":label: *Task ID:* `{task_id}`\n\nDev can pick up this task with `git pull`.",
             )
+
+            # Sync task to API (Phase 2: dual-write)
+            _sync_task_to_api(task_files[0], project)
 
         # Git sync — push BA + requirement + task JSON to GitHub
         sync_err = git_sync(f"bot: BA confirmed — {conv.get('project', '?')}")
@@ -848,6 +880,7 @@ def handle_option_click(ack, body):
 
 if __name__ == "__main__":
     logger.info(f"ATDD Hub: {ATDD_HUB_PATH}")
+    logger.info(f"API: {api_client.API_BASE_URL} (reachable={api_client.health()})")
     logger.info(f"Claude model: {os.environ.get('CLAUDE_MODEL', 'claude-sonnet-4-6')}")
     logger.info(f"Projects: {_load_projects()}")
     logger.info(f"Active conversations: {len(state.keys())}")

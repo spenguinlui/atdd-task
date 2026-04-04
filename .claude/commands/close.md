@@ -10,11 +10,11 @@ description: 僅結案（更新任務狀態，不執行 Git Commit）
 
 ### Step 1: 檢查是否有可結案的任務
 
-```bash
-find tasks/*/active -name "*.json" 2>/dev/null
-```
+**MCP 優先**：呼叫 `atdd_task_list(status='gate')` 取得所有 gate 階段的任務。
 
-讀取每個任務 JSON，檢查：
+> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active -name "*.json"` 搜尋本地檔案。
+
+讀取任務資料，檢查：
 - `status` 是否為 `gate`
 - 是否有 gatekeeper 的 GO 決策記錄
 

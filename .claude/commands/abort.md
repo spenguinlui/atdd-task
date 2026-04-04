@@ -6,11 +6,9 @@ description: 放棄當前進行中的任務
 
 ## 檢查 Active 任務
 
-首先，檢查是否有進行中的任務：
+**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務，過濾出 status 不是 `completed`、`aborted`、`verified` 的 active 任務。
 
-```bash
-find tasks/*/active -name "*.json" 2>/dev/null
-```
+> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active -name "*.json"` 搜尋本地檔案。
 
 **如果沒有 active 任務：**
 ```markdown

@@ -93,7 +93,9 @@ Agents:
 
 ## Domain Health Gate（GO 後附加）
 
-Read `domain-health.json`（如存在），查詢任務 Domain 的健康度，影響結案建議：
+**MCP 優先**：`atdd_domain_list(project="{project}")` 查詢所有 Domain 健康度。Fallback：Read `domain-health.json`。
+
+查詢任務 Domain 的健康度，影響結案建議：
 
 | Domain 狀態 | 結案建議 |
 |-------------|---------|

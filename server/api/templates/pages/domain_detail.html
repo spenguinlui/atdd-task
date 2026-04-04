@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ domain_name }} — ATDD Dashboard{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h2>{{ domain_name }}</h2>
+  <p>Domain Diagnostic Report</p>
+</hgroup>
+
+<p><a href="/dashboard/domains">&larr; Back to Domain Health Map</a></p>
+
+{% if domain %}
+<!-- Health Card -->
+<div class="dashboard-grid">
+  <article class="metric-card">
+    <h3>Health Score</h3>
+    <p class="metric-value" style="color: {% if domain.status == 'healthy' %}#16a34a{% elif domain.status == 'degraded' %}#d97706{% else %}#dc2626{% endif %}">
+      {{ domain.health_score|round(0)|int if domain.health_score else '?' }}
+    </p>
+    <p class="metric-label">{{ domain.status or 'unknown' }} | {{ domain.project }}</p>
+  </article>
+  <article>
+    <h4>Health Dimensions</h4>
+    <div class="chart-container" style="height:250px;">
+      <canvas id="radarChart"></canvas>
+    </div>
+  </article>
+</div>
+
+<div class="dashboard-grid" style="margin-top:1.5rem;">
+  <article>
+    <h4>Fix Timeline</h4>
+    {% if fix_labels != '[]' %}
+    <div class="chart-container" style="height:200px;">
+      <canvas id="fixChart"></canvas>
+    </div>
+    {% else %}
+    <div class="empty-state">No fix tasks recorded</div>
+    {% endif %}
+  </article>
+  <article>
+    <h4>Knowledge Coverage</h4>
+    {% if knowledge_labels != '[]' %}
+    <div class="chart-container" style="height:200px;">
+      <canvas id="knowledgeChart"></canvas>
+    </div>
+    {% else %}
+    <div class="empty-state">No knowledge entries</div>
+    {% endif %}
+  </article>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No health data for this domain.</p>
+</div>
+{% endif %}
+
+<!-- Recent Tasks -->
+{% if tasks %}
+<h3 style="margin-top:2rem;">Recent Tasks</h3>
+<figure>
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Description</th><th>Status</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for t in tasks %}
+      <tr>
+        <td><span class="task-type task-type-{{ t.type }}">{{ t.type }}</span></td>
+        <td>{{ t.description or '—' }}</td>
+        <td>{{ t.status }}</td>
+        <td>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% endif %}
+
+<!-- Couplings -->
+{% if couplings %}
+<h3>Coupled Domains</h3>
+<figure>
+  <table>
+    <thead><tr><th>Domain</th><th>Co-occurrences</th></tr></thead>
+    <tbody>
+      {% for c in couplings %}
+      <tr>
+        <td>
+          <a href="/dashboard/domains/{{ c.domain_b if c.domain_a == domain_name else c.domain_a }}">
+            {{ c.domain_b if c.domain_a == domain_name else c.domain_a }}
+          </a>
+        </td>
+        <td>{{ c.co_occurrence_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</figure>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Radar
+const radarCtx = document.getElementById('radarChart');
+if (radarCtx) {
+  new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+      labels: {{ health_dims_labels|safe }},
+      datasets: [{
+        label: '{{ domain_name }}',
+        data: {{ health_dims_values|safe }},
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.15)',
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100 } } }
+  });
+}
+
+// Fix timeline
+const fixCtx = document.getElementById('fixChart');
+if (fixCtx) {
+  new Chart(fixCtx, {
+    type: 'line',
+    data: {
+      labels: {{ fix_labels|safe }},
+      datasets: [{ label: 'Fixes', data: {{ fix_counts|safe }}, borderColor: '#dc2626', tension: 0.3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+// Knowledge doughnut
+const knCtx = document.getElementById('knowledgeChart');
+if (knCtx) {
+  new Chart(knCtx, {
+    type: 'doughnut',
+    data: {
+      labels: {{ knowledge_labels|safe }},
+      datasets: [{ data: {{ knowledge_values|safe }}, backgroundColor: ['#2563eb','#7c3aed','#059669','#d97706'] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "atdd": {
+      "command": "server/mcp/.venv/bin/python3",
+      "args": ["server/mcp/server.py"],
+      "env": {
+        "ATDD_API_URL": "http://localhost:8000",
+        "ATDD_ORG": "00000000-0000-0000-0000-000000000001"
+      }
+    }
+  }
+}

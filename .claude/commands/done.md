@@ -8,7 +8,9 @@ description: 完整結案（Commit + 更新任務狀態）
 
 ## Step 1: 前置檢查
 
-搜尋 `tasks/*/active/*.json`，檢查 status=gate 且有 GO 決策
+**MCP 優先**：呼叫 `atdd_task_list(status='gate')` 取得所有 gate 階段的任務，檢查是否有 GO 決策。
+
+> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active/*.json` 搜尋本地檔案。
 
 沒有可結案任務 → 提示使用 `/status`
 多個 GO 任務 → AskUserQuestion 選擇

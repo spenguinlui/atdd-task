@@ -1,10 +1,38 @@
 # 任務 JSON 模板
 
-## 標準任務 JSON
+## 建立任務（Dual-Write：MCP + Local JSON）
+
+### Step A: 呼叫 MCP 建立任務（DB 為 Source of Truth）
+
+```
+atdd_task_create(
+  project: "{project}",
+  type: "{feature|fix|refactor|test}",
+  description: "{標題}",
+  metadata: {
+    "git": { "branch": "{selected_branch}" },
+    "workflow": { "mode": "guided", "currentAgent": "specist", "confidence": 0, "pendingAction": null },
+    "acceptance": { "profile": null, "testLayers": {}, "fixture": null, "results": {}, "verificationGuide": null },
+    "jira": { "issueKey": null, "url": null },
+    "context": { "background": "", "relatedDomains": [], "deletedFiles": [], "modifiedFiles": [], "changes": [], "commitHash": "" }
+  }
+)
+```
+
+- Fix 任務額外傳入 `causation` 參數（見下方 Causation 欄位說明）
+- 從回傳結果取得 `id` 作為任務 UUID
+
+> **MCP 失敗 Fallback**：如果 MCP tool 呼叫失敗（API 不可達），改用 `uuidgen | tr '[:upper:]' '[:lower:]'` 產生 UUID，僅建立本地 JSON。任務稍後可透過 MCP sync 補寫 DB。
+
+### Step B: 寫入本地 JSON（Backward Compat）
+
+使用 MCP 回傳的 `id` 作為檔名，寫入 `tasks/{project}/active/{id}.json`。
+
+本地 JSON 包含完整結構（DB 欄位 + metadata 欄位合併），供 subagent 讀取：
 
 ```json
 {
-  "id": "{uuid}",
+  "id": "{id from MCP response}",
   "type": "{feature|fix|refactor|test}",
   "description": "{標題}",
   "status": "requirement",
@@ -56,21 +84,45 @@
 }
 ```
 
+### Step C: 記錄 History（MCP）
+
+```
+atdd_task_add_history(
+  task_id: "{id}",
+  phase: "requirement",
+  status: "requirement",
+  note: "Task created via /{type} command"
+)
+```
+
+---
+
+## MCP Sync 原則
+
+> 所有對任務 JSON 的寫入，都要同步呼叫對應的 MCP tool：
+> - 欄位更新 → `atdd_task_update(task_id, ...changed_fields, metadata={...changed_metadata})`
+> - 階段轉移 → `atdd_task_update` + `atdd_task_add_history`
+> - Metrics → `atdd_task_add_metrics`
+>
+> MCP 呼叫失敗時，繼續本地操作，不阻斷流程。
+
+---
+
 ## Causation 欄位說明（Fix 任務專用）
 
 `causation` 用於追蹤 bug 的因果關係，在 specist 調查階段填寫：
 
 ```json
 "causation": {
-  "causedBy": {                    // 造成此 bug 的原始任務（調查後填寫）
-    "taskId": "a8a9f6d2-...",      //   原始任務 ID
-    "commitHash": "abc123",        //   造成問題的 commit
-    "description": "月結分帳功能"   //   原始任務描述
+  "causedBy": {
+    "taskId": "a8a9f6d2-...",
+    "commitHash": "abc123",
+    "description": "月結分帳功能"
   },
-  "rootCauseType": "feature-defect",  // feature-defect | fix-regression | legacy | unknown | environment | dependency
-  "discoveredIn": "production",       // production | staging | e2e | review | development
-  "discoveredAt": "2026-04-03T10:00:00Z",  // 問題被發現的時間
-  "timeSinceIntroduced": "32d"             // 自動計算：discoveredAt - causedBy.completedAt
+  "rootCauseType": "feature-defect",
+  "discoveredIn": "production",
+  "discoveredAt": "2026-04-03T10:00:00Z",
+  "timeSinceIntroduced": "32d"
 }
 ```
 
@@ -123,16 +175,20 @@
 
 **重要**：`requirementPath` 和 `baReportPath` 從 `epic.yml` 的 `requirement` 區塊取得。這些路徑確保子任務在新對話中仍能定位 Epic 層級的需求文件，維持業務規則的一致性。
 
+Epic 子任務建立時，`metadata` 額外包含 `epic` 欄位：
+```
+atdd_task_create(
+  ...standard_fields,
+  metadata: { ...standard_metadata, "epic": { "id": "...", "taskId": "...", ... } }
+)
+```
+
 ## 儲存位置
 
 ```
 tasks/{project}/active/{uuid}.json   # 進行中
 tasks/{project}/completed/{uuid}.json # 已完成
 tasks/{project}/failed/{uuid}.json   # 失敗
-```
-
-## 產生 UUID
-
-```bash
-uuidgen | tr '[:upper:]' '[:lower:]'
+tasks/{project}/deployed/{uuid}.json # 已部署待驗證
+tasks/{project}/escaped/{uuid}.json  # 生產問題
 ```

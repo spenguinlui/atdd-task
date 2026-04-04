@@ -10,16 +10,16 @@ description: 僅執行 Git Commit（不結案）
 
 ### Step 1: 檢查是否有進行中的任務
 
-```bash
-find tasks/*/active -name "*.json" 2>/dev/null
-```
+**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務，過濾出 active 任務（status 不是 `completed`、`aborted`、`verified`）。
 
-讀取任務 JSON，取得：
-- `projectId`：專案 ID
+> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active -name "*.json"` 搜尋本地檔案。
+
+從任務資料取得：
+- `projectId` / `project`：專案 ID
 - `description`：任務描述
 - `type`：任務類型
 - `domain`：Domain
-- `context.modifiedFiles`：變更的檔案
+- `context.modifiedFiles`：變更的檔案（從 metadata 或本地 JSON 取得）
 
 **如果沒有 active 任務：**
 
@@ -169,7 +169,9 @@ git rev-parse --short HEAD
 }
 ```
 
-> **注意**：任務可能有多次 commit（開發過程中），所以用 `commits` 陣列記錄。
+**MCP 同步**：`atdd_task_update(task_id, metadata={"context": {"commitHash": "{commit_hash}"}})`
+
+> **注意**：任務可能有多次 commit（開發過程中），所以本地 JSON 用 `commits` 陣列記錄。DB 的 metadata.context.commitHash 存最新的。
 
 ### Step 6: 輸出完成訊息
 

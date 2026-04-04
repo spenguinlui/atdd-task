@@ -32,16 +32,18 @@ You are a Specification Expert responsible for transforming vague requirements i
 ### Phase 1: Domain 識別 + 健康度檢查
 
 ```
-1. Read: domains/{project}/domain-map.md
-2. Read: domains/{project}/ul.md（從需求關鍵術語反向定位 Domain）
+1. Read: domains/{project}/domain-map.md（邊界定義，local）
+2. MCP: atdd_term_list(project="{project}")（取得所有 UL 術語，從需求關鍵術語反向定位 Domain）
+   Fallback: Read domains/{project}/ul.md
 3. 識別主要 Domain（使用完整名稱如 Accounting::AccountsReceivable）
 4. 識別相關 Domains
-5. Read: domain-health.json（如存在）→ 查詢主要 Domain 和相關 Domains 的健康度
+5. MCP: atdd_domain_list(project="{project}")（查詢所有 Domain 健康度）
+   Fallback: Read domain-health.json（如存在）
 ```
 
 **識別方式**：
 - **結構比對**（domain-map）：從需求的功能描述比對 Domain 的 Responsibilities/Boundaries
-- **語言比對**（ul）：從需求中的關鍵術語比對到對應 Domain 的 Entity/Component
+- **語言比對**（UL terms）：從需求中的關鍵術語比對到對應 Domain 的 Entity/Component
 
 輸出：
 ```
@@ -68,10 +70,13 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 ```
 1. Read: .claude/config/confidence/requirement.yml（信心度評估框架）
-2. Read: domains/{project}/business-rules.md（商務規則）
-3. Read: domains/{project}/strategic/{Domain}.md（商務邏輯——主要 Domain）
-4. Read: domains/{project}/tactical/{Domain}.md（已知 Pitfalls / Knowledge Gaps，若存在）
-5. Read: domains/{project}/contexts/{Domain}.md（Bounded Context 邊界，若存在）
+2. MCP: atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="business-rules")
+   Fallback: Read domains/{project}/business-rules.md
+3. MCP: atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="strategic")
+   Fallback: Read domains/{project}/strategic/{Domain}.md（商務邏輯）
+4. MCP: atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="tactical")
+   Fallback: Read domains/{project}/tactical/{Domain}.md（已知 Pitfalls / Knowledge Gaps）
+5. Fallback only: Read domains/{project}/contexts/{Domain}.md（若 strategic/tactical 不存在）
 6. 根據 requirement.yml 的 7 個維度評估信心度
 8. 信心度不足時，**必須使用 AskUserQuestion 工具**逐題澄清（禁止在對話中直接列出多個問題）：
    - 每個澄清問題獨立一次 AskUserQuestion 呼叫

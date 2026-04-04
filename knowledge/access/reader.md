@@ -1,16 +1,17 @@
 # Knowledge Reader Protocol
 
 > **Purpose**: 定義 Agent 讀取 domain 知識的標準模式。
+> 
+> **MCP 優先**：所有讀取優先使用 MCP tools（從 DB 取得），local 檔案為 fallback。
+> MCP 不可用時自動降級到本地檔案讀取。
 
 ---
 
 ## 讀取前準備
 
-1. 確認專案目錄存在：`domains/{project}/`
-2. 確認 Domain 知識文件存在（優先順序）：
-   - `domains/{project}/strategic/{domain}.md` + `domains/{project}/tactical/{domain}.md`（新格式）
-   - `domains/{project}/contexts/{domain}.md`（舊格式，fallback）
-3. 了解知識文件結構（見下方）
+1. 確認 MCP 可用：嘗試 `atdd_health()`
+2. 如果 MCP 可用 → 使用 MCP 讀取路徑（見各操作的「MCP」區塊）
+3. 如果 MCP 不可用 → 使用 Local 讀取路徑（見各操作的「Local Fallback」區塊）
 
 ---
 
@@ -98,52 +99,22 @@
 - 含完整技術細節
 - 讀者：specist、coder、style-reviewer
 
-### contexts/{domain}.md（深度知識）— ⚠️ DEPRECATED
+### contexts/{domain}.md（深度知識）— DEPRECATED
 
-```markdown
-## Domain Overview
-...
-
-## Core Concepts
-...
-
-## Domain Model
-### Aggregates
-### Entities
-### Value Objects
-### Domain Services
-...
-
-## Business Rules
-...
-
-## Domain Events
-...
-```
-
-**特點**：
-- 固定的章節結構
-- 每個章節以 `## SectionName` 開頭
-- **待遷移至 strategic/ + tactical/**
+> 待遷移至 strategic/ + tactical/。未遷移的專案仍使用此格式。
 
 ### domain-map.md（領域邊界）
 
 ```markdown
 ## Domain Overview
 ...
-
 ## Domain Boundaries
 ### Domain: DomainName
 ...
-
 ## Domain Relationships
 ### Context Mapping
 ...
 ```
-
-**特點**：
-- 包含 Mermaid 圖表
-- Context Mapping 模式定義
 
 ---
 
@@ -151,51 +122,74 @@
 
 ### 1. 術語查詢
 
+#### 查詢 Domain 相關術語
+
+**MCP**：
+```
+atdd_term_list(project="{project}", domain="{domain}")
+```
+回傳所有術語含 english_term, chinese_term, context, source。
+
+**Local Fallback**：
+```
+路徑：domains/{project}/ul.md
+方法：搜尋 "**Domain**: {domain}" 收集所有匹配的術語區塊
+```
+
 #### 查詢單一術語
 
+**MCP**：
 ```
-目標：找到特定術語的定義
+atdd_term_list(project="{project}")
+```
+從結果中篩選 english_term 匹配的項目。
+
+**Local Fallback**：
+```
 路徑：domains/{project}/ul.md
 方法：
   1. 搜尋 "### {TermName}"
   2. 讀取到下一個 "### " 或 "## " 之前的所有內容
 ```
 
-**範例**：
-```bash
-# 使用 Grep 找到術語位置
-grep -n "### ProjectFund" domains/sf_project/ul.md
-
-# 使用 Read 讀取該區塊
-Read domains/sf_project/ul.md, offset={line}, limit=20
-```
-
-#### 查詢 Domain 相關術語
-
-```
-目標：找到所有屬於特定 Domain 的術語
-路徑：domains/{project}/ul.md
-方法：
-  1. 搜尋 "**Domain**: {domain}" 或類型欄位
-  2. 收集所有匹配的術語區塊
-```
-
 #### 列出所有術語
 
+**MCP**：
 ```
-目標：獲取術語清單（不含完整定義）
+atdd_term_list(project="{project}")
+```
+
+**Local Fallback**：
+```
 路徑：domains/{project}/ul.md
-方法：
-  1. 搜尋所有 "### " 開頭的行
-  2. 提取術語名稱
+方法：搜尋所有 "### " 開頭的行，提取術語名稱
 ```
 
 ### 2. 規則查詢
 
+#### 依 Domain 查詢
+
+**MCP**：
+```
+atdd_knowledge_list(project="{project}", domain="{domain}", file_type="business-rules")
+```
+
+**Local Fallback**：
+```
+路徑：domains/{project}/business-rules.md
+方法：搜尋 "**Domain**: {domain}"，收集所有匹配的規則區塊
+```
+
 #### 依 ID 查詢
 
+**MCP**：
 ```
-目標：找到特定規則
+atdd_knowledge_list(project="{project}", file_type="business-rules")
+```
+從結果中搜尋 content 包含目標 ID 的項目。
+
+**Local Fallback**：
+```
 路徑：domains/{project}/business-rules.md
 方法：
   1. 搜尋 "**ID**: `{rule_id}`"
@@ -203,20 +197,10 @@ Read domains/sf_project/ul.md, offset={line}, limit=20
   3. 向下讀取到下一個 "#### " 或 "### "
 ```
 
-#### 依 Domain 查詢
-
-```
-目標：找到特定 Domain 的所有規則
-路徑：domains/{project}/business-rules.md
-方法：
-  1. 搜尋 "**Domain**: {domain}"
-  2. 收集所有匹配的規則區塊
-```
-
 #### 依類別查詢
 
+**Local**（MCP 無類別欄位，用 local 更直接）：
 ```
-目標：找到特定類別的所有規則
 路徑：domains/{project}/business-rules.md
 方法：
   1. 找到 "### {N}. {CategoryName}" 區塊
@@ -236,52 +220,62 @@ Read domains/sf_project/ul.md, offset={line}, limit=20
 
 ### 3. 深度知識查詢
 
-#### 商務邏輯
+#### 商務邏輯（Strategic）
 
+**MCP**：
 ```
-目標：讀取 Domain 的商務邏輯知識
+atdd_knowledge_list(project="{project}", domain="{domain}", file_type="strategic")
+```
+回傳段落級內容。如需完整文件，合併所有段落。
+
+**Local Fallback**：
+```
 路徑（優先）：domains/{project}/strategic/{domain}.md
 路徑（fallback）：domains/{project}/contexts/{domain}.md
 方法：Read 整個文件
-
-常用章節（strategic）：
-- 商務目的
-- 商務能力
-- 範疇定義
-- 狀態流程
-- 商務規則
-- 商務依賴
 ```
 
-#### 系統設計
+#### 系統設計（Tactical）
 
+**MCP**：
 ```
-目標：讀取 Domain 的技術實作知識
+atdd_knowledge_list(project="{project}", domain="{domain}", file_type="tactical")
+```
+
+**Local Fallback**：
+```
 路徑（優先）：domains/{project}/tactical/{domain}.md
 路徑（fallback）：domains/{project}/contexts/{domain}.md
 方法：Read 整個文件
-
-常用章節（tactical）：
-- Domain Model（Aggregates、Entities、Value Objects）
-- Use Cases
-- Integration 技術細節
-- Patterns & Anti-Patterns
-- Common Pitfalls
 ```
 
-#### 向下相容
+> **建議**：完整文件讀取（整個 strategic 或 tactical）時，local 檔案讀取通常更高效。MCP 更適合特定 section 的查詢。
 
+### 4. Domain Health 查詢
+
+**MCP**（優先）：
 ```
-如果 strategic/ 或 tactical/ 不存在，fallback 到 contexts/{domain}.md。
-未遷移的專案（sf_project、stock_commentary）仍使用 contexts/ 格式。
+atdd_domain_list(project="{project}")
+```
+回傳所有 domain 的 health_score, status, fix_rate, coupling_rate, escape_rate。
+
+查詢單一 domain：
+```
+atdd_domain_get(domain_id="{domain_uuid}")
 ```
 
-### 4. 邊界查詢
+**Local Fallback**：
+```
+路徑：domain-health.json（~/atdd-hub/domain-health.json）
+方法：Read 後查詢 domains.{domain_name}
+```
+
+### 5. 邊界查詢
 
 #### Domain 邊界
 
+**Local**（domain-map 未存入 DB，用 local）：
 ```
-目標：讀取 Domain 的邊界定義
 路徑：domains/{project}/domain-map.md
 方法：
   1. 搜尋 "### Domain: {DomainName}"
@@ -290,13 +284,16 @@ Read domains/sf_project/ul.md, offset={line}, limit=20
 
 #### 跨域關係
 
+**MCP**：
 ```
-目標：找到兩個 Domain 之間的關係
+atdd_coupling_list(project="{project}")
+```
+回傳 domain 間的 co-occurrence 排序。
+
+**Local Fallback**：
+```
 路徑：domains/{project}/domain-map.md
-方法：
-  1. 在 "## Domain Relationships" 區塊搜尋
-  2. 找到同時包含 {DomainA} 和 {DomainB} 的區塊
-  3. 識別 Context Mapping 模式
+方法：在 "## Domain Relationships" 區塊搜尋
 ```
 
 ---
@@ -345,7 +342,7 @@ Read domains/sf_project/ul.md, offset={line}, limit=20
 
 ## 快取策略
 
-- **同一對話內**：相同查詢結果可快取，避免重複讀取
+- **同一對話內**：相同 MCP 查詢結果可快取，避免重複呼叫
 - **檔案變更後**：快取失效，需重新讀取
 - **跨對話**：不快取，每次重新讀取確保最新
 
@@ -355,6 +352,7 @@ Read domains/sf_project/ul.md, offset={line}, limit=20
 
 | 情況 | 處理方式 |
 |------|----------|
+| MCP 不可用 | 降級到 local 檔案讀取，記錄警告 |
 | 專案目錄不存在 | 提示用戶確認專案 ID |
 | Context 文件不存在 | 詢問是否建立新文件 |
 | 術語/規則不存在 | 標記為 Knowledge Gap |

@@ -19,11 +19,9 @@ description: 標記任務使用人工 E2E 驗證（跳過自動化 E2E 測試）
 
 ### Step 1：找到當前任務
 
-```
-1. 搜尋 tasks/*/active/*.json
-2. 找到當前進行中的任務（通常是最近操作的）
-3. 如果有多個任務，詢問用戶要選擇哪個
-```
+**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務，過濾出 active 任務。Fallback：搜尋 `tasks/*/active/*.json`。
+
+找到當前進行中的任務（通常是最近操作的）。如果有多個任務，詢問用戶要選擇哪個。
 
 ### Step 2：檢查任務狀態
 
@@ -37,8 +35,9 @@ description: 標記任務使用人工 E2E 驗證（跳過自動化 E2E 測試）
 - 如果 status 不在 testing/development → 提示「只能在 testing 或 development 階段使用」
 ```
 
-### Step 3：更新任務 JSON
+### Step 3：更新任務 JSON + MCP 同步
 
+更新本地 JSON：
 ```json
 {
   "acceptance": {
@@ -53,6 +52,8 @@ description: 標記任務使用人工 E2E 驗證（跳過自動化 E2E 測試）
   }
 }
 ```
+
+**MCP 同步**：`atdd_task_update(task_id, metadata={"acceptance": {"e2eMode": "manual", "results": {"e2e": {"status": "manual_pending"}}}})`
 
 ### Step 4：繼續流程
 

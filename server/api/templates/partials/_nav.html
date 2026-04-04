@@ -1,0 +1,9 @@
+<ul>
+  <li><strong>ATDD Dashboard</strong></li>
+</ul>
+<ul>
+  <li><a href="/dashboard/" {% if active_page == 'overview' %}aria-current="page"{% endif %}>Overview</a></li>
+  <li><a href="/dashboard/domains" {% if active_page == 'domains' %}aria-current="page"{% endif %}>Domain Health</a></li>
+  <li><a href="/dashboard/tasks" {% if active_page == 'tasks' %}aria-current="page"{% endif %}>Task Board</a></li>
+  <li><a href="/dashboard/causation" {% if active_page == 'causation' %}aria-current="page"{% endif %}>Causation</a></li>
+</ul>
