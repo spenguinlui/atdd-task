@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TASK_DIR="$(dirname "$SCRIPT_DIR")"
+TASK_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"  # infrastructure/scripts/ → project root
 INSTANCES_FILE="$TASK_DIR/.instances"
 
 if [ ! -f "$INSTANCES_FILE" ]; then
@@ -45,6 +45,9 @@ while IFS= read -r line; do
   rsync -a --delete "$TASK_DIR/knowledge/" "$target/knowledge/"
   rsync -a --delete "$TASK_DIR/debug-knowledge/" "$target/debug-knowledge/"
 
+  # === Profiles（角色設定）===
+  rsync -a --delete "$TASK_DIR/profiles/" "$target/profiles/"
+
   # === acceptance (保留實例的 fixtures) ===
   rsync -a --delete --exclude='fixtures/' \
     "$TASK_DIR/acceptance/" "$target/acceptance/"
@@ -74,6 +77,7 @@ while IFS= read -r line; do
   cd "$target"
   FRAMEWORK_PATHS=(
     .claude/
+    profiles/
     acceptance/
     style-guides/
     knowledge/

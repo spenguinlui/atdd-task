@@ -5,7 +5,7 @@ import os
 import sys
 
 # Add parent directory for migration runner
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "db"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "data", "db"))
 
 from migrate import run_migrations
 

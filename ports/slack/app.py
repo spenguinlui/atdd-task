@@ -239,7 +239,7 @@ def handle_feature_submit(ack, body, client):
     logger.info(f"Feature started by {user}: project={project}, desc={description[:60]}")
 
     # Load PM specist agent definition
-    specist_path = os.path.join(ATDD_HUB_PATH, "server/agents/specist-pm.md")
+    specist_path = os.path.join(ATDD_HUB_PATH, "profiles/pm/agents/specist-pm.md")
     specist_def = ""
     try:
         with open(specist_path) as f:

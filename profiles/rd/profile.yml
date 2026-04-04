@@ -1,0 +1,10 @@
+name: rd
+display_name: "Developer"
+description: "完整 ATDD 開發流程，透過 Claude Code CLI 互動"
+
+# 使用 Core (.claude/) 預設，不覆寫任何 agent
+# 所有 commands 都可用
+
+settings:
+  confidence_threshold: 95
+  interface: claude-code

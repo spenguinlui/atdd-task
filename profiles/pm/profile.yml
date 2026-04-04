@@ -1,0 +1,19 @@
+name: pm
+display_name: "Product Manager"
+description: "需求收斂與知識討論，透過 Slack Bot 互動"
+
+# 繼承 Core (.claude/) 的所有定義，以下為覆寫
+agents:
+  specist: profiles/pm/agents/specist-pm.md   # PM 專用 specist 變體
+
+hooks:
+  confidence-gate: profiles/pm/hooks/pm-confidence-gate.sh
+
+# PM 目前可用的 commands（Slack Bot 限制）
+allowed_commands:
+  - /feature
+  - /knowledge
+
+settings:
+  confidence_threshold: 95
+  interface: slack
