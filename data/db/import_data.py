@@ -29,7 +29,9 @@ DEFAULT_DB_URL = os.environ.get(
     "DATABASE_URL", "postgresql://atdd:atdd@localhost:5432/atdd"
 )
 DEFAULT_HUB = os.environ.get("ATDD_HUB_PATH", os.path.expanduser("~/atdd-hub"))
-DEFAULT_ORG = "00000000-0000-0000-0000-000000000001"
+DEFAULT_ORG = os.environ.get(
+    "ATDD_ORG", "00000000-0000-0000-0000-000000000001"
+)
 
 # Map task JSON status values → DB enum
 STATUS_MAP = {
@@ -525,10 +527,16 @@ def main():
     parser.add_argument("--tasks-only", action="store_true")
     parser.add_argument("--knowledge-only", action="store_true")
     parser.add_argument("--health-only", action="store_true")
+    parser.add_argument("--org", default=DEFAULT_ORG, help="Organization ID")
     args = parser.parse_args()
+
+    # Allow --org to override the global DEFAULT_ORG
+    global DEFAULT_ORG
+    DEFAULT_ORG = args.org
 
     logger.info(f"Hub: {args.hub}")
     logger.info(f"DB:  {args.db}")
+    logger.info(f"Org: {DEFAULT_ORG}")
     if args.dry_run:
         logger.info("DRY RUN — no writes")
 
