@@ -45,3 +45,6 @@ acceptance/fixtures/
 .DS_Store
 .claude/settings.local.json
 poc/.venv/
+
+# Design references (圖片檔，不納入版控)
+design/references/
