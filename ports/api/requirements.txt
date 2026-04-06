@@ -1,4 +1,4 @@
-fastapi>=0.115,<1
+fastapi>=0.115,<0.136
 uvicorn[standard]>=0.34,<1
 psycopg2-binary>=2.9,<3
 python-dotenv>=1.0,<2

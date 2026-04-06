@@ -190,8 +190,8 @@ def overview(request: Request, period: str = "30d", project: str = "", org: str 
     )
 
     if is_htmx:
-        return templates.TemplateResponse("pages/_overview_metrics.html", context=ctx)
-    return templates.TemplateResponse("pages/overview.html", context=ctx)
+        return templates.TemplateResponse("pages/_overview_metrics.html", ctx)
+    return templates.TemplateResponse("pages/overview.html", ctx)
 
 
 @router.get("/domains", response_class=HTMLResponse)
@@ -221,7 +221,7 @@ def domain_health(request: Request, project: str = "", org: str = ""):
         """, params)
         couplings = cur.fetchall()
 
-    return templates.TemplateResponse("pages/domain_health.html", context=_base_ctx(
+    return templates.TemplateResponse("pages/domain_health.html", _base_ctx(
         request, "domains", org_id, org,
         project=project, projects=projects, domains=domains, couplings=couplings,
     ))
@@ -286,7 +286,7 @@ def domain_detail(request: Request, domain_name: str, project: str = "", org: st
             "Escape Rate": float(domain.get("escape_rate") or 0) * 100,
         }
 
-    return templates.TemplateResponse("pages/domain_detail.html", context=_base_ctx(
+    return templates.TemplateResponse("pages/domain_detail.html", _base_ctx(
         request, "domains", org_id, org,
         domain_name=domain_name, domain=domain, tasks=tasks,
         knowledge=knowledge, couplings=couplings,
@@ -341,8 +341,8 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
     )
 
     if is_htmx:
-        return templates.TemplateResponse("pages/_task_board_inner.html", context=ctx)
-    return templates.TemplateResponse("pages/task_board.html", context=ctx)
+        return templates.TemplateResponse("pages/_task_board_inner.html", ctx)
+    return templates.TemplateResponse("pages/task_board.html", ctx)
 
 
 @router.get("/tasks/{task_id}/detail", response_class=HTMLResponse)
@@ -360,7 +360,7 @@ def task_detail(request: Request, task_id: str, org: str = ""):
         )
         history = cur.fetchall()
 
-    return templates.TemplateResponse("partials/_task_modal.html", context={
+    return templates.TemplateResponse("partials/_task_modal.html", {
         "request": request,
         "task": task,
         "history": history,
@@ -416,7 +416,7 @@ def causation_explorer(request: Request, project: str = "", org: str = ""):
             "created_at": t["created_at"],
         })
 
-    return templates.TemplateResponse("pages/causation.html", context=_base_ctx(
+    return templates.TemplateResponse("pages/causation.html", _base_ctx(
         request, "causation", org_id, org,
         project=project, projects=projects, chains=chains,
     ))
