@@ -60,13 +60,9 @@ async def api_key_middleware(request: Request, call_next):
             content={"detail": "Invalid or missing API key"},
         )
 
-    response = await call_next(request)
-
-    # If authenticated via query param, set cookie so subsequent pages work
+    # If authenticated via query param and no cookie yet → set cookie and redirect to clean URL
     if request.query_params.get("api_key") and not request.cookies.get("atdd_key"):
-        # Strip api_key from URL and redirect with cookie set
         clean_url = str(request.url).split("?")[0]
-        # Keep other query params
         other_params = {k: v for k, v in request.query_params.items() if k != "api_key"}
         if other_params:
             clean_url += "?" + "&".join(f"{k}={v}" for k, v in other_params.items())
@@ -74,7 +70,7 @@ async def api_key_middleware(request: Request, call_next):
         redirect.set_cookie("atdd_key", API_KEY, httponly=True, secure=True, samesite="lax", max_age=86400 * 30)
         return redirect
 
-    return response
+    return await call_next(request)
 
 # Static files
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
