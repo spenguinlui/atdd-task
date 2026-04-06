@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -48,15 +48,33 @@ async def api_key_middleware(request: Request, call_next):
     if any(path.startswith(p) for p in PUBLIC_PATHS):
         return await call_next(request)
 
-    # Check API key from header or query param
-    key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    # Check API key: header > query param > cookie
+    key = (
+        request.headers.get("X-API-Key")
+        or request.query_params.get("api_key")
+        or request.cookies.get("atdd_key")
+    )
     if key != API_KEY:
         return JSONResponse(
             status_code=401,
             content={"detail": "Invalid or missing API key"},
         )
 
-    return await call_next(request)
+    response = await call_next(request)
+
+    # If authenticated via query param, set cookie so subsequent pages work
+    if request.query_params.get("api_key") and not request.cookies.get("atdd_key"):
+        # Strip api_key from URL and redirect with cookie set
+        clean_url = str(request.url).split("?")[0]
+        # Keep other query params
+        other_params = {k: v for k, v in request.query_params.items() if k != "api_key"}
+        if other_params:
+            clean_url += "?" + "&".join(f"{k}={v}" for k, v in other_params.items())
+        redirect = RedirectResponse(clean_url, status_code=302)
+        redirect.set_cookie("atdd_key", API_KEY, httponly=True, secure=True, samesite="lax", max_age=86400 * 30)
+        return redirect
+
+    return response
 
 # Static files
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
