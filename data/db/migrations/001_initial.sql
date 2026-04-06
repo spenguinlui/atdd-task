@@ -199,8 +199,7 @@ CREATE TRIGGER trg_organizations_updated BEFORE UPDATE ON organizations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_tasks_updated BEFORE UPDATE ON tasks
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER trg_domains_updated BEFORE UPDATE ON domains
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+-- domains uses calculated_at instead of updated_at, no trigger needed
 CREATE TRIGGER trg_knowledge_entries_updated BEFORE UPDATE ON knowledge_entries
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_knowledge_terms_updated BEFORE UPDATE ON knowledge_terms

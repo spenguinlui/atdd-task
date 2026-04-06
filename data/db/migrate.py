@@ -47,7 +47,8 @@ def run_migrations(db_url: str):
 
     pending = []
     for f in files:
-        version = os.path.basename(f).split("_")[0]  # "001"
+        # Version is the full filename without .sql extension (e.g. "001_initial")
+        version = os.path.basename(f).replace(".sql", "")
         if version not in applied:
             pending.append((version, f))
 
@@ -71,9 +72,12 @@ def run_migrations(db_url: str):
                 conn.autocommit = True
                 cur = conn.cursor()
                 for stmt in sql.split(";"):
-                    stmt = stmt.strip()
-                    if stmt and not stmt.startswith("--"):
-                        cur.execute(stmt)
+                    # Strip comments and whitespace
+                    lines = [l for l in stmt.strip().splitlines()
+                             if l.strip() and not l.strip().startswith("--")]
+                    clean = "\n".join(lines).strip()
+                    if clean:
+                        cur.execute(clean)
                 conn.autocommit = False
             else:
                 cur = conn.cursor()
@@ -101,10 +105,9 @@ def show_status(db_url: str):
     print(f"Applied: {len(applied)} migration(s)\n")
 
     for f in files:
-        version = os.path.basename(f).split("_")[0]
-        name = os.path.basename(f)
+        version = os.path.basename(f).replace(".sql", "")
         status = "✅" if version in applied else "⬜"
-        print(f"  {status} {name}")
+        print(f"  {status} {version}")
 
     conn.close()
 

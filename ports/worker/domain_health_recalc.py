@@ -155,16 +155,20 @@ def recalculate(project: str | None = None, org_id: str = DEFAULT_ORG,
 
         status = "healthy" if health_score >= 70 else ("degraded" if health_score >= 40 else "critical")
 
+        def _clamp(val, precision=4):
+            """Clamp to fit NUMERIC(5,4): max 9.9999."""
+            return min(round(val, precision), 9.9999)
+
         result = {
             "domain": domain,
             "project": proj,
             "health_score": health_score,
             "status": status,
-            "fix_rate": round(raw_fix_rate, 2) if raw_fix_rate != float("inf") else 999,
-            "coupling_rate": round(raw_coupling, 2),
-            "change_frequency": round(raw_change_freq, 2),
-            "knowledge_coverage": round(existing_docs / 4, 2),
-            "escape_rate": round(raw_escape_rate, 2),
+            "fix_rate": _clamp(raw_fix_rate) if raw_fix_rate != float("inf") else 9.9999,
+            "coupling_rate": _clamp(raw_coupling),
+            "change_frequency": _clamp(raw_change_freq),
+            "knowledge_coverage": _clamp(existing_docs / 4),
+            "escape_rate": _clamp(raw_escape_rate),
         }
         results.append(result)
 

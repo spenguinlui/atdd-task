@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 API_BASE_URL = os.environ.get("ATDD_API_URL", "http://localhost:8000")
+API_KEY = os.environ.get("ATDD_API_KEY", "")
 DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 
 
@@ -33,6 +34,8 @@ def request(method: str, path: str, data: dict | None = None,
     body = json.dumps(data, default=str).encode() if data else None
     req = Request(url, data=body, method=method)
     req.add_header("Content-Type", "application/json")
+    if API_KEY:
+        req.add_header("X-API-Key", API_KEY)
 
     try:
         with urlopen(req, timeout=30) as resp:
