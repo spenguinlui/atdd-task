@@ -12,7 +12,13 @@ from typing import Optional
 from fastapi import APIRouter, Query, BackgroundTasks
 
 # Allow importing worker modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "worker"))
+# Local: ports/api/routers/../../worker → ports/worker
+# Docker: /app/routers/../../worker doesn't exist, use /app/worker (volume mount)
+_local_worker = os.path.join(os.path.dirname(__file__), "..", "..", "worker")
+_docker_worker = os.path.join(os.path.dirname(__file__), "..", "worker")
+for p in [_local_worker, _docker_worker]:
+    if os.path.isdir(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
 router = APIRouter()
 
