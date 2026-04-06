@@ -16,6 +16,7 @@ from urllib.error import HTTPError, URLError
 logger = logging.getLogger("api-client")
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000")
+API_KEY = os.environ.get("API_KEY", "")
 DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 
 
@@ -31,6 +32,8 @@ def _request(method: str, path: str, data: dict | None = None,
     body = json.dumps(data).encode() if data else None
     req = Request(url, data=body, method=method)
     req.add_header("Content-Type", "application/json")
+    if API_KEY:
+        req.add_header("X-API-Key", API_KEY)
 
     try:
         with urlopen(req, timeout=30) as resp:

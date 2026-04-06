@@ -2,9 +2,10 @@
 {% block title %}{{ domain_name }} — ATDD Dashboard{% endblock %}
 
 {% block content %}
+{% set meta = domain.metadata if domain and domain.metadata else {} %}
 <hgroup>
-  <h2>{{ domain_name }}</h2>
-  <p>Domain Diagnostic Report</p>
+  <h2>{{ meta.get('chinese_name', '') }}{% if meta.get('chinese_name') %} {% endif %}{{ domain_name }}</h2>
+  <p>{% if meta.get('description') %}{{ meta.get('description') }}{% else %}Domain Diagnostic Report{% endif %}</p>
 </hgroup>
 
 <p><a href="/dashboard/domains">&larr; Back to Domain Health Map</a></p>
@@ -17,7 +18,7 @@
     <p class="metric-value" style="color: {% if domain.status == 'healthy' %}#16a34a{% elif domain.status == 'degraded' %}#d97706{% else %}#dc2626{% endif %}">
       {{ domain.health_score|round(0)|int if domain.health_score else '?' }}
     </p>
-    <p class="metric-label">{{ domain.status or 'unknown' }} | {{ domain.project }}</p>
+    <p class="metric-label">{{ domain.status or 'unknown' }} | {{ domain.project }}{% if meta.get('domain_type') %} · {{ meta.get('domain_type') }}{% endif %}</p>
   </article>
   <article>
     <h4>Health Dimensions</h4>

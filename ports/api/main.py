@@ -4,12 +4,19 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from db import init_pool, close_pool
 from routers import tasks, domains, reports, knowledge, views, events, workers
+
+# ── API Key Authentication ──
+API_KEY = os.environ.get("API_KEY", "")
+
+# Paths that don't require authentication
+PUBLIC_PATHS = ("/health", "/static/", "/docs", "/openapi.json", "/redoc")
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -25,9 +32,31 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ATDD API",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    """Require API key for all /api/ and /dashboard/ routes when API_KEY is set."""
+    if not API_KEY:
+        # No key configured = development mode, skip auth
+        return await call_next(request)
+
+    path = request.url.path
+    if any(path.startswith(p) for p in PUBLIC_PATHS):
+        return await call_next(request)
+
+    # Check API key from header or query param
+    key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if key != API_KEY:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid or missing API key"},
+        )
+
+    return await call_next(request)
 
 # Static files
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")

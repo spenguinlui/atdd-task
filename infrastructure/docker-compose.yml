@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: atdd
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atdd}
     ports:
-      - "${DB_PORT:-5433}:5432"
+      # Expose to localhost only (for SSH tunnel from local dev)
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -22,8 +23,9 @@ services:
     env_file: .env
     environment:
       - DATABASE_URL=postgresql://atdd:${POSTGRES_PASSWORD:-atdd}@db:5432/atdd
+      - API_KEY=${API_KEY:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       # Mount data/db for migrations
       - ../data/db:/app/db:ro
@@ -40,9 +42,10 @@ services:
     environment:
       - ATDD_HUB_PATH=/app/atdd-hub
       - API_BASE_URL=http://api:8000
+      - API_KEY=${API_KEY:-}
     volumes:
       # atdd-hub repo (server clone, single writer)
-      - ${ATDD_HUB_PATH:-/opt/atdd-hub}:/app/atdd-hub
+      - ${ATDD_HUB_PATH:-/home/ubuntu/atdd-hub}:/app/atdd-hub
       # Claude CLI session persistence (claude login + conversation sessions)
       - claude-data:/home/app/.claude
     depends_on:
@@ -80,7 +83,6 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - api
-      - bot
 
 volumes:
   pgdata:
