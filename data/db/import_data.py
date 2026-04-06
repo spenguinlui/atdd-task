@@ -520,6 +520,8 @@ def import_domain_health(conn, hub_path: str, dry_run: bool = False) -> int:
 
 
 def main():
+    global DEFAULT_ORG
+
     parser = argparse.ArgumentParser(description="Import atdd-hub data into PostgreSQL")
     parser.add_argument("--hub", default=DEFAULT_HUB, help="atdd-hub path")
     parser.add_argument("--db", default=DEFAULT_DB_URL, help="Database URL")
@@ -530,8 +532,6 @@ def main():
     parser.add_argument("--org", default=DEFAULT_ORG, help="Organization ID")
     args = parser.parse_args()
 
-    # Allow --org to override the global DEFAULT_ORG
-    global DEFAULT_ORG
     DEFAULT_ORG = args.org
 
     logger.info(f"Hub: {args.hub}")
