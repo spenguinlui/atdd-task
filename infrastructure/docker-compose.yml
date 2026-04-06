@@ -24,6 +24,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://atdd:${POSTGRES_PASSWORD:-atdd}@db:5432/atdd
       - API_KEY=${API_KEY:-}
+      - ATDD_ORG=${ATDD_ORG:-00000000-0000-0000-0000-000000000001}
+      - REMOTE_DASHBOARD_URL=${REMOTE_DASHBOARD_URL:-}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

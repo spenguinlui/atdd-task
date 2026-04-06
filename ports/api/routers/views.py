@@ -1,28 +1,29 @@
-"""Dashboard HTML page routes — server-rendered with Jinja2 + HTMX."""
+"""Dashboard HTML page routes — server-rendered with Jinja2 + HTMX.
+
+Each deployment (local / server) reads its own DB only.
+Cross-environment access is via org switcher URL redirect.
+"""
 
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from db import get_cursor, ORG_PERSONAL, ORG_COMPANY, DATABASE_URL_COMPANY
+from db import get_cursor, ORG_PERSONAL, ORG_COMPANY
 
 router = APIRouter()
 
-DEFAULT_ORG = ORG_PERSONAL
+# Which org does THIS deployment serve?
+LOCAL_ORG = os.environ.get("ATDD_ORG", ORG_PERSONAL)
 
-# Available orgs for the switcher
-ORGS = [
-    {"id": ORG_PERSONAL, "name": "個人", "slug": "personal"},
-]
-# Only add company org if remote DB is configured
-if DATABASE_URL_COMPANY:
-    ORGS.append({"id": ORG_COMPANY, "name": "公司", "slug": "company"})
+# Remote dashboard URL for org switcher (empty = no switcher)
+REMOTE_DASHBOARD_URL = os.environ.get("REMOTE_DASHBOARD_URL", "")
 
 # Status → Kanban column mapping
 COLUMN_MAP = {
@@ -54,7 +55,6 @@ PERIOD_DAYS = {"7d": 7, "30d": 30, "90d": 90, "all": None}
 
 
 def _json_serial(obj):
-    """JSON serializer for datetime/UUID."""
     if isinstance(obj, datetime):
         return obj.isoformat()
     if isinstance(obj, UUID):
@@ -62,19 +62,11 @@ def _json_serial(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 
-def _resolve_org(org: str) -> str:
-    """Resolve org slug or id to org_id."""
-    for o in ORGS:
-        if org in (o["id"], o["slug"]):
-            return o["id"]
-    return DEFAULT_ORG
-
-
-def _get_projects(org_id: str) -> list[str]:
-    with get_cursor(org_id) as cur:
+def _get_projects() -> list[str]:
+    with get_cursor() as cur:
         cur.execute(
             "SELECT DISTINCT project FROM tasks WHERE org_id = %s ORDER BY project",
-            (org_id,),
+            (LOCAL_ORG,),
         )
         return [row["project"] for row in cur.fetchall()]
 
@@ -86,14 +78,12 @@ def _period_start(period: str) -> Optional[datetime]:
     return datetime.now(timezone.utc) - timedelta(days=days)
 
 
-def _base_ctx(request: Request, active_page: str, org_id: str, org: str, **extra) -> dict:
+def _base_ctx(request: Request, active_page: str, **extra) -> dict:
     """Common template context shared by all pages."""
     return {
         "request": request,
         "active_page": active_page,
-        "orgs": ORGS,
-        "org": org,
-        "org_id": org_id,
+        "remote_dashboard_url": REMOTE_DASHBOARD_URL,
         **extra,
     }
 
@@ -102,18 +92,15 @@ def _base_ctx(request: Request, active_page: str, org_id: str, org: str, **extra
 
 
 @router.get("/", response_class=HTMLResponse)
-def overview(request: Request, period: str = "30d", project: str = "", org: str = ""):
-    """Executive Overview page."""
+def overview(request: Request, period: str = "30d", project: str = ""):
     templates = request.app.state.templates
     is_htmx = request.headers.get("HX-Request") == "true"
 
-    org_id = _resolve_org(org)
     start = _period_start(period)
-    projects = _get_projects(org_id)
+    projects = _get_projects()
 
-    # Delivery metrics
     conditions = ["org_id = %s"]
-    params: list = [org_id]
+    params: list = [LOCAL_ORG]
     if start:
         conditions.append("created_at >= %s")
         params.append(start)
@@ -122,7 +109,7 @@ def overview(request: Request, period: str = "30d", project: str = "", org: str 
         params.append(project)
     where = " AND ".join(conditions)
 
-    with get_cursor(org_id) as cur:
+    with get_cursor() as cur:
         cur.execute(f"""
             SELECT type, status, count(*) as cnt
             FROM tasks WHERE {where}
@@ -140,7 +127,7 @@ def overview(request: Request, period: str = "30d", project: str = "", org: str 
         weekly = cur.fetchall()
 
         metric_conditions = ["t.org_id = %s"]
-        metric_params: list = [org_id]
+        metric_params: list = [LOCAL_ORG]
         if start:
             metric_conditions.append("m.timestamp >= %s")
             metric_params.append(start)
@@ -177,7 +164,7 @@ def overview(request: Request, period: str = "30d", project: str = "", org: str 
     cost_tools = [r["total_tools"] for r in cost_by_type]
     cost_tokens = [r["total_tokens"] for r in cost_by_type]
 
-    ctx = _base_ctx(request, "overview", org_id, org,
+    ctx = _base_ctx(request, "overview",
         period=period, project=project, projects=projects,
         total_created=total_created, total_completed=total_completed,
         fix_rate=fix_rate, escape_rate=escape_rate, completion_rate=completion_rate,
@@ -195,20 +182,18 @@ def overview(request: Request, period: str = "30d", project: str = "", org: str 
 
 
 @router.get("/domains", response_class=HTMLResponse)
-def domain_health(request: Request, project: str = "", org: str = ""):
-    """Domain Health Map page."""
+def domain_health(request: Request, project: str = ""):
     templates = request.app.state.templates
-    org_id = _resolve_org(org)
-    projects = _get_projects(org_id)
+    projects = _get_projects()
 
     conditions = ["org_id = %s"]
-    params: list = [org_id]
+    params: list = [LOCAL_ORG]
     if project:
         conditions.append("project = %s")
         params.append(project)
     where = " AND ".join(conditions)
 
-    with get_cursor(org_id) as cur:
+    with get_cursor() as cur:
         cur.execute(f"""
             SELECT * FROM domains WHERE {where}
             ORDER BY project, name
@@ -222,27 +207,25 @@ def domain_health(request: Request, project: str = "", org: str = ""):
         couplings = cur.fetchall()
 
     return templates.TemplateResponse("pages/domain_health.html", _base_ctx(
-        request, "domains", org_id, org,
+        request, "domains",
         project=project, projects=projects, domains=domains, couplings=couplings,
     ))
 
 
 @router.get("/domains/{domain_name:path}", response_class=HTMLResponse)
-def domain_detail(request: Request, domain_name: str, project: str = "", org: str = ""):
-    """Domain Diagnostic Report page."""
+def domain_detail(request: Request, domain_name: str, project: str = ""):
     templates = request.app.state.templates
-    org_id = _resolve_org(org)
 
-    with get_cursor(org_id) as cur:
+    with get_cursor() as cur:
         if project:
             cur.execute(
                 "SELECT * FROM domains WHERE org_id = %s AND project = %s AND name = %s",
-                (org_id, project, domain_name),
+                (LOCAL_ORG, project, domain_name),
             )
         else:
             cur.execute(
                 "SELECT * FROM domains WHERE org_id = %s AND name = %s LIMIT 1",
-                (org_id, domain_name),
+                (LOCAL_ORG, domain_name),
             )
         domain = cur.fetchone()
 
@@ -250,7 +233,7 @@ def domain_detail(request: Request, domain_name: str, project: str = "", org: st
             SELECT id, type, status, description, created_at, updated_at
             FROM tasks WHERE org_id = %s AND domain = %s
             ORDER BY created_at DESC LIMIT 20
-        """, (org_id, domain_name))
+        """, (LOCAL_ORG, domain_name))
         tasks = cur.fetchall()
 
         cur.execute("""
@@ -258,14 +241,14 @@ def domain_detail(request: Request, domain_name: str, project: str = "", org: st
             FROM knowledge_entries
             WHERE org_id = %s AND domain = %s
             GROUP BY file_type
-        """, (org_id, domain_name))
+        """, (LOCAL_ORG, domain_name))
         knowledge = {r["file_type"]: r["cnt"] for r in cur.fetchall()}
 
         cur.execute("""
             SELECT * FROM domain_couplings
             WHERE org_id = %s AND (domain_a = %s OR domain_b = %s)
             ORDER BY co_occurrence_count DESC
-        """, (org_id, domain_name, domain_name))
+        """, (LOCAL_ORG, domain_name, domain_name))
         couplings = cur.fetchall()
 
         cur.execute("""
@@ -273,7 +256,7 @@ def domain_detail(request: Request, domain_name: str, project: str = "", org: st
             FROM tasks
             WHERE org_id = %s AND domain = %s AND type = 'fix'
             GROUP BY week ORDER BY week
-        """, (org_id, domain_name))
+        """, (LOCAL_ORG, domain_name))
         fix_timeline = cur.fetchall()
 
     health_dimensions = {}
@@ -287,7 +270,7 @@ def domain_detail(request: Request, domain_name: str, project: str = "", org: st
         }
 
     return templates.TemplateResponse("pages/domain_detail.html", _base_ctx(
-        request, "domains", org_id, org,
+        request, "domains",
         domain_name=domain_name, domain=domain, tasks=tasks,
         knowledge=knowledge, couplings=couplings,
         health_dims_labels=json.dumps(list(health_dimensions.keys())),
@@ -300,15 +283,13 @@ def domain_detail(request: Request, domain_name: str, project: str = "", org: st
 
 
 @router.get("/tasks", response_class=HTMLResponse)
-def task_board(request: Request, project: str = "", type: str = "", domain: str = "", org: str = ""):
-    """Task Board (Kanban) page."""
+def task_board(request: Request, project: str = "", type: str = "", domain: str = ""):
     templates = request.app.state.templates
     is_htmx = request.headers.get("HX-Request") == "true"
-    org_id = _resolve_org(org)
-    projects = _get_projects(org_id)
+    projects = _get_projects()
 
     conditions = ["org_id = %s"]
-    params: list = [org_id]
+    params: list = [LOCAL_ORG]
     if project:
         conditions.append("project = %s")
         params.append(project)
@@ -321,7 +302,7 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
     conditions.append("status NOT IN ('completed','verified','aborted','failed')")
     where = " AND ".join(conditions)
 
-    with get_cursor(org_id) as cur:
+    with get_cursor() as cur:
         cur.execute(f"""
             SELECT id, type, status, project, domain, description, created_at, updated_at
             FROM tasks WHERE {where}
@@ -335,7 +316,7 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
         if col in board:
             board[col].append(t)
 
-    ctx = _base_ctx(request, "tasks", org_id, org,
+    ctx = _base_ctx(request, "tasks",
         project=project, type=type, domain=domain,
         projects=projects, board=board, columns=KANBAN_COLUMNS,
     )
@@ -346,12 +327,10 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
 
 
 @router.get("/tasks/{task_id}/detail", response_class=HTMLResponse)
-def task_detail(request: Request, task_id: str, org: str = ""):
-    """Task detail modal content (HTMX partial)."""
+def task_detail(request: Request, task_id: str):
     templates = request.app.state.templates
-    org_id = _resolve_org(org)
 
-    with get_cursor(org_id) as cur:
+    with get_cursor() as cur:
         cur.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
         task = cur.fetchone()
         cur.execute(
@@ -368,20 +347,18 @@ def task_detail(request: Request, task_id: str, org: str = ""):
 
 
 @router.get("/causation", response_class=HTMLResponse)
-def causation_explorer(request: Request, project: str = "", org: str = ""):
-    """Causation Explorer page."""
+def causation_explorer(request: Request, project: str = ""):
     templates = request.app.state.templates
-    org_id = _resolve_org(org)
-    projects = _get_projects(org_id)
+    projects = _get_projects()
 
     conditions = ["org_id = %s", "type = 'fix'", "causation IS NOT NULL"]
-    params: list = [org_id]
+    params: list = [LOCAL_ORG]
     if project:
         conditions.append("project = %s")
         params.append(project)
     where = " AND ".join(conditions)
 
-    with get_cursor(org_id) as cur:
+    with get_cursor() as cur:
         cur.execute(f"""
             SELECT id, type, status, project, domain, description, causation, created_at
             FROM tasks WHERE {where}
@@ -417,6 +394,6 @@ def causation_explorer(request: Request, project: str = "", org: str = ""):
         })
 
     return templates.TemplateResponse("pages/causation.html", _base_ctx(
-        request, "causation", org_id, org,
+        request, "causation",
         project=project, projects=projects, chains=chains,
     ))

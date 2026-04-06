@@ -2,17 +2,13 @@
   <li><strong>ATDD Dashboard</strong></li>
 </ul>
 <ul>
-  <li><a href="/dashboard/?org={{ org }}" {% if active_page == 'overview' %}aria-current="page"{% endif %}>Overview</a></li>
-  <li><a href="/dashboard/domains?org={{ org }}" {% if active_page == 'domains' %}aria-current="page"{% endif %}>Domain Health</a></li>
-  <li><a href="/dashboard/tasks?org={{ org }}" {% if active_page == 'tasks' %}aria-current="page"{% endif %}>Task Board</a></li>
-  <li><a href="/dashboard/causation?org={{ org }}" {% if active_page == 'causation' %}aria-current="page"{% endif %}>Causation</a></li>
-  {% if orgs and orgs|length > 1 %}
+  <li><a href="/dashboard/" {% if active_page == 'overview' %}aria-current="page"{% endif %}>Overview</a></li>
+  <li><a href="/dashboard/domains" {% if active_page == 'domains' %}aria-current="page"{% endif %}>Domain Health</a></li>
+  <li><a href="/dashboard/tasks" {% if active_page == 'tasks' %}aria-current="page"{% endif %}>Task Board</a></li>
+  <li><a href="/dashboard/causation" {% if active_page == 'causation' %}aria-current="page"{% endif %}>Causation</a></li>
+  {% if remote_dashboard_url %}
   <li>
-    <select onchange="var u=new URL(window.location); u.searchParams.set('org',this.value); window.location=u.toString();" style="margin:0; padding:0.2rem 0.5rem; font-size:0.85rem;">
-      {% for o in orgs %}
-      <option value="{{ o.slug }}" {% if org == o.slug or org_id == o.id %}selected{% endif %}>{{ o.name }}</option>
-      {% endfor %}
-    </select>
+    <a href="{{ remote_dashboard_url }}" style="font-size:0.85rem; opacity:0.8;" target="_blank">Server Dashboard &nearr;</a>
   </li>
   {% endif %}
 </ul>
