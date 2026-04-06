@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 from db import init_pool, close_pool, get_cursor
 
-DEFAULT_ORG = "00000000-0000-0000-0000-000000000001"
+DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 
 
 def get_week_range(week_str: str | None = None):

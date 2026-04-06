@@ -12,7 +12,8 @@ from db import get_cursor
 
 router = APIRouter()
 
-DEFAULT_ORG = "00000000-0000-0000-0000-000000000001"
+import os
+DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 
 
 class DomainUpsert(BaseModel):

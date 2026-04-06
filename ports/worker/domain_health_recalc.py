@@ -22,7 +22,7 @@ from db import init_pool, close_pool, get_cursor
 logger = logging.getLogger("domain-health")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-DEFAULT_ORG = "00000000-0000-0000-0000-000000000001"
+DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 
 WEIGHTS = {
     "fix_rate": 0.30,
