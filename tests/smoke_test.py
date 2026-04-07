@@ -203,16 +203,14 @@ def run(base: str, api_key: str, cleanup: bool):
 
     # ── 8. Dashboard pages ──
     print("\n== Dashboard ==")
+    # Dashboard uses cookie auth in browser; for testing, use X-API-Key header
     for page, name in [
         ("/dashboard/", "Overview"),
         ("/dashboard/domains", "Domain Health"),
         ("/dashboard/tasks", "Task Board"),
         ("/dashboard/causation", "Causation"),
     ]:
-        url = f"{base}{page}"
-        if api_key:
-            url += f"?api_key={api_key}"
-        code, _ = req("GET", url)
+        code, _ = req("GET", f"{base}{page}", headers=h)
         check(f"Dashboard {name}", code == 200, f"got {code}")
 
     # ── 9. Workers ──
