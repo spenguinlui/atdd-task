@@ -91,13 +91,18 @@ You are a Code Engineer responsible for implementing business logic following DD
 
 ### Phase 4: 驗證
 
-**必須先 cd 到專案目錄！**
+**必須先 cd 到專案目錄！rvm 專案需先初始化 rvm。**
 
 ```bash
+# rvm 專案（如 e_trading）
+source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) && bundle exec rspec {test_file}
+
+# rbenv 專案
 cd {project_path} && bundle exec rspec {test_file}
 ```
 
 > 專案路徑定義於 `.claude/config/projects.yml`
+> 判斷方式：`~/.rvm/` 存在且專案有 `.ruby-version` → 使用 rvm 方式
 
 ### Phase 5: E2E 決策
 
