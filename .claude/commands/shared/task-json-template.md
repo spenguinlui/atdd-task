@@ -13,7 +13,7 @@ atdd_task_create(
     "git": { "branch": "{selected_branch}" },
     "workflow": { "mode": "guided", "currentAgent": "specist", "confidence": 0, "pendingAction": null },
     "acceptance": { "profile": null, "testLayers": {}, "fixture": null, "results": {}, "verificationGuide": null },
-    "jira": { "issueKey": null, "url": null },
+    "jira": { "issueKey": null, "url": null, "source": null },
     "context": { "background": "", "relatedDomains": [], "deletedFiles": [], "modifiedFiles": [], "changes": [], "commitHash": "" }
   }
 )
@@ -61,7 +61,8 @@ atdd_task_create(
   ],
   "jira": {
     "issueKey": null,
-    "url": null
+    "url": null,
+    "source": null
   },
   "causation": {
     "causedBy": null,

@@ -14,11 +14,12 @@ description: 啟動 Bug 修復任務（簡化流程）
 
 ## 執行步驟（嚴格按順序，不得增加額外步驟）
 
-1. **Git Branch 選擇**：參考 `shared/git-branch-selection.md`，建議命名 `fix/{short-description}`
-2. **Epic 子任務偵測**：參考 `shared/epic-task-flow.md`
-3. **建立任務 JSON**：參考 `shared/task-json-template.md`，type=fix
-4. **更新 Kanban**：執行 `shared/kanban-operations.md` 的「新增卡片」（含 Jira 開票確認）
-5. **回寫 Jira Issue Key**（僅選擇開立 Jira 票時）：從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），寫入任務 JSON 的 `jira.issueKey` 和 `jira.url`（`{base_url}/browse/{KEY}`），並同步 MCP：`atdd_task_update(task_id, metadata={"jira": {"issueKey": "{KEY}", "url": "{url}"}})`
+1. **Jira 確認**：執行 `shared/kanban-operations.md` 的「Jira 開票確認」（三選一：否、是、已有 Jira 票），取得 Jira 決定和 issue key（如有）
+2. **Git Branch 選擇**：參考 `shared/git-branch-selection.md`，如有 Jira issue key 則自動使用 issue key 作為分支名稱；否則建議命名 `fix/{short-description}`
+3. **Epic 子任務偵測**：參考 `shared/epic-task-flow.md`
+4. **建立任務 JSON**：參考 `shared/task-json-template.md`，type=fix
+5. **更新 Kanban**：執行 `shared/kanban-operations.md` 的「新增卡片」（使用 Step 1 的 Jira 決定，不再重複詢問）
+6. **回寫 Jira Issue Key**（選擇「是」或「已有 Jira 票」時）：新建票從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），貼上連結則直接使用解析結果。寫入任務 JSON 的 `jira.issueKey`、`jira.url`（`{base_url}/browse/{KEY}`）和 `jira.source`（`"created"` 或 `"linked"`），並同步 MCP：`atdd_task_update(task_id, metadata={"jira": {"issueKey": "{KEY}", "url": "{url}", "source": "{created|linked}"}})`
 6. **輸出任務建立訊息**：類型、專案、標題、ID、Jira 連結（若有）
 7. **立即呼叫 specist Agent**（見下方）
 

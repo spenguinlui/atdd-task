@@ -732,11 +732,19 @@ jira_update() {
   local adf_body
   adf_body="$(text_to_adf "$DESCRIPTION_FILE")" || exit 1
 
-  local payload
-  payload="$(printf '{"fields":{"description":%s}}' "$adf_body")"
-
-  jira_api PUT "/issue/${issue_key}" "$payload" > /dev/null
-  echo "✓ Jira issue updated: ${issue_key} — description updated"
+  if [[ "$AS_COMMENT" == "true" ]]; then
+    # 既有 Jira 票：寫入 Comment，不覆蓋 PM 原本的 Description
+    local payload
+    payload="$(printf '{"body":%s}' "$adf_body")"
+    jira_api POST "/issue/${issue_key}/comment" "$payload" > /dev/null
+    echo "✓ Jira issue commented: ${issue_key} — description added as comment"
+  else
+    # 新建 Jira 票：直接更新 Description
+    local payload
+    payload="$(printf '{"fields":{"description":%s}}' "$adf_body")"
+    jira_api PUT "/issue/${issue_key}" "$payload" > /dev/null
+    echo "✓ Jira issue updated: ${issue_key} — description updated"
+  fi
 }
 
 markdown_update() {
@@ -777,6 +785,7 @@ Options (varies by command):
   --domain        Domain name (complete)
   --branch        Git branch (complete)
   --description-file  Path to description file (update)
+  --as-comment        Write as comment instead of description (update, for linked Jira tickets)
 
 Metrics for 'complete' are read from STDIN (output of session-stats.rb --format kanban).
 EOF
@@ -787,7 +796,7 @@ EOF
 PROJECT="" TITLE="" COLUMN="" TAGS="" PRIORITY="" WORKLOAD=""
 BACKGROUND="" SCOPE="" TASK_ID="" FROM="" TO=""
 COMMIT="" PHASE_HISTORY="" TYPE="" DOMAIN="" BRANCH="" METRICS_FILE=""
-DESCRIPTION_FILE=""
+DESCRIPTION_FILE="" AS_COMMENT="false"
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
@@ -810,6 +819,7 @@ parse_args() {
       --branch)        BRANCH="$2"; shift 2 ;;
       --metrics-file)  METRICS_FILE="$2"; shift 2 ;;
       --description-file) DESCRIPTION_FILE="$2"; shift 2 ;;
+      --as-comment) AS_COMMENT="true"; shift ;;
       *) echo "Error: Unknown option '$1'" >&2; exit 1 ;;
     esac
   done

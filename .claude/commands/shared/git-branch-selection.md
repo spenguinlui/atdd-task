@@ -8,6 +8,18 @@ cd {project_path} && git branch --show-current && git status --porcelain
 
 ## Step 2: 顯示選項
 
+### 有 Jira Ticket 時（從 Jira 確認步驟取得 issue key）
+
+如果已有 Jira issue key（例如 `GRE-217`，來自新建或貼上的 Jira 票），**自動以 issue key 作為分支名稱**：
+
+- 如果分支 `{issue_key}` 已存在 → `git checkout {issue_key}`
+- 如果分支不存在 → `git checkout -b {issue_key}`
+- 記錄 `git.branch = "{issue_key}"`
+
+不需要詢問用戶，直接建立/切換。
+
+### 無 Jira Ticket 時
+
 使用 AskUserQuestion 詢問：
 
 ```

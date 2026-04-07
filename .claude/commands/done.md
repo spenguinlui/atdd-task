@@ -61,13 +61,15 @@ cd {PROJECT_PATH} && git commit ...
 
 **Commit 訊息格式**：
 ```
-{type}({domain}): {description}
+{branch} {type}({domain}): {description}
 
 - {changes}
 
 Task: {task_id}
 Metrics: {total_tools} tools / {total_tokens} tokens / {duration}
 ```
+
+其中 `{branch}` 是任務 JSON 的 `git.branch` 值（例如 `GRE-217`）。
 
 記錄 commit hash
 

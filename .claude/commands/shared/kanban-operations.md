@@ -20,11 +20,14 @@ options:
     description: "不建立 Jira Issue，使用 Markdown backend 在本地追蹤任務"
   - label: "是（開立 Jira 票）"
     description: "在 Jira Cloud 建立 Issue 並同步任務狀態"
+  - label: "已有 Jira 票（貼上連結）"
+    description: "已在 Jira 建立 Issue，貼上連結即可關聯"
 multiSelect: false
 ```
 
 - 選「否」→ 使用 Markdown backend（`KANBAN_BACKEND=markdown`），跳過 Jira 開票，任務 JSON 的 `jira.issueKey` 和 `jira.url` 維持 null
 - 選「是」→ 使用 Jira backend（`KANBAN_BACKEND=jira`），執行下方 create 命令，並回寫 issue key 到任務 JSON
+- 選「已有 Jira 票」→ 使用 AskUserQuestion 請用戶貼上 Jira URL（例如 `https://sunnyfounder-it.atlassian.net/browse/GRE-217`），從 URL 解析 issue key（最後的 path segment，如 `GRE-217`），使用 Markdown backend（`KANBAN_BACKEND=markdown`，不呼叫 Jira API 建票），直接回寫 `jira.issueKey` 和 `jira.url` 到任務 JSON
 
 ```bash
 bash .claude/scripts/kanban-adapter.sh create \
@@ -76,6 +79,16 @@ bash .claude/scripts/kanban-adapter.sh update \
   --description-file {path_to_description_file}
 ```
 
+**既有 Jira 票**（`jira.source == "linked"`）：加上 `--as-comment`，避免覆蓋 PM 原本的 Description：
+
+```bash
+bash .claude/scripts/kanban-adapter.sh update \
+  --project {project} \
+  --title "{description}" \
+  --description-file {path_to_description_file} \
+  --as-comment
+```
+
 描述檔案格式支援：`## ` 標題、`- [ ] ` 任務清單、一般文字。Jira backend 會自動轉為 ADF 格式。
 
 ### 放棄（移至 Failed）
@@ -108,7 +121,7 @@ export KANBAN_BACKEND=jira
 | 資料儲存 | `kanban.md` 檔案 | Jira Cloud issue |
 | create | 在 kanban.md 插入卡片 | POST /rest/api/3/issue |
 | move | 搬移卡片到目標欄位 | Transition issue status |
-| update | no-op（資訊在本地） | PUT /rest/api/3/issue 更新 description |
+| update | no-op（資訊在本地） | PUT description（created）或 POST comment（linked） |
 | complete | 搬移 + 寫入 metrics | Transition to DONE + comment |
 | fail | 搬移到 Failed | Transition to DONE + comment |
 
