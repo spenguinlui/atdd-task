@@ -11,7 +11,14 @@ import sys
 import time
 from datetime import datetime, timezone, timedelta
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
+# Local: ports/worker/../api → ports/api
+# Docker: /app/worker/.. → /app (where db.py lives)
+for p in [
+    os.path.join(os.path.dirname(__file__), "..", "api"),
+    os.path.join(os.path.dirname(__file__), ".."),
+]:
+    if os.path.isdir(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("scheduler")
