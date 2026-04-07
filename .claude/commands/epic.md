@@ -247,7 +247,7 @@ Task(
 ```yaml
 id: {epic-id}
 title: {標題}
-status: planning
+status: pending_spec
 projectId: {project}
 createdAt: {ISO timestamp}
 completedAt: null
@@ -265,34 +265,34 @@ requirement:
 
 phases:
   - name: "Phase 1: {name}"
-    status: pending
+    status: pending_spec
     tasks:
       - id: "T1-1"
         title: "{title}"
         type: "{type}"
         dependencies: []
-        status: pending
+        status: pending_spec
       - id: "T1-2"
         title: "{title}"
         type: "{type}"
         dependencies: ["T1-1"]
-        status: pending
+        status: pending_spec
 
   - name: "Phase 2: {name}"
-    status: pending
+    status: pending_spec
     tasks:
       - id: "T2-1"
         title: "{title}"
         type: "{type}"
         dependencies: ["T1-2"]
-        status: pending
+        status: pending_spec
 
 metrics:
   totalTasks: {count}
   completed: 0
-  inProgress: 0
-  pending: {count}
-  cancelled: 0
+  developing: 0
+  pending_spec: {count}
+  aborted: 0
   progress: 0%
 ```
 
@@ -307,7 +307,7 @@ updatedAt: {ISO timestamp}
 epics:
   - id: {epic-id}
     title: {標題}
-    status: planning
+    status: pending_spec
     progress: 0%
     directory: ./{epic-id}/
 ```
