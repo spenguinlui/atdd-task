@@ -3,17 +3,20 @@
 Dual-API routing:
 - Local API: personal org (side projects)
 - Server API: company org (company projects)
-- 404 on local → auto-fallback to server (all methods)
-- Writes follow the data: task on server → write to server
+- Resource-level: 404 on local → auto-fallback to server
+- Project-level: known company projects → write directly to server
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+
+logger = logging.getLogger("mcp-api")
 
 # Local API
 API_BASE_URL = os.environ.get("ATDD_API_URL", "http://localhost:8001")
@@ -24,6 +27,44 @@ DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 SERVER_API_URL = os.environ.get("ATDD_SERVER_API_URL", "")
 SERVER_API_KEY = os.environ.get("ATDD_SERVER_API_KEY", "")
 SERVER_ORG = os.environ.get("ATDD_SERVER_ORG", "00000000-0000-0000-0000-000000000002")
+
+# Company projects — these always route to server
+# Loaded once from server API on first use, cached
+_company_projects: set[str] | None = None
+
+
+def _get_company_projects() -> set[str]:
+    """Fetch list of projects from server to determine routing."""
+    global _company_projects
+    if _company_projects is not None:
+        return _company_projects
+
+    if not SERVER_API_URL:
+        _company_projects = set()
+        return _company_projects
+
+    try:
+        result = _do_request(
+            SERVER_API_URL, SERVER_API_KEY, "GET",
+            "/api/v1/tasks",
+            params={"org_id": SERVER_ORG, "limit": "1"},
+        )
+        # Get distinct projects from server
+        result = _do_request(
+            SERVER_API_URL, SERVER_API_KEY, "GET",
+            "/api/v1/domains",
+            params={"org_id": SERVER_ORG},
+        )
+        projects = set()
+        items = result if isinstance(result, list) else result.get("items", []) if isinstance(result, dict) else []
+        for d in items:
+            if isinstance(d, dict) and d.get("project"):
+                projects.add(d["project"])
+        _company_projects = projects
+        logger.info(f"Company projects: {projects}")
+    except Exception:
+        _company_projects = set()
+    return _company_projects
 
 
 class APIError(Exception):
@@ -60,14 +101,37 @@ def _do_request(base_url: str, api_key: str, method: str, path: str,
         raise APIError(0, f"Connection error: {e}")
 
 
+def _is_company_project(data: dict | None, params: dict | None) -> bool:
+    """Check if this request is for a company project."""
+    project = None
+    if data and isinstance(data, dict):
+        project = data.get("project")
+    if not project and params:
+        project = params.get("project")
+    if project and project in _get_company_projects():
+        return True
+    return False
+
+
 def request(method: str, path: str, data: dict | None = None,
             params: dict | None = None) -> Any:
-    """Route request: try local first, fallback to server on 404."""
+    """Route request to the correct API.
+
+    Routing logic:
+    1. If data contains a known company project → go to server directly
+    2. Otherwise try local first
+    3. If local returns 404 → fallback to server
+    """
+    # For creates with a known company project, go straight to server
+    if SERVER_API_URL and _is_company_project(data, params):
+        server_params = dict(params) if params else {}
+        server_params["org_id"] = SERVER_ORG
+        return _do_request(SERVER_API_URL, SERVER_API_KEY, method, path, data, server_params)
+
     try:
         return _do_request(API_BASE_URL, API_KEY, method, path, data, params)
     except APIError as e:
         if e.status == 404 and SERVER_API_URL:
-            # Resource not on local → try server with server org
             server_params = dict(params) if params else {}
             if "org_id" in server_params:
                 server_params["org_id"] = SERVER_ORG
@@ -76,7 +140,6 @@ def request(method: str, path: str, data: dict | None = None,
 
 
 # ── Convenience helpers ──
-# List/create use org_id param; get/patch/delete use resource path (no org needed)
 
 def get(path: str, **params) -> Any:
     return request("GET", path, params={"org_id": DEFAULT_ORG, **params})
