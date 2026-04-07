@@ -6,9 +6,28 @@ Run via stdio: python server.py
 
 from __future__ import annotations
 
+import functools
+import logging
+
 from mcp.server.fastmcp import FastMCP
 
 import api_client as api
+
+logger = logging.getLogger("mcp-server")
+
+
+def safe_api_call(fn):
+    """Catch API/connection errors so the MCP server stays alive."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except api.APIError as e:
+            return {"error": True, "status": e.status, "detail": e.detail}
+        except Exception as e:
+            logger.exception(f"Tool {fn.__name__} failed")
+            return {"error": True, "detail": f"Connection failed: {e}"}
+    return wrapper
 
 mcp = FastMCP(
     "atdd",
@@ -22,6 +41,7 @@ mcp = FastMCP(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_list(
     project: str | None = None,
     status: str | None = None,
@@ -46,6 +66,7 @@ def atdd_task_list(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_get(task_id: str) -> dict:
     """Get a single task by its UUID.
 
@@ -56,6 +77,7 @@ def atdd_task_get(task_id: str) -> dict:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_create(
     project: str,
     type: str,
@@ -95,6 +117,7 @@ def atdd_task_create(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_update(
     task_id: str,
     status: str | None = None,
@@ -142,6 +165,7 @@ def atdd_task_update(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_history(task_id: str) -> list:
     """Get the event history for a task.
 
@@ -152,6 +176,7 @@ def atdd_task_history(task_id: str) -> list:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_add_history(
     task_id: str,
     phase: str | None = None,
@@ -173,6 +198,7 @@ def atdd_task_add_history(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_task_add_metrics(
     task_id: str,
     agent: str,
@@ -199,6 +225,7 @@ def atdd_task_add_metrics(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_domain_list(
     project: str | None = None,
     status: str | None = None,
@@ -213,6 +240,7 @@ def atdd_domain_list(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_domain_get(domain_id: str) -> dict:
     """Get a single domain by UUID.
 
@@ -223,6 +251,7 @@ def atdd_domain_get(domain_id: str) -> dict:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_domain_upsert(
     project: str,
     name: str,
@@ -266,6 +295,7 @@ def atdd_domain_upsert(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_coupling_list(project: str | None = None) -> list:
     """List domain coupling relationships (sorted by co-occurrence count descending).
 
@@ -281,6 +311,7 @@ def atdd_coupling_list(project: str | None = None) -> list:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_knowledge_list(
     project: str | None = None,
     domain: str | None = None,
@@ -303,6 +334,7 @@ def atdd_knowledge_list(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_knowledge_get(entry_id: str) -> dict:
     """Get a single knowledge entry by UUID.
 
@@ -313,6 +345,7 @@ def atdd_knowledge_get(entry_id: str) -> dict:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_knowledge_create(
     project: str,
     content: str,
@@ -344,6 +377,7 @@ def atdd_knowledge_create(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_knowledge_update(
     entry_id: str,
     content: str | None = None,
@@ -377,6 +411,7 @@ def atdd_knowledge_update(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_knowledge_delete(entry_id: str) -> str:
     """Delete a knowledge entry.
 
@@ -388,6 +423,7 @@ def atdd_knowledge_delete(entry_id: str) -> str:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_term_list(
     project: str | None = None,
     domain: str | None = None,
@@ -402,6 +438,7 @@ def atdd_term_list(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_term_upsert(
     project: str,
     english_term: str,
@@ -436,6 +473,7 @@ def atdd_term_upsert(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_report_list(
     project: str | None = None,
     type: str | None = None,
@@ -452,6 +490,7 @@ def atdd_report_list(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_report_get(report_id: str) -> dict:
     """Get a single report by UUID.
 
@@ -462,6 +501,7 @@ def atdd_report_get(report_id: str) -> dict:
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_report_create(
     project: str,
     type: str,
@@ -488,6 +528,7 @@ def atdd_report_create(
 
 
 @mcp.tool()
+@safe_api_call
 def atdd_health() -> dict:
     """Check if the ATDD API server is reachable and healthy."""
     return api.request("GET", "/health")
