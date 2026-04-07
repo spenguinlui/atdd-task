@@ -62,14 +62,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Run cron jobs: auto-verify (daily 9am), domain health (daily 2am), weekly report (Monday 8am)
-    entrypoint: ["sh", "-c", "
-      echo '0 9 * * * cd /app && python3 -m worker.auto_verify --slack-notify' > /tmp/cron &&
-      echo '0 2 * * * cd /app && python3 -m worker.domain_health_recalc' >> /tmp/cron &&
-      echo '0 8 * * 1 cd /app && python3 -m worker.weekly_report --all-projects --save' >> /tmp/cron &&
-      crontab /tmp/cron &&
-      crond -f -l 2
-    "]
+    entrypoint: ["python3", "/app/worker/scheduler.py"]
     volumes:
       - ../ports/worker:/app/worker:ro
       - ../data/db:/app/db:ro
