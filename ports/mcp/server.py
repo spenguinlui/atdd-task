@@ -33,8 +33,9 @@ def atdd_task_list(
 
     Args:
         project: Filter by project name
-        status: Filter by status (pending_spec, specifying, pending_dev, developing,
-                pending_review, reviewing, gate, deployed, verified, escaped, completed, aborted)
+        status: Filter by status (requirement, pending_spec, specifying, pending_dev, developing,
+                pending_review, reviewing, gate, deployed, verified, escaped,
+                completed, aborted, specification, testing, development, review, failed)
         domain: Filter by domain name
         limit: Max results (default 50, max 200)
         offset: Pagination offset
@@ -109,7 +110,9 @@ def atdd_task_update(
 
     Args:
         task_id: Task UUID
-        status: New status
+        status: New status (requirement, pending_spec, specifying, pending_dev, developing,
+                pending_review, reviewing, gate, deployed, verified, escaped,
+                completed, aborted, specification, testing, development, review, failed)
         phase: Current phase (e.g. "requirement", "spec", "dev", "review", "gate")
         domain: Primary domain name
         related_domains: Related domain names

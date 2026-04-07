@@ -27,7 +27,7 @@
 ```yaml
 phases:
   - name: "Phase 2: 核心 UseCases"
-    status: in_progress  # 如果所有任務完成則改為 completed
+    status: developing  # 如果所有任務完成則改為 completed
     tasks:
       - id: "T2-1"
         title: "..."
@@ -42,8 +42,8 @@ phases:
 metrics:
   totalTasks: 30
   completed: 15        # +1
-  inProgress: 0        # -1（如果之前是 in_progress）
-  pending: 15          # （不變）
+  developing: 0        # -1（如果之前是 developing）
+  pending_spec: 15     # （不變）
   progress: 50%        # 重新計算
 ```
 

@@ -23,12 +23,12 @@ description: 查看當前任務狀態和進度
 ```bash
 for f in epics/*/*/epic.yml; do
   epic_status=$(grep '^status:' "$f" | awk '{print $2}')
-  if [ "$epic_status" != "completed" ] && [ "$epic_status" != "cancelled" ]; then
+  if [ "$epic_status" != "completed" ] && [ "$epic_status" != "aborted" ]; then
     echo "=== $f (status: $epic_status) ==="
     grep -E '^(title:|id:)' "$f"
     grep -c 'status: completed' "$f" | xargs -I{} echo "completed_tasks: {}"
-    grep -c 'status: pending' "$f" | xargs -I{} echo "pending_tasks: {}"
-    grep -c 'status: in_progress' "$f" | xargs -I{} echo "in_progress_tasks: {}"
+    grep -c 'status: pending_spec' "$f" | xargs -I{} echo "pending_tasks: {}"
+    grep -c 'status: developing' "$f" | xargs -I{} echo "developing_tasks: {}"
   fi
 done
 ```

@@ -87,7 +87,7 @@ cat epics/{project}/{epic-id}/epic.yml
 
 ```yaml
 - id: "T2-3"
-  status: in_progress
+  status: developing
   startedAt: "{ISO timestamp}"
 ```
 
