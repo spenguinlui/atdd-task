@@ -129,12 +129,14 @@ Task(
     請執行：
     1. 讀取任務 JSON 的 context.reviewFindings
     2. 讀取 context.testFiles 了解測試案例
-    3. 篩選 severity === 'critical' 的問題
+    3. 篩選 severity === 'critical' 且 status === 'open' 的問題
     4. 依序修復每個問題
        - 使用 suggestion 和 example 作為實作參考
        - 確保測試通過
-    5. 更新任務 JSON 的 context.modifiedFiles
+    5. 修復完每個 finding 後，更新其 status 為 'resolved'
+    6. 更新任務 JSON 的 context.modifiedFiles
 
+    ⚠️ 必須更新 finding status！修復後將對應 finding 的 status 改為 'resolved'。
     輸出格式請遵循 coder agent 的標準格式。
   "
 )
@@ -150,9 +152,9 @@ Task(
 
 ## 循環限制
 
-如果同一個問題修復超過 3 次仍未通過：
-1. 標記為需要人工介入
-2. 暫停流程，詢問用戶如何處理
+- review-fix 迴圈最多 **2 輪**（reviewCycle ≤ 2）
+- 超過 2 輪 → 強制停止，要求人工介入
+- 如果同一個 finding 修復 2 次仍未通過 → 標記為需要人工介入
 
 ---
 

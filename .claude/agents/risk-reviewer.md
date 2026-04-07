@@ -34,6 +34,27 @@ You are a Risk Reviewer responsible for identifying security vulnerabilities, pe
 
 ## Workflow
 
+### Phase 0: Check Existing Findings（必須最先執行）
+
+```
+1. 讀取任務 JSON 的 context.reviewFindings
+2. 如果已有 items（前一輪 review 的 findings）：
+   a. 逐一檢查每個 finding 的修復狀態
+   b. 已修復 → 將 status 更新為 "resolved"
+   c. 未修復 → 保持 status 為 "open"
+   d. 不需修復 → 保持原 status
+3. 記錄 reviewCycle（當前第幾輪 review）
+4. 本輪只報告「genuinely new」的問題 — 不重複報告已存在的 finding
+```
+
+**Finding Status 定義：**
+- `open` — 首次發現，尚未修復
+- `resolved` — 已確認修復
+- `wont_fix` — 評估後決定不修（需附理由）
+
+**重要：禁止重複報告。** 如果一個問題在前一輪已經報告（相同 file + 相同類型），
+不得建立新的 finding，而是更新既有 finding 的 status。
+
 ### Phase 1: Scan Code
 
 ```
@@ -90,9 +111,32 @@ Produce risk assessment with:
 報告必須包含以下項目（格式不限，自然呈現即可）：
 
 1. 整體風險等級（Critical / High / Medium / Low）
-2. 問題摘要（各等級數量）
+2. 問題摘要（各等級數量，區分 new / existing / resolved）
 3. 具體問題清單 — 每項包含 `file:line`、問題描述、風險說明、修復建議
 4. 修復優先級排序
+
+## reviewFindings 寫入格式（必須遵守）
+
+```json
+{
+  "reviewCycle": 1,
+  "items": [
+    {
+      "id": "R-001",
+      "severity": "high",
+      "description": "...",
+      "file": "path/to/file.rb:42",
+      "status": "open",
+      "foundInCycle": 1
+    }
+  ]
+}
+```
+
+**每個 finding 必須有 `status` 和 `foundInCycle` 欄位。**
+- 新發現的 finding：`status: "open"`, `foundInCycle: {當前 cycle}`
+- 前一輪的 finding 已修復：`status: "resolved"`（保留在 items 中）
+- 前一輪的 finding 未修復：`status: "open"`（不變）
 
 ## 審查範圍
 

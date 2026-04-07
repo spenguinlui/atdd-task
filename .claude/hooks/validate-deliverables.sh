@@ -128,6 +128,14 @@ elif agent == 'coder' and status == 'development':
     check = 'testing'
 elif agent in ('risk-reviewer', 'style-reviewer') and status == 'review':
     check = 'development'
+    # Also check review cycle limit
+    review_cycle = task.get('context', {}).get('reviewFindings', {}).get('reviewCycle', 0)
+    if isinstance(review_cycle, int) and review_cycle >= 2:
+        errors.append(
+            f"Review-fix 迴圈已達上限（reviewCycle = {review_cycle}，上限 2）\n"
+            "   超過 2 輪的 review-fix 迴圈必須人工介入。\n"
+            "   請用戶評估剩餘 findings 是否需要修復，或調整 fixScope。"
+        )
 elif agent == 'gatekeeper' and status in ('gate', 'review'):
     check = 'review'
 

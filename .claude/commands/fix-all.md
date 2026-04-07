@@ -87,7 +87,7 @@ Task(
 
     請執行：
     1. 讀取任務 JSON 的 context.reviewFindings
-    2. 處理所有問題（不篩選 severity）
+    2. 只處理 status === 'open' 的問題（不處理已 resolved 的）
     3. 為每個問題生成測試案例
        - 注意：suggestions 可能不需要測試，但需要評估
     4. 執行測試確認失敗
@@ -98,12 +98,12 @@ Task(
 )
 ```
 
-### Step 6: 後續流程
+### Step 6: coder 修復後
 
 同 fix-critical.md，依序：
 1. tester 補測試
-2. coder 修復
-3. 回到 review（完整審查）
+2. coder 修復 — **必須將修復的 finding status 更新為 'resolved'**
+3. 回到 review（risk-reviewer 比對既有 findings，只報告新問題）
 4. gate
 
 ---
@@ -122,6 +122,12 @@ Task(
 修復所有問題可能耗時較長，建議：
 - 優先考慮 `/fix-critical` 快速上線
 - 後續再用 `/fix-all` 完善
+
+### 循環限制
+
+- review-fix 迴圈最多 **2 輪**（reviewCycle ≤ 2）
+- 超過 2 輪 → 強制停止，要求人工介入
+- Hook `validate-deliverables.sh` 會在第 3 輪阻擋 risk-reviewer
 
 ---
 
