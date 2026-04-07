@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
-from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Cookie, HTTPException
 from fastapi.responses import StreamingResponse
 
 router = APIRouter()
@@ -44,17 +44,12 @@ async def _event_generator(queue: asyncio.Queue):
 
 
 @router.get("/stream")
-async def event_stream():
-    """SSE endpoint for Dashboard real-time updates.
+async def event_stream(atdd_key: str = Cookie(default="")):
+    """SSE endpoint — authenticated via cookie (browsers can't send headers with EventSource)."""
+    api_key = os.environ.get("API_KEY", "")
+    if api_key and atdd_key != api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    Events:
-    - task.updated: Task status changed
-    - task.created: New task created
-    - domain.recalculated: Domain health scores updated
-    - report.generated: New report available
-    - deploy.verified: Task auto-verified
-    - deploy.alert: High-risk task needs attention
-    """
     queue = asyncio.Queue(maxsize=100)
     _event_queues.append(queue)
 

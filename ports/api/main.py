@@ -16,7 +16,9 @@ from routers import tasks, domains, reports, knowledge, views, events, workers
 API_KEY = os.environ.get("API_KEY", "")
 
 # Paths that don't require authentication
-PUBLIC_PATHS = ("/health", "/static/", "/docs", "/openapi.json", "/redoc")
+# SSE stream uses cookie auth (browsers can't send headers with EventSource)
+PUBLIC_PATHS = ("/health", "/static/", "/docs", "/openapi.json", "/redoc",
+                "/api/v1/events/stream")
 
 BASE_DIR = Path(__file__).resolve().parent
 

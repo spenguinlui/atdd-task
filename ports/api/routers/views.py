@@ -118,7 +118,7 @@ def overview(request: Request, period: str = "30d", project: str = ""):
         type_status = cur.fetchall()
 
         cur.execute(f"""
-            SELECT date_trunc('week', created_at)::date as week,
+            SELECT date_trunc('week', created_at AT TIME ZONE 'Asia/Taipei')::date as week,
                    count(*) as created,
                    count(*) FILTER (WHERE status IN ('completed','verified')) as completed
             FROM tasks WHERE {where}
@@ -252,7 +252,7 @@ def domain_detail(request: Request, domain_name: str, project: str = ""):
         couplings = cur.fetchall()
 
         cur.execute("""
-            SELECT date_trunc('week', created_at)::date as week, count(*) as cnt
+            SELECT date_trunc('week', created_at AT TIME ZONE 'Asia/Taipei')::date as week, count(*) as cnt
             FROM tasks
             WHERE org_id = %s AND domain = %s AND type = 'fix'
             GROUP BY week ORDER BY week
