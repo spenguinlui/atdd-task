@@ -47,9 +47,10 @@ Gate Report 必須包含以下區塊：
 
 ### 6. 結案選項
 
-- /done - Commit + 結案
-- /commit - 僅 Commit
-- /close - 僅結案
+- `/done` — Commit + 直接結案
+- `/done --deploy` — Commit + 進入部署驗證（需後續 `/verify` 確認）
+- `/commit` — 僅 Commit
+- `/close` — 僅結案
 
 ## 輸出要素
 
