@@ -5,10 +5,10 @@
 給定問題檔案和行號，追溯到造成問題的原始任務。
 
 Usage:
-    python3 causation-tracer.py <project-repo-path> <file> <line> [atdd-hub-path]
+    python3 causation-tracer.py <project-repo-path> <file> <line>
 
     # Example: 追溯 app/services/erp_period_service.rb 第 42 行
-    python3 causation-tracer.py ~/repos/core_web app/services/erp_period_service.rb 42 ~/atdd-hub
+    python3 causation-tracer.py ~/repos/core_web app/services/erp_period_service.rb 42
 
 Output (JSON):
     {
@@ -29,9 +29,13 @@ Output (JSON):
 """
 
 import json
+import os
 import subprocess
 import sys
-from pathlib import Path
+
+# Add ports/mcp to path for api_client
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "ports", "mcp"))
+import api_client as api
 
 
 def git_blame_line(repo_path, file_path, line_number):
@@ -70,73 +74,72 @@ def git_blame_line(repo_path, file_path, line_number):
         return None
 
 
-def find_task_by_commit(hub_path, commit_hash):
-    """Search completed task JSONs for a matching commitHash."""
-    tasks_dir = hub_path / "tasks"
-    if not tasks_dir.exists():
-        return None
+def fetch_all_tasks():
+    """Fetch all tasks from API with pagination."""
+    all_tasks = []
+    offset = 0
+    limit = 200
+    while True:
+        result = api.get("/api/v1/tasks", limit=str(limit), offset=str(offset))
+        items = result.get("items", [])
+        if not items:
+            break
+        all_tasks.extend(items)
+        if len(items) < limit:
+            break
+        offset += limit
+    return all_tasks
 
-    # Search in completed, deployed, escaped directories
-    for status_dir in ["completed", "deployed", "escaped"]:
-        for json_file in tasks_dir.rglob(f"*/{status_dir}/*.json"):
-            try:
-                with open(json_file) as f:
-                    task = json.load(f)
-                task_commit = task.get("context", {}).get("commitHash", "")
-                if task_commit and commit_hash.startswith(task_commit[:7]):
-                    return {
-                        "taskId": task.get("id"),
-                        "description": task.get("description"),
-                        "type": task.get("type"),
-                        "domain": task.get("domain"),
-                        "completedAt": task.get("context", {}).get("completedAt")
-                                       or task.get("completedAt"),
-                    }
-            except (json.JSONDecodeError, KeyError):
-                continue
 
-    # Also try matching commit message to task description (fuzzy)
+def find_task_by_commit(tasks, commit_hash):
+    """Search tasks for a matching commitHash in metadata."""
+    for task in tasks:
+        metadata = task.get("metadata") or {}
+        context = metadata.get("context", {})
+        task_commit = context.get("commitHash", "")
+        if task_commit and commit_hash.startswith(task_commit[:7]):
+            return {
+                "taskId": task.get("id"),
+                "description": task.get("description"),
+                "type": task.get("type"),
+                "domain": task.get("domain"),
+                "completedAt": context.get("completedAt"),
+            }
     return None
 
 
-def find_task_by_commit_message(hub_path, commit_message):
+def find_task_by_commit_message(tasks, commit_message):
     """Fallback: try to match commit message keywords to task descriptions."""
     if not commit_message:
         return None
 
-    tasks_dir = hub_path / "tasks"
-    # Extract key terms from commit message (skip common prefixes)
     msg_lower = commit_message.lower()
     for prefix in ["feat:", "fix:", "refactor:", "chore:", "sync:"]:
         if msg_lower.startswith(prefix):
             msg_lower = msg_lower[len(prefix):].strip()
             break
 
-    # Search for similar task descriptions
     candidates = []
-    for json_file in tasks_dir.rglob("*/completed/*.json"):
-        try:
-            with open(json_file) as f:
-                task = json.load(f)
-            desc = (task.get("description") or "").lower()
-            # Simple keyword matching
-            words = [w for w in msg_lower.split() if len(w) > 3]
-            matches = sum(1 for w in words if w in desc)
-            if matches >= 2 or (len(words) <= 2 and matches >= 1):
-                candidates.append((matches, task))
-        except (json.JSONDecodeError, KeyError):
+    for task in tasks:
+        if task.get("status") not in ("completed", "verified", "deployed", "escaped"):
             continue
+        desc = (task.get("description") or "").lower()
+        words = [w for w in msg_lower.split() if len(w) > 3]
+        matches = sum(1 for w in words if w in desc)
+        if matches >= 2 or (len(words) <= 2 and matches >= 1):
+            candidates.append((matches, task))
 
     if candidates:
         candidates.sort(key=lambda x: -x[0])
         task = candidates[0][1]
+        metadata = task.get("metadata") or {}
+        context = metadata.get("context", {})
         return {
             "taskId": task.get("id"),
             "description": task.get("description"),
             "type": task.get("type"),
             "domain": task.get("domain"),
-            "completedAt": task.get("context", {}).get("completedAt")
-                           or task.get("completedAt"),
+            "completedAt": context.get("completedAt"),
             "_matchType": "fuzzy",
         }
 
@@ -145,13 +148,13 @@ def find_task_by_commit_message(hub_path, commit_message):
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: python3 causation-tracer.py <repo-path> <file> <line> [hub-path]")
+        print("Usage: python3 causation-tracer.py <repo-path> <file> <line>")
         sys.exit(1)
 
+    from pathlib import Path
     repo_path = Path(sys.argv[1])
     file_path = sys.argv[2]
     line_number = sys.argv[3]
-    hub_path = Path(sys.argv[4]) if len(sys.argv) > 4 else Path.home() / "atdd-hub"
 
     # Step 1: git blame
     blame_info = git_blame_line(repo_path, file_path, line_number)
@@ -159,12 +162,19 @@ def main():
         print(json.dumps({"error": f"Could not git blame {file_path}:{line_number}"}, ensure_ascii=False))
         sys.exit(1)
 
-    # Step 2: find task by commit hash
-    task = find_task_by_commit(hub_path, blame_info["commit"])
+    # Step 2: fetch tasks from API
+    try:
+        tasks = fetch_all_tasks()
+    except api.APIError as e:
+        print(json.dumps({"error": f"API Error: {e}"}, ensure_ascii=False))
+        sys.exit(1)
 
-    # Step 3: fallback to commit message matching
+    # Step 3: find task by commit hash
+    task = find_task_by_commit(tasks, blame_info["commit"])
+
+    # Step 4: fallback to commit message matching
     if not task and blame_info.get("message"):
-        task = find_task_by_commit_message(hub_path, blame_info["message"])
+        task = find_task_by_commit_message(tasks, blame_info["message"])
 
     # Output
     result = {

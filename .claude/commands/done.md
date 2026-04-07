@@ -8,9 +8,7 @@ description: 完整結案（Commit + 更新任務狀態）
 
 ## Step 1: 前置檢查
 
-**MCP 優先**：呼叫 `atdd_task_list(status='gate')` 取得所有 gate 階段的任務，檢查是否有 GO 決策。
-
-> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active/*.json` 搜尋本地檔案。
+呼叫 `atdd_task_list(status='gate')` 取得所有 gate 階段的任務，檢查是否有 GO 決策。
 
 沒有可結案任務 → 提示使用 `/status`
 多個 GO 任務 → AskUserQuestion 選擇
@@ -79,7 +77,6 @@ Metrics: {total_tools} tools / {total_tokens} tokens / {duration}
 
 執行 `shared/task-state-update.md` 的 **`task-completed`** 事件：
 
-- task JSON path
 - commit_hash = Step 4 的 commit hash
 - metrics = Step 3 的統計數據
 

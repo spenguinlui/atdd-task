@@ -321,7 +321,7 @@ epics:
 /feature {project}, {epic-id}:T1-1
 ```
 
-此時才建立 `tasks/{project}/active/{uuid}.json`：
+此時才透過 `atdd_task_create()` 建立任務：
 
 ```json
 {

@@ -80,7 +80,7 @@ issues:
 
 ### Step 4: 建立 Refactor 任務
 
-在 `tasks/{project}/active/` 建立新的 Refactor 任務 JSON：
+透過 `atdd_task_create()` 建立新的 Refactor 任務：
 
 ```json
 {

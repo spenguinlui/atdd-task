@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Domain Health Score Calculator
 
-掃描所有 task JSON，計算每個 domain 的健康度指標。
-輸出 domain-health.json 供 agent 和 dashboard 使用。
+從 API 取得所有任務，計算每個 domain 的健康度指標。
 
 Usage:
-    python3 domain-health.py <atdd-hub-path> [--output <path>] [--format text|json]
+    python3 domain-health.py [--output <path>] [--format text|json]
 
 Health Score Formula (weighted):
     Fix Rate:           30%  (fix_count / feature_count)
@@ -21,11 +20,15 @@ Thresholds:
 """
 
 import json
-import sys
 import os
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
+
+# Add ports/mcp to path for api_client
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "ports", "mcp"))
+import api_client as api
 
 # Health score weights
 WEIGHTS = {
@@ -41,30 +44,30 @@ EXPECTED_DOCS = {"ul.md", "business-rules.md", "strategic", "tactical"}
 
 RECENT_DAYS = 30
 
+# Hub path for knowledge file checks
+HUB_PATH = os.environ.get("ATDD_HUB_PATH", os.path.expanduser("~/atdd-hub"))
 
-def load_tasks(hub_path):
-    """Load all task JSONs from hub."""
-    tasks = []
-    tasks_dir = hub_path / "tasks"
-    for json_file in tasks_dir.rglob("*.json"):
-        try:
-            with open(json_file) as f:
-                task = json.load(f)
-            # Determine task status from directory
-            parent = json_file.parent.name
-            if parent in ("completed", "failed", "active", "closed"):
-                task["_dir_status"] = parent
-            task["_file"] = str(json_file)
-            task["_project"] = json_file.parts[len(tasks_dir.parts)]
-            tasks.append(task)
-        except (json.JSONDecodeError, KeyError):
-            continue
-    return tasks
+
+def fetch_all_tasks():
+    """Fetch all tasks from API with pagination."""
+    all_tasks = []
+    offset = 0
+    limit = 200
+    while True:
+        result = api.get("/api/v1/tasks", limit=str(limit), offset=str(offset))
+        items = result.get("items", [])
+        if not items:
+            break
+        all_tasks.extend(items)
+        if len(items) < limit:
+            break
+        offset += limit
+    return all_tasks
 
 
 def check_knowledge(hub_path, project, domain):
     """Check what knowledge docs exist for a domain."""
-    domain_dir = hub_path / "domains" / project
+    domain_dir = Path(hub_path) / "domains" / project
     if not domain_dir.exists():
         return 0, len(EXPECTED_DOCS)
 
@@ -88,16 +91,17 @@ def parse_timestamp(ts):
     if not ts:
         return None
     try:
-        # Handle various formats
-        ts = ts.replace("Z", "+00:00")
-        return datetime.fromisoformat(ts)
+        if isinstance(ts, str):
+            ts = ts.replace("Z", "+00:00")
+            return datetime.fromisoformat(ts)
+        return None
     except (ValueError, TypeError):
         return None
 
 
-def calculate_domain_health(hub_path):
+def calculate_domain_health():
     """Calculate health scores for all domains."""
-    tasks = load_tasks(hub_path)
+    tasks = fetch_all_tasks()
     now = datetime.now(timezone.utc)
     recent_cutoff = now - timedelta(days=RECENT_DAYS)
 
@@ -115,7 +119,7 @@ def calculate_domain_health(hub_path):
     results = {}
 
     for domain, dtasks in sorted(domain_tasks.items()):
-        project = dtasks[0].get("_project", "unknown")
+        project = dtasks[0].get("project", "unknown")
 
         # Count by type
         features = [t for t in dtasks if t.get("type") == "feature"]
@@ -132,16 +136,19 @@ def calculate_domain_health(hub_path):
             raw_fix_rate = fix_count / feature_count
             fix_rate_score = max(0, 100 - (raw_fix_rate * 100))
         elif fix_count > 0:
-            fix_rate_score = 0  # All fixes, no features = worst
+            fix_rate_score = 0
             raw_fix_rate = float("inf")
         else:
-            fix_rate_score = 100  # No fixes needed
+            fix_rate_score = 100
             raw_fix_rate = 0
 
         # Coupling Rate (0-100, inverted: less coupling = higher score)
         cross_domain = 0
         for t in dtasks:
-            related = t.get("context", {}).get("relatedDomains", [])
+            related = t.get("related_domains") or []
+            metadata = t.get("metadata") or {}
+            context = metadata.get("context", {})
+            related = related or context.get("relatedDomains", [])
             if related:
                 cross_domain += 1
                 for rd in related:
@@ -154,25 +161,24 @@ def calculate_domain_health(hub_path):
         # Change Frequency (0-100, inverted: very hot = lower score)
         recent_count = 0
         for t in dtasks:
-            created = parse_timestamp(t.get("createdAt"))
+            created = parse_timestamp(t.get("created_at"))
             if created and created > recent_cutoff:
                 recent_count += 1
 
         raw_change_freq = recent_count / max(total, 1)
-        # Moderate change is OK, very high is bad
         if raw_change_freq > 0.5:
             change_score = max(0, 100 - ((raw_change_freq - 0.5) * 200))
         else:
             change_score = 100
 
         # Knowledge Coverage (0-100)
-        existing_docs, total_docs = check_knowledge(hub_path, project, domain)
+        existing_docs, total_docs = check_knowledge(HUB_PATH, project, domain)
         knowledge_score = (existing_docs / total_docs * 100) if total_docs > 0 else 0
 
         # Escape Rate (0-100, inverted)
         production_discovered = 0
         for t in fixes:
-            causation = t.get("causation", {})
+            causation = t.get("causation") or {}
             if causation and causation.get("discoveredIn") == "production":
                 production_discovered += 1
         if fix_count > 0:
@@ -280,7 +286,6 @@ def format_text(data):
     lines.append(f"  Total Tasks: {s['totalTasks']}")
     lines.append("")
 
-    # Sort by score ascending (worst first)
     sorted_domains = sorted(
         data["domains"].values(), key=lambda d: d["healthScore"]
     )
@@ -314,8 +319,6 @@ def main():
     output_path = None
     fmt = "text"
 
-    # Parse args
-    filtered = []
     i = 0
     while i < len(args):
         if args[i] == "--output" and i + 1 < len(args):
@@ -325,16 +328,13 @@ def main():
             fmt = args[i + 1]
             i += 2
         else:
-            filtered.append(args[i])
             i += 1
 
-    hub_path = Path(filtered[0]) if filtered else Path.home() / "atdd-hub"
-
-    if not (hub_path / "tasks").exists():
-        print(f"Error: {hub_path}/tasks not found")
+    try:
+        data = calculate_domain_health()
+    except api.APIError as e:
+        print(f"API Error: {e}", file=sys.stderr)
         sys.exit(1)
-
-    data = calculate_domain_health(hub_path)
 
     if fmt == "json":
         output = json.dumps(data, ensure_ascii=False, indent=2)

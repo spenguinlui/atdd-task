@@ -12,7 +12,7 @@ description: 回報已部署任務在 production 發現問題
 
 ## 執行步驟
 
-1. **找到 deployed 任務**：**MCP 優先** — 呼叫 `atdd_task_list(status='deployed')`。Fallback：搜尋 `tasks/*/deployed/*.json`。
+1. **找到 deployed 任務**：呼叫 `atdd_task_list(status='deployed')`。
    - 如果沒有 deployed 任務 → 提示「沒有已部署的任務」
    - 如果有多個 → 列出清單讓用戶選擇
 

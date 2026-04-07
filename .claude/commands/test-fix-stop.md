@@ -82,7 +82,7 @@ issues:
 
 ### Step 4: 建立 Fix 任務
 
-在 `tasks/{project}/active/` 建立新的 Fix 任務 JSON：
+透過 `atdd_task_create()` 建立新的 Fix 任務：
 
 ```json
 {
@@ -169,7 +169,7 @@ results:
 
 ### Step 7: 更新任務 JSON
 
-更新 `tasks/{project}/active/{test_id}.json`：
+透過 `atdd_task_update()` 更新任務：
 ```json
 {
   "status": "gate",

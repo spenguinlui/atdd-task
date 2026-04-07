@@ -6,9 +6,7 @@ description: 放棄當前進行中的任務
 
 ## 檢查 Active 任務
 
-**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務，過濾出 status 不是 `completed`、`aborted`、`verified` 的 active 任務。
-
-> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active -name "*.json"` 搜尋本地檔案。
+呼叫 `atdd_task_list()` 取得所有任務，過濾出 status 不是 `completed`、`aborted`、`verified` 的 active 任務。
 
 **如果沒有 active 任務：**
 ```markdown
@@ -55,7 +53,6 @@ description: 放棄當前進行中的任務
 
 執行 `shared/task-state-update.md` 的 **`task-cancelled`** 事件：
 
-- task JSON path
 - reason = "用戶手動放棄"
 
 > 此事件會統一處理：Task JSON 更新（status=failed）、檔案移動至 failed/、Kanban 放棄。
@@ -71,8 +68,7 @@ description: 放棄當前進行中的任務
 │ 📝 標題：{description}                               │
 │ 📍 放棄於：{status} 階段                             │
 │                                                      │
-│ 📁 記錄已保存至：                                    │
-│ tasks/{project}/failed/{uuid}.json        │
+│ 📁 記錄已保存至 DB                                   │
 │                                                      │
 │ ═══ 清理建議 ═══                                     │
 │ 如果需要刪除已生成的檔案，請手動處理：              │

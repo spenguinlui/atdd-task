@@ -1,8 +1,8 @@
 # 任務 JSON 模板
 
-## 建立任務（Dual-Write：MCP + Local JSON）
+## 建立任務（MCP 為唯一資料來源）
 
-### Step A: 呼叫 MCP 建立任務（DB 為 Source of Truth）
+### Step A: 呼叫 MCP 建立任務
 
 ```
 atdd_task_create(
@@ -22,70 +22,7 @@ atdd_task_create(
 - Fix 任務額外傳入 `causation` 參數（見下方 Causation 欄位說明）
 - 從回傳結果取得 `id` 作為任務 UUID
 
-> **MCP 失敗 Fallback**：如果 MCP tool 呼叫失敗（API 不可達），改用 `uuidgen | tr '[:upper:]' '[:lower:]'` 產生 UUID，僅建立本地 JSON。任務稍後可透過 MCP sync 補寫 DB。
-
-### Step B: 寫入本地 JSON（Backward Compat）
-
-使用 MCP 回傳的 `id` 作為檔名，寫入 `tasks/{project}/active/{id}.json`。
-
-本地 JSON 包含完整結構（DB 欄位 + metadata 欄位合併），供 subagent 讀取：
-
-```json
-{
-  "id": "{id from MCP response}",
-  "type": "{feature|fix|refactor|test}",
-  "description": "{標題}",
-  "status": "requirement",
-  "projectId": "{project}",
-  "projectName": "{project}",
-  "domain": "",
-  "git": {
-    "branch": "{selected_branch}"
-  },
-  "agents": [],
-  "workflow": {
-    "mode": "guided",
-    "currentAgent": "specist",
-    "confidence": 0,
-    "pendingAction": null
-  },
-  "acceptance": {
-    "profile": null,
-    "testLayers": {},
-    "fixture": null,
-    "results": {},
-    "verificationGuide": null
-  },
-  "history": [
-    { "phase": "requirement", "timestamp": "{ISO timestamp}" }
-  ],
-  "jira": {
-    "issueKey": null,
-    "url": null,
-    "source": null
-  },
-  "causation": {
-    "causedBy": null,
-    "rootCauseType": null,
-    "discoveredIn": null,
-    "discoveredAt": null,
-    "timeSinceIntroduced": null
-  },
-  "context": {
-    "background": "",
-    "relatedDomains": [],
-    "deletedFiles": [],
-    "modifiedFiles": [],
-    "changes": [],
-    "commitHash": ""
-  },
-  "metrics": null,
-  "createdAt": "{ISO timestamp}",
-  "updatedAt": "{ISO timestamp}"
-}
-```
-
-### Step C: 記錄 History（MCP）
+### Step B: 記錄 History（MCP）
 
 ```
 atdd_task_add_history(
@@ -98,14 +35,13 @@ atdd_task_add_history(
 
 ---
 
-## MCP Sync 原則
+## MCP 操作參考
 
-> 所有對任務 JSON 的寫入，都要同步呼叫對應的 MCP tool：
+> 所有任務狀態透過 MCP tool 寫入 DB：
 > - 欄位更新 → `atdd_task_update(task_id, ...changed_fields, metadata={...changed_metadata})`
 > - 階段轉移 → `atdd_task_update` + `atdd_task_add_history`
 > - Metrics → `atdd_task_add_metrics`
->
-> MCP 呼叫失敗時，繼續本地操作，不阻斷流程。
+> - 讀取任務 → `atdd_task_get(task_id)` 或 `atdd_task_list()`
 
 ---
 
@@ -184,12 +120,18 @@ atdd_task_create(
 )
 ```
 
-## 儲存位置
+## 任務狀態對照
 
-```
-tasks/{project}/active/{uuid}.json   # 進行中
-tasks/{project}/completed/{uuid}.json # 已完成
-tasks/{project}/failed/{uuid}.json   # 失敗
-tasks/{project}/deployed/{uuid}.json # 已部署待驗證
-tasks/{project}/escaped/{uuid}.json  # 生產問題
-```
+| 狀態 | 說明 |
+|------|------|
+| requirement | 需求分析中 |
+| specification | 規格撰寫中 |
+| testing | 測試生成中 |
+| development | 開發中 |
+| review | 審查中 |
+| gate | 品質門檻檢查 |
+| deployed | 已部署待驗證 |
+| completed | 已完成 |
+| verified | 已驗證 |
+| failed/aborted | 失敗/放棄 |
+| escaped | 生產問題 |

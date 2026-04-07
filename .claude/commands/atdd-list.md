@@ -2,72 +2,23 @@
 
 列出所有 ATDD 任務的詳細資訊，包含**專案**、**領域**和**類型**。
 
-## 執行命令
+## 執行步驟
 
-```bash
-# 使用 Node.js 腳本列出任務
-cd {{PROJECT_PATH}}
-node -e "
-const fs = require('fs');
-const path = require('path');
+呼叫 `atdd_task_list(limit=200)` 取得所有任務，依 status 分組顯示。
 
-const tasksDir = 'tasks';
-const locations = ['active', 'completed', 'failed'];
-
-console.log('\\n📋 ATDD 任務列表\\n');
-console.log('='.repeat(80) + '\\n');
-
-for (const loc of locations) {
-  const locPath = path.join(tasksDir, loc);
-  if (fs.existsSync(locPath)) {
-    const files = fs.readdirSync(locPath).filter(f => f.endsWith('.json'));
-
-    if (files.length > 0) {
-      console.log(\`\\n## \${loc.toUpperCase()} (\${files.length} 個任務)\\n\`);
-
-      files.forEach(file => {
-        const content = fs.readFileSync(path.join(locPath, file), 'utf-8');
-        const task = JSON.parse(content);
-
-        const emoji = task.type === 'feature' ? '✨' :
-                     task.type === 'fix' ? '🐛' :
-                     task.type === 'refactor' ? '♻️' :
-                     task.type === 'health-check' ? '🏥' : '📝';
-
-        const typeLabel = task.type === 'feature' ? 'Feature' :
-                         task.type === 'fix' ? 'Fix' :
-                         task.type === 'refactor' ? 'Refactor' :
-                         task.type === 'health-check' ? 'Health Check' : 'Spec Update';
-
-        console.log(\`\${emoji} [\${task.id.substring(0, 8)}] \${task.description}\`);
-        console.log(\`   📦 專案: \${task.projectName || task.projectId}\`);
-        console.log(\`   📂 領域: \${task.domain || 'N/A'}\`);
-        console.log(\`   🏷️  類型: \${typeLabel}\`);
-        console.log(\`   📊 狀態: \${task.status}\`);
-        console.log(\`   🕐 建立: \${new Date(task.createdAt).toLocaleString()}\`);
-        console.log(\`   🔄 更新: \${new Date(task.updatedAt).toLocaleString()}\`);
-        console.log('');
-      });
-    }
-  }
-}
-
-console.log('='.repeat(80));
-console.log('\\n💡 提示：使用 /atdd-kanban 查看看板視圖\\n');
-"
-```
+分組順序：ACTIVE（status 不在 completed/aborted/verified/failed 中）→ COMPLETED → FAILED
 
 ## 顯示格式
 
 每個任務顯示：
 - 🔹 類型 Emoji + 任務 ID (前 8 碼)
+  - ✨ Feature | 🐛 Fix | ♻️ Refactor | 🏥 Health Check | 📝 其他
 - 📦 **專案名稱**（跨專案識別）
-- 📂 **領域名稱**（從 Domain 分析取得）
-- 🏷️ **任務類型**（Feature/Fix/Refactor/Health Check/Spec Update）
+- 📂 **領域名稱**（從 domain 欄位取得）
+- 🏷️ **任務類型**
 - 📊 任務狀態
 - 🕐 建立時間
 - 🔄 更新時間
-- 📈 相關指標（如果有）
 
 ## 範例輸出
 

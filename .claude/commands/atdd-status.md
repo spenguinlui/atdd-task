@@ -4,22 +4,10 @@
 
 ## 執行步驟
 
-1. 讀取任務統計資訊
-2. 顯示當前活躍任務
-3. 顯示最近完成的任務
-
-## 執行命令
-
-```bash
-# 讀取 Kanban 看板
-cat tasks.md
-
-# 列出活躍任務
-ls -lt tasks/active/
-
-# 顯示最新的任務
-find tasks -name "*.json" -type f -exec ls -t {} + | head -5 | xargs cat
-```
+1. 呼叫 `atdd_task_list(limit=200)` 取得所有任務
+2. 依 status 分類統計
+3. 顯示當前活躍任務
+4. 顯示最近完成的任務（最新 5 筆）
 
 ## 輸出格式
 

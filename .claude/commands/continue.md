@@ -6,9 +6,7 @@ description: 確認進入下一個任務階段
 
 ## Step 1: 檢查 Active 任務
 
-**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務，過濾出 status 不是 `completed`、`aborted`、`verified` 的為 active 任務。收集：id, project, description, status, type。
-
-> **Fallback**：如果 MCP 不可用，改用 `find tasks/*/active/*.json` 搜尋本地檔案。
+呼叫 `atdd_task_list()` 取得所有任務，過濾出 status 不是 `completed`、`aborted`、`verified` 的為 active 任務。收集：id, project, description, status, type。
 
 | 情況 | 處理 |
 |------|------|
@@ -86,7 +84,7 @@ description: 確認進入下一個任務階段
 
 當階段轉移為 `gate → completed` 時，在提供結案選項**之前**執行：
 
-1. 讀取任務 JSON 的 `history` 中最近一筆 gate 階段的 agent output
+1. 從 `atdd_task_get(task_id)` 取得任務資料，檢查 `history` 中最近一筆 gate 階段的 agent output
 2. 搜尋是否包含 `📚 Knowledge Discoveries:` 區塊
 3. 依結果分流：
 
@@ -146,7 +144,6 @@ gate → GO
 
 執行 `shared/task-state-update.md` 的 **`stage-changed`** 事件：
 
-- task JSON path
 - task_id = 任務 UUID
 - from_stage = 當前階段
 - to_stage = 目標階段

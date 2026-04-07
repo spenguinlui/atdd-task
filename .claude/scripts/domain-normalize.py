@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Domain Name Normalization Script
 
-修正 atdd-hub 中 task JSON 的 domain 命名不一致問題。
+透過 API 修正任務的 domain 命名不一致問題。
 
 Usage:
-    python3 domain-normalize.py [--dry-run] [atdd-hub-path]
+    python3 domain-normalize.py [--dry-run]
 """
 
 import json
-import sys
 import os
-from pathlib import Path
+import sys
+
+# Add ports/mcp to path for api_client
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "ports", "mcp"))
+import api_client as api
 
 # Normalization mapping: old_name → new_name
 DOMAIN_MAP = {
@@ -23,15 +26,30 @@ DOMAIN_MAP = {
 }
 
 
-def normalize_task(filepath, dry_run):
-    """Normalize domain name in a single task JSON. Returns change info or None."""
-    with open(filepath, "r") as f:
-        task = json.load(f)
+def fetch_all_tasks():
+    """Fetch all tasks from API with pagination."""
+    all_tasks = []
+    offset = 0
+    limit = 200
+    while True:
+        result = api.get("/api/v1/tasks", limit=str(limit), offset=str(offset))
+        items = result.get("items", [])
+        if not items:
+            break
+        all_tasks.extend(items)
+        if len(items) < limit:
+            break
+        offset += limit
+    return all_tasks
 
+
+def normalize_task(task, dry_run):
+    """Normalize domain name for a single task. Returns change info or None."""
     domain = task.get("domain", "")
     if not domain:
         return None
 
+    task_id = task["id"]
     changes = {}
 
     # Case 1: Comma-separated multi-domain
@@ -40,7 +58,6 @@ def normalize_task(filepath, dry_run):
         primary = parts[0]
         secondary = parts[1:]
 
-        # Normalize primary if needed
         if primary in DOMAIN_MAP:
             primary = DOMAIN_MAP[primary]
 
@@ -49,15 +66,10 @@ def normalize_task(filepath, dry_run):
         changes["added_related"] = secondary
 
         if not dry_run:
-            task["domain"] = primary
-            context = task.setdefault("context", {})
-            related = context.setdefault("relatedDomains", [])
-            for s in secondary:
-                if s and s not in related:
-                    related.append(s)
-            with open(filepath, "w") as f:
-                json.dump(task, f, ensure_ascii=False, indent=2)
-                f.write("\n")
+            api.patch(f"/api/v1/tasks/{task_id}", {
+                "domain": primary,
+                "related_domains": secondary,
+            })
 
         return changes
 
@@ -68,10 +80,9 @@ def normalize_task(filepath, dry_run):
         changes["new_domain"] = new_domain
 
         if not dry_run:
-            task["domain"] = new_domain
-            with open(filepath, "w") as f:
-                json.dump(task, f, ensure_ascii=False, indent=2)
-                f.write("\n")
+            api.patch(f"/api/v1/tasks/{task_id}", {
+                "domain": new_domain,
+            })
 
         return changes
 
@@ -80,53 +91,51 @@ def normalize_task(filepath, dry_run):
 
 def main():
     dry_run = "--dry-run" in sys.argv
-    args = [a for a in sys.argv[1:] if a != "--dry-run"]
-    hub_path = Path(args[0]) if args else Path.home() / "atdd-hub"
 
-    tasks_dir = hub_path / "tasks"
-    if not tasks_dir.exists():
-        print(f"Error: {tasks_dir} not found")
-        sys.exit(1)
-
-    print(f"=== Domain Name Normalization ===")
-    print(f"Hub path: {hub_path}")
+    print("=== Domain Name Normalization ===")
     print(f"Dry run: {dry_run}")
-    print(f"")
-    print(f"Mapping:")
+    print()
+    print("Mapping:")
     for old, new in DOMAIN_MAP.items():
         print(f"  {old} → {new}")
-    print(f"  (comma-separated) → split into domain + relatedDomains")
-    print(f"")
+    print("  (comma-separated) → split into domain + relatedDomains")
+    print()
+
+    try:
+        tasks = fetch_all_tasks()
+    except api.APIError as e:
+        print(f"API Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     modified = 0
     errors = 0
 
-    for json_file in sorted(tasks_dir.rglob("*.json")):
+    for task in tasks:
         try:
-            result = normalize_task(json_file, dry_run)
+            result = normalize_task(task, dry_run)
             if result:
                 modified += 1
-                rel_path = json_file.relative_to(hub_path)
+                task_id = task["id"][:8]
                 old = result["old_domain"]
                 new = result["new_domain"]
                 extra = ""
                 if "added_related" in result:
                     extra = f" (+relatedDomains: {result['added_related']})"
                 prefix = "[DRY-RUN]" if dry_run else "[FIXED]"
-                print(f"  {prefix} {rel_path}")
+                print(f"  {prefix} [{task_id}] {task.get('description', '')}")
                 print(f"    '{old}' → '{new}'{extra}")
         except Exception as e:
             errors += 1
-            print(f"  [ERROR] {json_file}: {e}")
+            print(f"  [ERROR] [{task['id'][:8]}]: {e}")
 
-    print(f"")
-    print(f"=== Summary ===")
+    print()
+    print("=== Summary ===")
     print(f"Modified: {modified}")
     print(f"Errors: {errors}")
     print(f"Dry run: {dry_run}")
 
     if dry_run and modified > 0:
-        print(f"\nRun without --dry-run to apply changes.")
+        print("\nRun without --dry-run to apply changes.")
 
 
 if __name__ == "__main__":

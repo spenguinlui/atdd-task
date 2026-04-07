@@ -8,16 +8,9 @@ description: 查看當前任務狀態和進度
 
 ### Step 1: MCP 任務查詢
 
-**MCP 優先**：呼叫 `atdd_task_list()` 取得所有任務。從結果中：
+呼叫 `atdd_task_list()` 取得所有任務。從結果中：
 - **Active 任務**：status 不是 `completed`、`aborted`、`verified` 的
 - 提取：id, type, description, status, project, domain, phase, metadata（含 workflow, epic 等）
-
-> **Fallback**：如果 MCP 不可用，改用本地搜尋：
-> ```bash
-> for f in tasks/*/active/*.json; do
->   jq -c '{id: .id, type: .type, desc: .description, status: .status, project: .projectId, epic: .epic, agent: .workflow.currentAgent}' "$f" 2>/dev/null
-> done
-> ```
 
 **Active Epics**（仍讀本地 epic.yml，DB 未追蹤）：
 ```bash
@@ -37,12 +30,7 @@ done
 
 ### Step 2: 最近完成的任務（僅在無 active task 時）
 
-**MCP 優先**：`atdd_task_list(status='completed', limit=3)` 取最近 3 筆。
-
-> **Fallback**：
-> ```bash
-> ls -t tasks/*/completed/*.json 2>/dev/null | head -3 | xargs -I{} jq -c '{id: .id, type: .type, desc: .description, project: .projectId}' "{}"
-> ```
+`atdd_task_list(status='completed', limit=3)` 取最近 3 筆。
 
 ---
 

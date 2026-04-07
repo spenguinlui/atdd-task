@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """File Generator: Sync DB tasks → local JSON files.
 
-Generates local task JSON files from the ATDD API, maintaining backward
-compatibility with subagents that read tasks/{project}/active/*.json.
+⚠️  DEPRECATED: 本地 JSON 檔案已不再使用。所有任務資料改由 MCP/API 直接存取。
+    此工具僅保留供 debug 使用，不再是任務流程的一部分。
 
 Usage:
     python file_generator.py                    # Sync all active tasks
