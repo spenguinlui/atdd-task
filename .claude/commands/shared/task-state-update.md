@@ -87,13 +87,23 @@ bash .claude/scripts/kanban-adapter.sh move \
 3. 依優先序擷取業務描述（見下方格式相容規則）
 4. 若有 Spec 檔案，從中擷取 `## Acceptance Criteria` 區塊
 5. 組合成描述文字，寫入暫存檔 `/tmp/jira-desc-{uuid}.md`
-6. 執行：
+6. 檢查任務 JSON 的 `jira.source`，決定寫入方式：
 
+**`jira.source == "created"` 或 null**（我們建立的票）→ 更新 Description：
 ```bash
 bash .claude/scripts/kanban-adapter.sh update \
   --project {project} \
   --title "{description}" \
   --description-file /tmp/jira-desc-{uuid}.md
+```
+
+**`jira.source == "linked"`**（既有票）→ 寫入 Comment，避免覆蓋 PM 原本的 Description：
+```bash
+bash .claude/scripts/kanban-adapter.sh update \
+  --project {project} \
+  --title "{description}" \
+  --description-file /tmp/jira-desc-{uuid}.md \
+  --as-comment
 ```
 
 #### 格式相容規則（優先序）

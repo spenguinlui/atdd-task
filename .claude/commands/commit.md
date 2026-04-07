@@ -74,7 +74,7 @@ cd {project_path} && git diff
 │ 📁 未追蹤：{untracked_count} 個                      │
 │                                                      │
 │ ═══ Commit 訊息預覽 ═══                              │
-│ {type}({domain}): {description}                     │
+│ {branch} {type}({domain}): {description}            │
 │                                                      │
 │ - {change_1}                                         │
 │ - {change_2}                                         │
@@ -115,7 +115,7 @@ cd {project_path} && git add {modified_files}
 
 # Commit
 cd {project_path} && git commit -m "$(cat <<'EOF'
-{type}({domain}): {description}
+{branch} {type}({domain}): {description}
 
 - {change_1}
 - {change_2}
@@ -132,7 +132,7 @@ EOF
 ```bash
 # 只 commit 已 staged 的
 cd {project_path} && git commit -m "$(cat <<'EOF'
-{type}({domain}): {description}
+{branch} {type}({domain}): {description}
 
 Task: {task_id} (in progress)
 
@@ -223,7 +223,7 @@ git rev-parse --short HEAD
 ### 標準格式
 
 ```
-{type}({domain}): {description}
+{branch} {type}({domain}): {description}
 
 - {change_summary_1}
 - {change_summary_2}
@@ -232,6 +232,8 @@ Task: {task_id} (in progress)
 
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
+
+其中 `{branch}` 是任務 JSON 的 `git.branch` 值（例如 `GRE-217`）。
 
 ### Type 對應
 
@@ -245,7 +247,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ### 範例
 
 ```
-feat(Accounting::AccountsReceivable): 實作發票作廢功能
+GRE-217 feat(Accounting::AccountsReceivable): 實作發票作廢功能
 
 - 新增 VoidCurrentInvoice use case
 - 新增授權控制檢查
