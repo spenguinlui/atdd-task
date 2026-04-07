@@ -12,6 +12,12 @@ ATDD_HUB_DIR="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR not set}"
 TASKS_DIR="${ATDD_HUB_DIR}/tasks"
 USER_PROMPT="${TOOL_INPUT:-}"
 
+# /e2e-manual 授權 flag（供 protect-e2e-mode.sh 驗證）
+if [[ "$USER_PROMPT" == "/e2e-manual"* ]]; then
+    echo "$(date +%s)|e2e-manual|user_command" > "${ATDD_HUB_DIR}/.claude/.e2e-manual-authorized"
+    exit 0
+fi
+
 # 只處理 /continue 命令
 if [[ "$USER_PROMPT" != "/continue"* ]]; then
     exit 0
