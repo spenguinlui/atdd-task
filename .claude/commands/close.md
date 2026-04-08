@@ -132,6 +132,15 @@ AskUserQuestion(
 
 ---
 
+### Step 4.5: 知識收斂（條件式）
+
+從 `atdd_task_get(task_id)` 取得任務資料，檢查 `history` 中最近一筆 gate 階段的 agent output，搜尋是否包含 `📚 Knowledge Discoveries:` 區塊。
+
+- **有發現** → 呼叫 Curator Agent（參數同 `done.md` Step 6），觸發來源為 `{task.type}-completed`
+- **無發現** → 跳過
+
+---
+
 ### Step 5: 輸出完成訊息
 
 ```markdown
