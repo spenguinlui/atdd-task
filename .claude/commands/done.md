@@ -84,18 +84,68 @@ Metrics: {total_tools} tools / {total_tokens} tokens / {duration}
 
 ---
 
-## Step 6: 輸出完成訊息
+## Step 6: 知識收斂（條件式）
+
+任務 completed 後，檢查 gate 階段是否有知識發現：
+
+1. 從 `atdd_task_get(task_id)` 取得任務資料，檢查 `history` 中最近一筆 gate 階段的 agent output
+2. 搜尋是否包含 `📚 Knowledge Discoveries:` 區塊
+3. 依結果分流：
+
+```
+completed
+    │
+    ├── 檢查 gate report 是否有 Knowledge Discoveries
+    │
+    ├── [有發現] → 呼叫 Curator Agent
+    │   Task(
+    │     subagent_type: "curator",
+    │     prompt: "
+    │       專案：{project}
+    │       Domain(s)：{task.domain}
+    │       模式：single_domain
+    │       觸發來源：{task.type}-completed
+    │
+    │       === 知識發現 ===
+    │       Gatekeeper 在 Gate 階段識別到以下新知識：
+    │       {knowledge_discoveries from gate report}
+    │
+    │       === 必讀規範 ===
+    │       1. knowledge/access/reader.md
+    │       2. knowledge/access/writer.md
+    │
+    │       === 知識文件路徑 ===
+    │       - 術語表：domains/{project}/ul.md
+    │       - 業務規則：domains/{project}/business-rules.md
+    │       - 商務邏輯：domains/{project}/strategic/{domain}.md
+    │       - 系統設計：domains/{project}/tactical/{domain}.md
+    │       - 領域邊界：domains/{project}/domain-map.md
+    │
+    │       === 執行流程 ===
+    │       請執行標準 5-phase 流程。
+    │       聚焦於 Gatekeeper 識別的知識發現。
+    │     "
+    │   )
+    │
+    └── [無發現] → 跳過
+```
+
+> 此步驟適用於所有任務類型（feature、fix、refactor）。
+
+---
+
+## Step 7: 輸出完成訊息
 
 任務識別、Commit、狀態、Metrics
 
-如果 `acceptance.verificationGuide` 存在，在知識更新與 Epic 同步之前加入：
+如果 `acceptance.verificationGuide` 存在，加入：
 
 ```markdown
 │ ═══ 人工驗收 ═══                                     │
 │ {verificationGuide 內容}                              │
 ```
 
-接續：知識更新提案（如有）、Epic 同步（如有）
+接續：Epic 同步（如有）
 
 ---
 

@@ -31,7 +31,7 @@ description: 確認進入下一個任務階段
 | testing | development/gate | 測試生成 |
 | development | review | 測試通過 + E2E 檢查 |
 | review | gate | 審查完成 |
-| gate | completed | GO 決策（經知識策展檢查） |
+| gate | completed | GO 決策 |
 
 ### E2E 檢查（development → review）
 
@@ -77,66 +77,6 @@ description: 確認進入下一個任務階段
 ```
 
 > 如果沒有 spec 檔或 test suite，僅保留 gatekeeper 輸出的驗收指南區塊。
-
----
-
-## Step 2.5: Gate 後知識策展（條件式）
-
-當階段轉移為 `gate → completed` 時，在提供結案選項**之前**執行：
-
-1. 從 `atdd_task_get(task_id)` 取得任務資料，檢查 `history` 中最近一筆 gate 階段的 agent output
-2. 搜尋是否包含 `📚 Knowledge Discoveries:` 區塊
-3. 依結果分流：
-
-```
-gate → GO
-    │
-    ├── 檢查 gate report 是否有 Knowledge Discoveries
-    │
-    ├── [有發現] → 呼叫 Curator Agent
-    │   Task(
-    │     subagent_type: "curator",
-    │     prompt: "
-    │       專案：{project}
-    │       Domain(s)：{task.domain}
-    │       模式：single_domain
-    │       觸發來源：{task.type}-gate
-    │
-    │       === 知識發現 ===
-    │       Gatekeeper 在 Gate 階段識別到以下新知識：
-    │       {knowledge_discoveries from gate report}
-    │
-    │       === 必讀規範 ===
-    │       1. knowledge/access/reader.md
-    │       2. knowledge/access/writer.md
-    │
-    │       === 知識文件路徑 ===
-    │       - 術語表：domains/{project}/ul.md
-    │       - 業務規則：domains/{project}/business-rules.md
-    │       - 商務邏輯：domains/{project}/strategic/{domain}.md
-    │       - 系統設計：domains/{project}/tactical/{domain}.md
-    │       - 領域邊界：domains/{project}/domain-map.md
-    │
-    │       === 執行流程 ===
-    │       請執行標準 5-phase 流程。
-    │       聚焦於 Gatekeeper 識別的知識發現。
-    │     "
-    │   )
-    │   → Curator 完成後提供結案選項
-    │
-    └── [無發現] → 直接提供結案選項
-```
-
-**結案選項**（Knowledge 完成後或無發現時輸出）：
-
-```
-📌 可用命令：
-• /done         - Commit + 結案（最常用）
-• /commit       - 僅 Commit
-• /close        - 僅結案
-```
-
-> 此步驟適用於所有任務類型（feature、fix、refactor）。
 
 ---
 
