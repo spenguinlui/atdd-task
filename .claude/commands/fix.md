@@ -39,7 +39,7 @@ description: 啟動 Bug 修復任務（簡化流程）
 - 信心度評估（門檻 95%）
 - 如需更多資訊：重現步驟、預期 vs 實際、錯誤訊息
 - 撰寫簡化規格（Bug 描述 + 預期修復行為）
-- **Causation 調查**（調查階段填寫 task JSON 的 `causation` 欄位）：
+- **Causation 調查**（調查階段透過 `atdd_task_update()` 填寫 MCP 的 `causation` 欄位）：
   - `discoveredIn`: 問題在哪個環節被發現（production/staging/e2e/review/development）
   - `causedBy`: 嘗試用 `git blame` 問題程式碼行 → 找到 commit → 透過 `atdd_task_list()` 搜尋 `context.commitHash` 匹配的任務。找到則填入 `taskId`、`commitHash`、`description`；找不到則保持 null
   - `rootCauseType`: feature-defect（功能本身缺陷）| fix-regression（修 bug 改壞）| legacy（歷史債務）| unknown | environment | dependency

@@ -55,7 +55,7 @@ description: 放棄當前進行中的任務
 
 - reason = "用戶手動放棄"
 
-> 此事件會統一處理：Task JSON 更新（status=failed）、檔案移動至 failed/、Kanban 放棄。
+> 此事件會統一處理：MCP 狀態更新（status=failed）、Kanban 放棄。
 
 ### Step 2: 輸出確認
 

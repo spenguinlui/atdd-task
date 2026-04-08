@@ -22,7 +22,9 @@
 
 ## 步驟 A: 更新 epic.yml
 
-讀取 `epics/{project}/{epic.id}/epic.yml`，更新對應任務：
+用 Read 工具讀取 `epics/{project}/{epic.id}/epic.yml`。如果檔案不存在 → 跳過 Epic 同步，輸出警告「Epic 定義檔不存在，跳過同步」。
+
+存在時，更新對應任務：
 
 ```yaml
 phases:

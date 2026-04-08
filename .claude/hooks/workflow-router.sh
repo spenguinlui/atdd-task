@@ -10,20 +10,14 @@ set -e
 
 ATDD_HUB_DIR="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR not set}"
 TASKS_DIR="${ATDD_HUB_DIR}/tasks"
-USER_PROMPT="${TOOL_INPUT:-}"
+
+# 從 stdin JSON 讀取用戶輸入（UserPromptSubmit hook 透過 stdin 傳入）
+HOOK_INPUT=$(cat)
+USER_PROMPT=$(echo "$HOOK_INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('prompt',''))" 2>/dev/null || echo "")
 
 # /e2e-manual 授權 flag（供 protect-e2e-mode.sh 驗證）
 if [[ "$USER_PROMPT" == "/e2e-manual"* ]]; then
     echo "$(date +%s)|e2e-manual|user_command" > "${ATDD_HUB_DIR}/.claude/.e2e-manual-authorized"
-fi
-
-# ─── Skill 授權 flag（供 guard-skill-invoke.sh 驗證）───
-# 偵測用戶輸入的 /xxx 命令，寫入一次性授權 flag
-if [[ "$USER_PROMPT" =~ ^/([a-zA-Z][a-zA-Z0-9_-]*) ]]; then
-    SKILL_NAME="${BASH_REMATCH[1]}"
-    AUTH_DIR="${ATDD_HUB_DIR}/.claude/.skill-authorized"
-    mkdir -p "$AUTH_DIR"
-    echo "$(date +%s)|${SKILL_NAME}|user_command" > "${AUTH_DIR}/${SKILL_NAME}"
 fi
 
 # 只處理 /continue 命令（後續路由邏輯）

@@ -8,25 +8,12 @@ description: 查看當前任務狀態和進度
 
 ### Step 1: MCP 任務查詢
 
-呼叫 `atdd_task_list()` 取得所有任務。從結果中：
+呼叫 `atdd_task_list()` 取得所有任務。回傳 JSON 結構為 `{"items": [...], "total": N}`。從 `items` 中：
 - **Active 任務**：status 不是 `completed`、`aborted`、`verified` 的
-- 提取：id, type, description, status, project, domain, phase, metadata（含 workflow, epic 等）
+- 提取：id（完整 UUID）, type, description, status, project, domain, phase, metadata（含 workflow, epic 等）
+- **重要**：所有流程中必須使用完整 UUID，禁止截斷（如 `[:8]`）
 
-**Active Epics**（仍讀本地 epic.yml，DB 未追蹤）：
-```bash
-for f in epics/*/*/epic.yml; do
-  epic_status=$(grep '^status:' "$f" | awk '{print $2}')
-  if [ "$epic_status" != "completed" ] && [ "$epic_status" != "aborted" ]; then
-    echo "=== $f (status: $epic_status) ==="
-    grep -E '^(title:|id:)' "$f"
-    grep -c 'status: completed' "$f" | xargs -I{} echo "completed_tasks: {}"
-    grep -c 'status: pending_spec' "$f" | xargs -I{} echo "pending_tasks: {}"
-    grep -c 'status: developing' "$f" | xargs -I{} echo "developing_tasks: {}"
-  fi
-done
-```
-
-如果有 Active Epic，用 Read 工具讀取該 `epic.yml` 以取得 Phase 詳情（只讀 active 的）。
+**Active Epics**：用 Glob 搜尋 `epics/*/*/epic.yml`，如果沒有結果則跳過。找到時用 Read 讀取並檢查 status 欄位。
 
 ### Step 2: 最近完成的任務（僅在無 active task 時）
 

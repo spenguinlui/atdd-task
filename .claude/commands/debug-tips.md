@@ -146,11 +146,11 @@ find debug-knowledge -name "*.yml" -not -name "tip-template.yml" -not -name "tag
 
 **觸發條件**（任一）：
 - 重複嘗試相同方法失敗 >= 3 次
-- 已執行 10+ 次工具呼叫但 task JSON 仍無 `investigation.rootCause`
+- 已執行 10+ 次工具呼叫但 MCP 任務資料仍無 `investigation.rootCause`
 - 嘗試 3+ 個不同方向都沒結果
 
 **Gate 機制**：
-- fix 任務 development 階段，若 task JSON 無 `investigation.rootCause` 和 `investigation.reproduction`，編輯程式碼會被 `confidence-gate.sh` 阻擋
+- fix 任務 development 階段，若 MCP 任務資料無 `investigation.rootCause` 和 `investigation.reproduction`，編輯程式碼會被 `confidence-gate.sh` 阻擋
 - 阻擋訊息會提示使用 `/debug-tips` 查詢經驗庫
 
 ---

@@ -168,7 +168,7 @@ def import_tasks(conn, hub_path: str, dry_run: bool = False) -> int:
             continue
 
         if dry_run:
-            logger.info(f"  [dry] {task['id'][:8]} {task['type']:10} {task['status']:15} {task['project']}")
+            logger.info(f"  [dry] {task['id']} {task['type']:10} {task['status']:15} {task['project']}")
             imported += 1
             continue
 
@@ -218,7 +218,7 @@ def import_tasks(conn, hub_path: str, dry_run: bool = False) -> int:
             imported += 1
         except Exception as e:
             conn.rollback()
-            logger.warning(f"Failed {task['id'][:8]}: {e}")
+            logger.warning(f"Failed {task['id']}: {e}")
             skipped += 1
         finally:
             cur.close()

@@ -48,7 +48,7 @@
           {% if c.parent_id %}
             <a href="/dashboard/tasks/{{ c.parent_id }}/detail"
                hx-get="/dashboard/tasks/{{ c.parent_id }}/detail"
-               hx-target="#modal-content">{{ c.parent_desc or c.parent_id[:8] }}</a>
+               hx-target="#modal-content">{{ c.parent_desc or c.parent_id }}</a>
           {% else %}
             <span style="color:var(--pico-muted-color);">unknown</span>
           {% endif %}

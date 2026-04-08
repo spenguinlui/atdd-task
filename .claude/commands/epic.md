@@ -240,7 +240,7 @@ Task(
 
 ### 3a. 建立 Epic 目錄與檔案
 
-建立目錄：`epics/{project}/{epic-id}/`
+建立目錄（`mkdir -p epics/{project}/{epic-id}/`）：
 
 建立 `epic.yml`：
 

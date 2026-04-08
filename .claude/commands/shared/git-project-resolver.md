@@ -15,6 +15,8 @@
 
 讀取 `.claude/config/projects.yml`，取得 `projects.{projectId}.path`。
 
+如果檔案不存在或 `projects.{projectId}` 欄位不存在 → ERROR「專案配置不完整，請確認 .claude/config/projects.yml」。
+
 ### 3. 驗證規則
 
 #### 規則 1：路徑不得為 atdd-hub
@@ -51,8 +53,8 @@ cd {PROJECT_PATH} && git branch --show-current
 通過所有驗證後，輸出以下變數供後續步驟使用：
 
 - **PROJECT_PATH** = `projects.yml` 中查到的絕對路徑
-- **PROJECT_BRANCH** = task JSON 中的 `git.branch`
-- **TASK_MODIFIED_FILES** = task JSON 中的 `context.modifiedFiles`
+- **PROJECT_BRANCH** = MCP 任務資料（`atdd_task_get()` 回傳）中的 `metadata.git.branch`
+- **TASK_MODIFIED_FILES** = MCP 任務資料中的 `metadata.context.modifiedFiles`
 
 ## 使用方式
 

@@ -12,13 +12,9 @@
 
 標題包含 `T{N}-{N}` 模式時自動掃描：
 
-```bash
-# 列出專案的所有 Epic
-ls epics/{project}/
-
-# 搜尋匹配的任務
-grep -l "id: \"T2-3\"" epics/{project}/*/epic.yml
-```
+1. 用 Glob 搜尋 `epics/{project}/*/epic.yml`
+2. 如果沒有匹配結果 → 視為一般任務，不走 Epic 流程
+3. 有匹配結果 → 用 Grep 搜尋匹配的任務 ID
 
 ## 判斷流程
 
@@ -46,9 +42,7 @@ Epic  包含 T{N}-{N}？
 
 ### 1. 讀取 Epic 定義
 
-```bash
-cat epics/{project}/{epic-id}/epic.yml
-```
+用 Read 工具讀取 `epics/{project}/{epic-id}/epic.yml`。如果檔案不存在 → 提示「Epic 定義檔不存在」並停止。
 
 ### 2. 檢查依賴
 
