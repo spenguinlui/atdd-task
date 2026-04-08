@@ -1,0 +1,149 @@
+---
+seed:
+  description: |
+    E2E 測試所需的前置資料。部分為系統既有資料（需確認存在），
+    部分為測試專用資料（需手動建立或透過 seed script）。
+
+  account:
+    description: "admin 帳號，具備 power_wheeling 與 accounting_details 權限"
+    note: "使用既有的測試 admin 帳號登入即可"
+
+  taipowerContract:
+    description: "有效的轉供契約，tp_service_serial 對應測試 xlsx"
+    required_fields:
+      - tp_service_serial: "需與測試 xlsx B1 儲存格中的編號一致"
+      - start_wheeling_date: "<= 測試月份"
+      - end_wheeling_date: ">= 測試月份（或 null）"
+    note: |
+      若使用既有澎湖區處契約，直接以其 tp_service_serial 製作測試 xlsx。
+      若無合適契約，需先在「轉供契約管理」頁面建立一筆。
+
+  accountSetup:
+    description: "對應用戶的帳戶設定"
+    requirements:
+      - "Account 存在且關聯到該 TaipowerContract 的用戶"
+      - "Account 設定 tp_wheeling_fee 為外加費用（externalized_fee）"
+      - "Account 有對應的 CppaContract 和 Plan"
+      - "用戶電號、用戶表號與 xlsx 資料列一致"
+
+  task:
+    description: "當月進度管理 Task"
+    requirements:
+      - task_type: "after_wheeling"
+      - calculation_mode: "systematic"
+      - wheeling_month: "與測試 xlsx 的帳單年月一致"
+    note: "需在「進度管理」頁面確認或建立當月 Task"
+
+  xlsxFiles:
+    description: |
+      測試用台電轉供結果 xlsx 檔案。需符合台電標準格式。
+      Parser 使用 Roo::Spreadsheet，位置定義如下：
+
+    format:
+      metadata:
+        serialPosition:
+          rooCall: "cell(1, 2)"
+          excelPosition: "B1"
+          content: "電能轉/直供服務編號：{tp_service_serial}"
+          example: "電能轉/直供服務編號：PH001"
+        monthPosition:
+          rooCall: "cell(6, 2)"
+          excelPosition: "B6"
+          content: "帳單年月：{year}/{month}"
+          example: "帳單年月：2026/04"
+        note: |
+          Parser 程式碼使用 SERIAL_POSITION = { column: 1, row: 2 }
+          和 MONTH_POSITION = { column: 6, row: 2 }。
+          呼叫 Roo 的 cell(position[:column], position[:row])。
+          注意：Roo cell(row, col) 所以實際上 column 值被當作 row 傳入。
+          實際定位：serial 在 row=1, col=2 (B1)，month 在 row=6, col=2 (B6)。
+          spec 描述的 B2/G2 與 parser code 不一致，以 parser code 為準。
+
+      headerRow: "第 3 行（offset: 2，即跳過前 2 行）"
+      columns:
+        A: "發電電號 (producer_electric_number)"
+        B: "發電表號 (producer_meter_number)"
+        C: "用戶電號 (consumer_electric_number)"
+        D: "用戶表號 (consumer_meter_number)"
+        E: "月服務使用量(kWh) (electricity_kwh)"
+        F: "輸電費率 (transfer_rate)"
+        G: "配電費率 (planning_rate)"
+        H: "電力調度費率 (dispatch_rate)"
+        I: "輔助服務費率 (ancillary_rate)"
+        J: "費用 (total_wheeling_fee)"
+
+    files:
+      - name: "exempt_test_PH001.xlsx"
+        purpose: "免稅上傳測試（S2, S4）"
+        metadata:
+          B1: "電能轉/直供服務編號：PH001"
+          B6: "帳單年月：2026/04"
+        dataRows:
+          - row: 3
+            values:
+              producer_electric_number: "06-000-0001-00-0"
+              producer_meter_number: "AA000001"
+              consumer_electric_number: "06-100-0001-00-0"
+              consumer_meter_number: "BB000001"
+              electricity_kwh: 1000
+              transfer_rate: 0.50
+              planning_rate: 0.30
+              dispatch_rate: 0.10
+              ancillary_rate: 0.10
+              total_wheeling_fee: 200
+        expectedResults:
+          taxExempt:
+            total_amount: 200
+            tax: 10
+            price: 200
+            note: "免稅：未稅 200，含稅 = 200 * 1.05 = 210，稅 = 210 - 200 = 10"
+          taxIncluded:
+            total_amount: 190
+            tax: 10
+            price: 190
+            note: "含稅：未稅 = 200 / 1.05 = 190.476... 四捨五入 190，稅 = 200 - 190 = 10"
+
+      - name: "taxed_test_TS001.xlsx"
+        purpose: "含稅上傳測試（S3）"
+        metadata:
+          B1: "電能轉/直供服務編號：TS001"
+          B6: "帳單年月：2026/04"
+        dataRows:
+          - row: 3
+            values:
+              producer_electric_number: "06-000-0002-00-0"
+              producer_meter_number: "AA000002"
+              consumer_electric_number: "06-100-0002-00-0"
+              consumer_meter_number: "BB000002"
+              electricity_kwh: 500
+              transfer_rate: 0.50
+              planning_rate: 0.30
+              dispatch_rate: 0.10
+              ancillary_rate: 0.10
+              total_wheeling_fee: 105
+        expectedResults:
+          taxIncluded:
+            total_amount: 100
+            tax: 5
+            price: 100
+            note: "含稅：未稅 = 105 / 1.05 = 100，稅 = 105 - 100 = 5"
+
+  sidekiqWaitStrategy:
+    description: |
+      上傳完成後，需等待 Sidekiq 非同步事件鏈完成才能驗證結算品項。
+    eventChain:
+      - "BatchCreateRawResults（建立 RawResult + RawResultTpWheelingFee）"
+      - "RawResultCreated（觸發 ProgressManagement::Listener）"
+      - "WheelingResult 計算"
+      - "BillingResult 處理"
+      - "CalculateConsumerTask（建立/更新 Entry）"
+    strategy: |
+      1. 上傳後等待 5 秒
+      2. 前往「結算品項管理」頁面
+      3. 篩選對應月份
+      4. 若未出現 tp_wheeling_fee 品項，等待 5 秒後重新整理
+      5. 重複步驟 4，最多重試 20 次（共 120 秒）
+      6. 若超時仍無結果，標記為 TIMEOUT 並記錄
+    alternativeCheck: |
+      也可透過 Rails console 檢查 Task 狀態：
+      PowerWheeling::ProgressManagement::Models::Task.where(wheeling_month: '202604').last&.status

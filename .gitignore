@@ -45,6 +45,14 @@ acceptance/fixtures/
 .DS_Store
 .claude/settings.local.json
 poc/.venv/
+poc/**/.venv/
+
+# Claude Code work directory (本機 memory，不納入版控)
+.claude-work/
+
+# Python bytecode
+__pycache__/
+*.pyc
 
 # Design references (圖片檔，不納入版控)
 design/references/

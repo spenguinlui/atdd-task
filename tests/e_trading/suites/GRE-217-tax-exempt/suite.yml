@@ -1,0 +1,60 @@
+---
+suite:
+  id: GRE-217-tax-exempt
+  title: "澎湖免稅台電轉供費 E2E 測試套件"
+  taskId: 248ad504-1688-4bf1-9dad-4bf1032a3e08
+  jira: GRE-217
+  project: e_trading
+  branch: GRE-217
+  executor: chrome-mcp
+  mode: manual
+
+  description: |
+    驗證「免稅上傳」checkbox 從 UI 到結算品項的端到端流程。
+    涵蓋：checkbox 出現與預設值、免稅/含稅上傳計算結果、重新上傳覆蓋免稅狀態。
+
+  baseUrl: "http://localhost:3000"
+
+  prerequisites:
+    - admin 帳號已登入，具備 power_wheeling 權限
+    - 有效的 TaipowerContract（tp_service_serial 對應測試 xlsx）
+    - 對應的 Account 已設定 tp_wheeling_fee 為外加費用
+    - 當月已建立 after_wheeling 類型的 Task
+    - 測試用 xlsx 檔案已準備好（見 seed.yml）
+
+  scenarios:
+    - file: scenarios/S1-checkbox.yml
+      id: S1
+      title: "免稅 checkbox 出現且可勾選"
+      dependencies: []
+
+    - file: scenarios/S2-exempt.yml
+      id: S2
+      title: "免稅上傳後結算品項正確"
+      dependencies: [S1]
+
+    - file: scenarios/S3-taxed.yml
+      id: S3
+      title: "未勾選免稅的含稅上傳端到端驗證"
+      dependencies: []
+
+    - file: scenarios/S4-reupload.yml
+      id: S4
+      title: "重新上傳修正免稅狀態"
+      dependencies: [S2]
+
+  asyncStrategy:
+    description: |
+      上傳觸發 Sidekiq 非同步事件鏈：
+      BatchCreateRawResults -> RawResultCreated -> WheelingResult -> BillingResult -> CalculateConsumerTask
+    estimatedDuration: "10-30 秒"
+    pollingTarget: "結算品項管理頁面"
+    pollingInterval: "5 秒"
+    maxWaitTime: "120 秒"
+    completionSignal: "對應月份的 tp_wheeling_fee 結算品項出現在列表中"
+
+  popupWarning: |
+    上傳頁面（new action）透過 popup-window class 觸發彈出視窗。
+    Chrome MCP 無法操控不在同一個 tab group 的彈出視窗。
+    若彈出視窗不在 MCP tab group 內，需呼叫 /test-pause 請人工處理。
+    替代方案：直接在新 tab 中開啟 /admin/power_wheeling/results_management/wheeling_result_file_histories/new

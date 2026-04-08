@@ -1,0 +1,139 @@
+---
+scenario:
+  id: S4
+  title: "重新上傳修正免稅狀態"
+  description: |
+    在 S2 完成後（免稅上傳已產生結算品項），
+    重新上傳同一份 xlsx 但不勾選「免稅上傳」，
+    驗證結算品項以含稅邏輯重新計算。
+
+  acceptanceCriteria:
+    - AC6: "重新上傳時，免稅狀態隨之覆蓋（可修正上傳錯誤）"
+
+  preconditions:
+    - "S2 已執行完成（PH001 的免稅上傳結果及結算品項已存在）"
+    - "admin 帳號已登入"
+    - "使用與 S2 相同的 xlsx 檔案（exempt_test_PH001.xlsx）"
+
+  testData:
+    xlsxFile: "exempt_test_PH001.xlsx"
+    tp_service_serial: "PH001"
+    wheeling_month: "2026/04"
+    total_wheeling_fee: 200
+    previousState:
+      description: "S2 結果：免稅計算"
+      price: 200
+      tax: 10
+      total_amount: 200
+    expectedEntry:
+      description: "重新上傳後：含稅計算"
+      price: 190
+      tax: 10
+      total_amount: 190
+      note: "含稅：未稅 = 200 / 1.05 = 190.476... 四捨五入 190，稅 = 200 - 190 = 10"
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/results_management/wheeling_result_file_histories/new"
+      description: "開啟上傳轉供結果頁面"
+      expected: "頁面載入完成，顯示「上傳當期轉供結果檔」"
+
+    - id: step-2
+      action: fill
+      target: "台電單據製發日期"
+      value: "2026-04-01"
+      description: "填寫台電單據製發日期"
+      expected: "日期欄位顯示 2026-04-01"
+
+    - id: step-3
+      action: upload
+      target: "檔案上傳欄位"
+      file: "exempt_test_PH001.xlsx"
+      description: |
+        上傳同一份 xlsx 檔案（同一 tp_service_serial + wheeling_month）。
+        Controller 使用 find_or_initialize_by(wheeling_month, tp_service_serial)
+        確保覆蓋既有的 FileHistory 記錄。
+      expected: "檔案名稱顯示在上傳欄位中"
+
+    - id: step-4
+      action: verify
+      target: "免稅上傳 checkbox 狀態"
+      description: |
+        確認「免稅上傳」checkbox 維持未勾選狀態。
+        這次不勾選，讓系統以含稅邏輯處理。
+        注意：重新開啟 new 頁面，checkbox 預設為 false，
+        不會保留上一次上傳的免稅設定。
+      expected:
+        element: "input[type='checkbox'][name='form[tax_exempt]']"
+        checked: false
+
+    - id: step-5
+      action: click
+      target: "確定按鈕"
+      description: "點擊「確定」提交表單"
+      expected: "頁面顯示「檔案上傳成功，請到 Slack 查看資料建立訊息」"
+
+    - id: step-6
+      action: verify
+      target: "上傳成功訊息"
+      description: "確認頁面顯示成功訊息"
+      expected:
+        text: "檔案上傳成功，請到 Slack 查看資料建立訊息"
+
+    - id: step-7
+      action: wait
+      duration: 5
+      description: "等待 5 秒，讓 Sidekiq 開始處理非同步事件鏈"
+
+    - id: step-8
+      action: navigate
+      target: "/admin/power_wheeling/calculation_management/accounting_entries"
+      description: "前往「結算品項管理」頁面"
+      expected: "頁面載入完成"
+
+    - id: step-9
+      action: filter
+      target: "週期月份篩選"
+      value: "2026/04"
+      description: "篩選 2026 年 4 月的結算品項"
+      expected: "列表更新為篩選後的結果"
+
+    - id: step-10
+      action: verify
+      target: "tp_wheeling_fee 結算品項 — 覆蓋後數值"
+      description: |
+        驗證 PH001 對應的 tp_wheeling_fee 結算品項已被覆蓋為含稅計算。
+        原先免稅結果（price=200, tax=10）應被取代為含稅結果。
+      retryStrategy:
+        maxRetries: 20
+        intervalSeconds: 5
+        description: "若數值尚未更新，每 5 秒重新整理頁面重試，最多 120 秒"
+      expected:
+        row:
+          title: "台電轉供費"
+          price: 190
+          tax: 10
+          total_amount: 190
+        note: |
+          含稅邏輯（覆蓋後）：
+          - 含稅金額 = total_wheeling_fee = 200
+          - 未稅金額 = 200 / 1.05 = 190.476... 四捨五入 190
+          - 稅額 = 200 - 190 = 10
+          - Entry: price = 190, total_amount = 190, tax = 10
+
+    - id: step-11
+      action: verify
+      target: "FileHistory tax_exempt 狀態（可選 — Rails console 驗證）"
+      description: |
+        可選的後端驗證步驟。透過 Rails console 確認 FileHistory 記錄的 tax_exempt 已被覆蓋。
+        命令：
+          source ~/.rvm/scripts/rvm && cd /Users/liu/sunnyfounder/e_trading && rvm use $(cat .ruby-version) && \
+          bundle exec rails runner "puts PowerWheeling::RawResult::Models::FileHistory.find_by(tp_service_serial: 'PH001', wheeling_month: '202604')&.tax_exempt"
+      expected:
+        consoleOutput: "false"
+      optional: true
+
+  result:
+    pass: "結算品項從免稅計算（price=200）成功覆蓋為含稅計算（price=190）"
+    fail: "結算品項未更新、數值仍為免稅結果、或 FileHistory 未覆蓋"

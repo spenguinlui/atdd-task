@@ -1,0 +1,181 @@
+# S1: 匯出按鈕存在 + 匯出下載 XLSX
+# 合併 Spec Scenario 1 + 2
+# AC 覆蓋：AC1, AC2
+
+id: "S1"
+title: "匯出按鈕顯示於正確位置並可下載 XLSX"
+description: |
+  驗證「申報所得管理」頁面顯示「匯出申報資料」按鈕於「批次上傳」按鈕右側，
+  點擊後瀏覽器下載 XLSX 檔案。
+
+priority: "high"
+tags: ["export", "button", "download", "critical-path"]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Given（前置條件）
+# ═══════════════════════════════════════════════════════════════════════════════
+given:
+  description: |
+    管理員已登入後台，系統中有至少一筆所得申報資料（含已成功發放的款項）。
+
+  data:
+    - entity: "TaxInfo"
+      identifier: { note: "至少一筆已成功發放的所得申報資料" }
+      attributes:
+        payment_status: "success"
+
+  state:
+    - condition: "管理員已登入後台"
+      setup: "login_as_admin"
+    - condition: "系統中有所得申報資料"
+      setup: "seed_tax_info_data"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# When（執行步驟）
+# ═══════════════════════════════════════════════════════════════════════════════
+steps:
+  - id: 1
+    description: "登入後台管理"
+    action:
+      type: "navigate"
+      target: "/admin/login"
+    expected:
+      type: "element_exists"
+      selector: "form"
+    screenshot:
+      capture: true
+      name: "S1-01-admin-login.png"
+      timing: "after"
+
+  - id: 2
+    description: "填寫管理員帳密並登入"
+    actions:
+      - type: "input"
+        selector: "input[name='admin[email]']"
+        value: "${credentials.email}"
+      - type: "input"
+        selector: "input[name='admin[password]']"
+        value: "${credentials.password}"
+      - type: "click"
+        selector: "input[type='submit']"
+    expected:
+      type: "url_contains"
+      value: "/admin"
+    screenshot:
+      capture: true
+      name: "S1-02-after-login.png"
+      timing: "after"
+
+  - id: 3
+    description: "進入申報所得管理頁面"
+    action:
+      type: "navigate"
+      target: "/admin/tax_infos"
+    waitFor:
+      type: "element_visible"
+      selector: "table"
+      timeout: 10000
+    expected:
+      type: "text_visible"
+      contains: "申報所得"
+    screenshot:
+      capture: true
+      name: "S1-03-tax-info-page.png"
+      timing: "after"
+
+  - id: 4
+    description: "確認「匯出申報資料」按鈕存在"
+    action:
+      type: "find"
+      selector: "a:contains('匯出申報資料'), button:contains('匯出申報資料')"
+    expected:
+      type: "element_exists"
+      selector: "a:contains('匯出申報資料'), button:contains('匯出申報資料')"
+    screenshot:
+      capture: true
+      name: "S1-04-export-button-exists.png"
+      timing: "after"
+
+  - id: 5
+    description: "確認「匯出申報資料」按鈕位於「批次上傳」按鈕右側"
+    action:
+      type: "find"
+      selector: "a:contains('批次上傳'), button:contains('批次上傳')"
+    expected:
+      type: "element_exists"
+      selector: "a:contains('批次上傳'), button:contains('批次上傳')"
+    screenshot:
+      capture: true
+      name: "S1-05-button-position.png"
+      timing: "after"
+    onError:
+      action: "continue"
+      screenshot: true
+
+  - id: 6
+    description: "點擊「匯出申報資料」按鈕"
+    action:
+      type: "click"
+      selector: "a:contains('匯出申報資料'), button:contains('匯出申報資料')"
+    waitFor:
+      type: "timeout"
+      timeout: 5000
+    screenshot:
+      capture: true
+      name: "S1-06-after-export-click.png"
+      timing: "after"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Then（預期結果）
+# ═══════════════════════════════════════════════════════════════════════════════
+then:
+  - id: 1
+    description: "「匯出申報資料」按鈕存在於頁面"
+    verification:
+      type: "visual"
+      selector: "a:contains('匯出申報資料'), button:contains('匯出申報資料')"
+      assertion: "exists"
+
+  - id: 2
+    description: "「匯出申報資料」按鈕位於「批次上傳」按鈕右側"
+    verification:
+      type: "manual"
+      instruction: |
+        請確認截圖 S1-05 中：
+        1. 「批次上傳」按鈕與「匯出申報資料」按鈕都在同一列
+        2. 「匯出申報資料」在「批次上傳」的右側
+
+  - id: 3
+    description: "點擊後瀏覽器下載 XLSX 檔案"
+    verification:
+      type: "manual"
+      instruction: |
+        請確認：
+        1. 點擊「匯出申報資料」按鈕後，瀏覽器觸發檔案下載
+        2. 下載的檔案副檔名為 .xlsx
+        3. 檔案可正常開啟（不是損壞的檔案）
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 執行結果（tester 執行後填入）
+# ═══════════════════════════════════════════════════════════════════════════════
+result:
+  status: null
+  startedAt: null
+  completedAt: null
+  duration: null
+  stepResults: []
+  verificationResults: []
+  error:
+    step: null
+    message: null
+    screenshot: null
+    details: null
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 場景變數
+# ═══════════════════════════════════════════════════════════════════════════════
+variables:
+  credentials:
+    email: "admin@example.com"
+    password: "password"
+  baseUrl: "http://localhost:3000"

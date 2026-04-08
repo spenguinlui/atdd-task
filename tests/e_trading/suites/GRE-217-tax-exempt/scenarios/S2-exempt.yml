@@ -1,0 +1,128 @@
+---
+scenario:
+  id: S2
+  title: "免稅上傳後結算品項正確"
+  description: |
+    上傳免稅轉供結果 xlsx 檔案，勾選「免稅上傳」，
+    等待非同步處理完成後，驗證結算品項的單價、稅額、合計正確。
+
+  acceptanceCriteria:
+    - AC3: "勾選免稅時，系統以免稅金額 * 1.05 推算含稅價，稅額 = 含稅價 - 免稅金額"
+    - AC4: "Entry 的 price/total_amount 為未稅金額，tax 為稅額"
+
+  preconditions:
+    - "admin 帳號已登入"
+    - "有效的 TaipowerContract（tp_service_serial = PH001 或實際測試用編號）"
+    - "對應 Account 已設定 tp_wheeling_fee 為外加費用"
+    - "當月 after_wheeling Task 已建立"
+    - "測試用 xlsx 檔案已準備好（見 seed.yml — exempt_test_PH001.xlsx）"
+
+  testData:
+    xlsxFile: "exempt_test_PH001.xlsx"
+    tp_service_serial: "PH001"
+    wheeling_month: "2026/04"
+    total_wheeling_fee: 200
+    expectedEntry:
+      price: 200
+      tax: 10
+      total_amount: 200
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/results_management/wheeling_result_file_histories/new"
+      description: "開啟上傳轉供結果頁面（直接 URL，避免 popup 問題）"
+      expected: "頁面載入完成，顯示「上傳當期轉供結果檔」"
+
+    - id: step-2
+      action: fill
+      target: "台電單據製發日期"
+      value: "2026-04-01"
+      description: |
+        填寫台電單據製發日期。
+        元素：input[name*='taipower_file_created_at']，有 data-datepicker 屬性。
+        操作方式：點擊欄位，輸入日期文字，或透過 datepicker 選擇。
+      expected: "日期欄位顯示 2026-04-01"
+
+    - id: step-3
+      action: upload
+      target: "檔案上傳欄位"
+      file: "exempt_test_PH001.xlsx"
+      description: |
+        上傳測試 xlsx 檔案。
+        元素：input[type='file'][name*='files']
+        檔案需符合 seed.yml 中定義的格式。
+      expected: "檔案名稱顯示在上傳欄位中"
+
+    - id: step-4
+      action: click
+      target: "免稅上傳 checkbox"
+      description: |
+        勾選「免稅上傳」checkbox。
+        元素：input[type='checkbox'][name='form[tax_exempt]']
+      expected:
+        element: "input[type='checkbox'][name='form[tax_exempt]']"
+        checked: true
+
+    - id: step-5
+      action: click
+      target: "確定按鈕"
+      description: |
+        點擊「確定」提交表單。
+        元素：input[type='submit'][value='確定']
+      expected: "頁面顯示「檔案上傳成功，請到 Slack 查看資料建立訊息」"
+
+    - id: step-6
+      action: verify
+      target: "上傳成功訊息"
+      description: "確認頁面顯示成功訊息"
+      expected:
+        text: "檔案上傳成功，請到 Slack 查看資料建立訊息"
+
+    - id: step-7
+      action: wait
+      duration: 5
+      description: "等待 5 秒，讓 Sidekiq 開始處理非同步事件鏈"
+
+    - id: step-8
+      action: navigate
+      target: "/admin/power_wheeling/calculation_management/accounting_entries"
+      description: "前往「結算品項管理」頁面"
+      expected: "頁面載入完成，顯示「結算品項管理」標題"
+
+    - id: step-9
+      action: filter
+      target: "週期月份篩選"
+      value: "2026/04"
+      description: |
+        在搜尋區塊中選擇週期月份。
+        篩選欄位：wheeling_month_eq，使用 MonthPicker 元件。
+        選擇 2026 年 4 月後點擊搜尋按鈕。
+      expected: "列表更新為篩選後的結果"
+
+    - id: step-10
+      action: verify
+      target: "tp_wheeling_fee 結算品項"
+      description: |
+        在結算品項列表中找到名目為「轉供費」或 source_type 為 tp_wheeling_fee 的品項。
+        驗證其數值。
+      retryStrategy:
+        maxRetries: 20
+        intervalSeconds: 5
+        description: "若品項尚未出現，每 5 秒重新整理頁面重試，最多 120 秒"
+      expected:
+        row:
+          title: "台電轉供費"
+          price: 200
+          tax: 10
+          total_amount: 200
+        note: |
+          免稅邏輯：
+          - 未稅金額 = total_wheeling_fee = 200
+          - 含稅金額 = 200 * 1.05 = 210（四捨五入）
+          - 稅額 = 210 - 200 = 10
+          - Entry: price = 200, total_amount = 200, tax = 10
+
+  result:
+    pass: "結算品項正確反映免稅計算：price=200, tax=10, total_amount=200"
+    fail: "結算品項不存在、數值錯誤、或非同步處理超時"

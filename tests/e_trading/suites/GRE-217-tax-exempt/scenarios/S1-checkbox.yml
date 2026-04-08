@@ -1,0 +1,106 @@
+---
+scenario:
+  id: S1
+  title: "免稅 checkbox 出現且可勾選"
+  description: |
+    驗證上傳轉供結果的彈窗（或頁面）包含「免稅上傳」checkbox，
+    且預設為未勾選狀態。
+
+  acceptanceCriteria:
+    - AC1: "上傳轉供結果的彈窗出現「免稅」checkbox，預設未勾選"
+
+  preconditions:
+    - "admin 帳號已登入"
+    - "具備 power_wheeling 權限"
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/results_management/wheeling_result_file_histories"
+      description: "進入「轉供結果檔案管理」列表頁"
+      expected: "頁面載入完成，顯示轉供結果檔案列表"
+
+    - id: step-2
+      action: click
+      target: "「新增」按鈕（class 含 popup-window）"
+      description: |
+        點擊列表頁上方的「新增」按鈕。
+        注意：此按鈕使用 popup-window class，會開啟新視窗。
+        Chrome MCP 策略：直接在新 tab 開啟 new 頁面（見 step-2-alt）。
+      popupHandling: true
+      expected: "彈出視窗開啟，顯示「上傳當期轉供結果檔」表單"
+
+    - id: step-2-alt
+      action: navigate
+      target: "/admin/power_wheeling/results_management/wheeling_result_file_histories/new"
+      description: |
+        替代方案：若 popup 不在 MCP tab group 內，
+        直接在 MCP tab 中開啟 new 頁面 URL。
+      expected: "頁面載入完成，顯示「上傳當期轉供結果檔」標題"
+
+    - id: step-3
+      action: verify
+      target: "頁面標題"
+      description: "確認頁面標題為「上傳當期轉供結果檔」"
+      expected:
+        element: ".ibox-title"
+        text: "上傳當期轉供結果檔"
+
+    - id: step-4
+      action: verify
+      target: "表單欄位 — 台電單據製發日期"
+      description: "確認表單包含「台電單據製發日期」輸入欄位"
+      expected:
+        element: "input[name*='taipower_file_created_at']"
+        exists: true
+
+    - id: step-5
+      action: verify
+      target: "表單欄位 — 檔案上傳"
+      description: "確認表單包含檔案上傳欄位（接受 .xls, .xlsx）"
+      expected:
+        element: "input[type='file'][accept='.xls, .xlsx']"
+        exists: true
+
+    - id: step-6
+      action: verify
+      target: "表單欄位 — 免稅上傳 checkbox"
+      description: |
+        確認表單包含「免稅上傳」checkbox。
+        HTML 結構：
+          hidden_field_tag 'form[tax_exempt]' value='0'
+          check_box_tag 'form[tax_exempt]' value='1'
+          label 文字「免稅上傳」
+      expected:
+        element: "input[type='checkbox'][name='form[tax_exempt]']"
+        exists: true
+        checked: false
+        labelText: "免稅上傳"
+
+    - id: step-7
+      action: click
+      target: "免稅上傳 checkbox"
+      description: "點擊 checkbox 確認可以勾選"
+      expected:
+        element: "input[type='checkbox'][name='form[tax_exempt]']"
+        checked: true
+
+    - id: step-8
+      action: click
+      target: "免稅上傳 checkbox"
+      description: "再次點擊 checkbox 確認可以取消勾選"
+      expected:
+        element: "input[type='checkbox'][name='form[tax_exempt]']"
+        checked: false
+
+    - id: step-9
+      action: verify
+      target: "確定按鈕"
+      description: "確認頁面有「確定」提交按鈕"
+      expected:
+        element: "input[type='submit'][value='確定']"
+        exists: true
+
+  result:
+    pass: "免稅上傳 checkbox 存在、預設未勾選、可正常切換"
+    fail: "checkbox 不存在、預設值錯誤、或無法操作"
