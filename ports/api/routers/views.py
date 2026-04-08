@@ -299,7 +299,10 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
     if domain:
         conditions.append("domain = %s")
         params.append(domain)
-    conditions.append("status NOT IN ('completed','verified','aborted','failed')")
+    conditions.append(
+        "(status NOT IN ('completed','verified','aborted','failed')"
+        " OR (status IN ('completed','verified') AND updated_at > NOW() - INTERVAL '7 days'))"
+    )
     where = " AND ".join(conditions)
 
     with get_cursor() as cur:
