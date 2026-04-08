@@ -149,9 +149,7 @@ cd {project_path} && git branch --show-current
 4. E2E 選擇（如需要）
 5. 下一步指引
 
-### 階段可用命令
-
-報告結尾**必須**列出當前階段的可用命令（`/continue`、`/status`、`/abort`，E2E required 時加 `/e2e-manual`）。
+報告結尾的可用命令格式，參考 `shared/agent-call-patterns.md`。
 
 ## 問題發現分類
 

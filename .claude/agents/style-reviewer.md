@@ -112,7 +112,4 @@ Produce a structured review report with:
 - 只審查當前任務建立/修改的檔案
 - 必須提供 `file:line` 引用
 - Grade >= B 建議 `/continue`，< B 建議 `/fix-*`
-
-### 階段可用命令
-
-報告結尾**必須**列出 review 階段的可用命令（`/continue`、`/fix-critical`、`/fix-high`、`/fix-all`、`/status`、`/abort`）。
+- 報告結尾的可用命令格式，參考 `shared/agent-call-patterns.md`

@@ -146,10 +146,6 @@ GO 後檢查是否有新發現的商務邏輯知識：
 
 使用模板：`.claude/templates/gate-report.md`
 
-必須包含：
-1. 決策（GO / NO-GO / CONDITIONAL）
-2. 門檻檢查結果
-3. 驗收測試摘要
-4. Metrics 彙總
-5. 人工驗收指南
-6. 結案選項
+必須包含：決策、門檻檢查結果、驗收測試摘要、Metrics 彙總、人工驗收指南、結案選項。
+
+> 報告結尾的可用命令格式，參考 `shared/agent-call-patterns.md`。

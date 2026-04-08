@@ -73,57 +73,16 @@ atdd_task_add_history(
 - `discoveredIn`: 在哪個環節發現，用於計算 Escape Rate
 - Feature/Refactor/Test 任務的 `causation` 保持 null
 
-## Completed 任務 JSON（額外欄位）
+## Completed 任務額外欄位
 
-```json
-{
-  "status": "completed",
-  "metrics": {
-    "totalTools": 114,
-    "totalTokens": "18.2M",
-    "duration": "2h 30m",
-    "totalToolBreakdown": {
-      "Read": 35,
-      "Edit": 28,
-      "Bash": 22,
-      "Grep": 15,
-      "Write": 8,
-      "Glob": 6
-    },
-    "agents": {
-      "specist": { "tools": 14, "tokens": "2.1k" },
-      "tester": { "tools": 8, "tokens": "1.4k" },
-      "coder": { "tools": 31, "tokens": "2.5k" },
-      "gatekeeper": { "tools": 38, "tokens": "10.3k" }
-    }
-  },
-  "completedAt": "{ISO timestamp}"
-}
-```
+結案時透過 `atdd_task_update` 寫入 `status: "completed"`、`completedAt`、`metrics`（含 agents 各項統計）。
+詳見 `shared/task-state-update.md` Event 2。
 
-## Epic 子任務 JSON（額外欄位）
+## Epic 子任務額外欄位
 
-```json
-{
-  "epic": {
-    "id": "{epic-id}",
-    "taskId": "{task-id}",
-    "phase": "{phase name}",
-    "requirementPath": "requirements/{project}/{epic-id}-{short_name}.md",
-    "baReportPath": "requirements/{project}/{epic-id}-{short_name}-ba.md"
-  }
-}
-```
-
-**重要**：`requirementPath` 和 `baReportPath` 從 `epic.yml` 的 `requirement` 區塊取得。這些路徑確保子任務在新對話中仍能定位 Epic 層級的需求文件，維持業務規則的一致性。
-
-Epic 子任務建立時，`metadata` 額外包含 `epic` 欄位：
-```
-atdd_task_create(
-  ...standard_fields,
-  metadata: { ...standard_metadata, "epic": { "id": "...", "taskId": "...", ... } }
-)
-```
+metadata 加入 `epic: { id, taskId, phase, requirementPath, baReportPath }`。
+路徑從 `epic.yml` 的 `requirement` 區塊取得，確保跨對話能定位 Epic 需求文件。
+詳見 `shared/epic-task-flow.md`。
 
 ## 任務狀態對照
 

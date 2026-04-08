@@ -71,39 +71,9 @@
 
 > **必須進入專案目錄才能取得正確的語言/框架版本**
 
-各專案使用 `rbenv`、`nvm`、`pyenv`、`rvm` 等版本管理工具，透過專案根目錄的設定檔自動切換版本。專案配置定義於 `.claude/config/projects.yml`。
+專案配置定義於 `.claude/config/projects.yml`。在錯誤目錄執行會使用錯誤版本。
 
-**在錯誤目錄執行會使用錯誤版本！**
-
-### rvm 專案（重要）
-
-Claude Code 的 Bash tool 啟動非登入 shell，**不會自動載入 rvm**。使用 rvm 的專案（如 e_trading）必須手動初始化：
-
-```bash
-# 正確 - rvm 專案必須 source rvm 腳本
-source ~/.rvm/scripts/rvm && cd {project_path} && rvm use {version} && bundle exec rspec spec/
-
-# 錯誤 - rvm 未載入，會使用錯誤的 gem 路徑
-cd {project_path} && bundle exec rspec spec/
-```
-
-判斷方式：專案有 `.ruby-version` 且 `~/.rvm/` 存在時，使用 rvm 初始化方式。
-
-### rbenv / 其他專案
-
-```bash
-# 正確 - 先 cd 到專案目錄
-cd {project_path} && bundle exec rspec spec/
-
-# 錯誤 - 會使用系統預設版本
-bundle exec rspec {project_path}/spec/
-```
-
-所有需要執行專案指令的 Agent（tester、coder）在使用 Bash 時：
-
-1. **必須**先 `cd` 到對應專案目錄
-2. 使用 `&&` 串接指令確保在正確目錄執行
-3. 不要假設當前目錄是專案目錄
+執行專案指令的 Agent（tester、coder）各自定義了 rvm/rbenv 初始化方式，請參考各 agent 定義。
 
 ---
 
