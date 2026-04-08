@@ -80,7 +80,7 @@ Metrics: {total_tools} tools / {total_tokens} tokens / {duration}
 - commit_hash = Step 4 的 commit hash
 - metrics = Step 3 的統計數據
 
-> 此事件會統一處理：Task JSON 更新、檔案移動、Kanban 結案、Epic 同步（如有）。
+> 此事件會統一處理：MCP 狀態更新、Kanban 結案、Epic 同步（如有）。
 
 ---
 

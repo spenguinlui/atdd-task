@@ -16,7 +16,7 @@ description: 確認進入下一個任務階段
 
 支援：`/continue {task_id}` 或 `/continue {project}`
 
-> **task_id 匹配**：支援完整 UUID 或 UUID 前綴（前 8 碼）匹配。
+> **task_id 匹配**：必須使用完整 UUID。
 
 ---
 
@@ -57,7 +57,7 @@ description: 確認進入下一個任務階段
 1. 從 gatekeeper 輸出提取 `═══ 人工驗收指南 ═══` 區塊
 2. 讀取 spec 檔（`specs/{project}/{task_id}*.md`）的 Given-When-Then 場景描述
 3. 搜尋相關 test suite（`tests/{project}/suites/*/scenarios/S*.yml`），讀取具體操作步驟
-4. 組合成結構化驗收指南，存入 task JSON `acceptance.verificationGuide`
+4. 組合成結構化驗收指南，透過 `atdd_task_update()` 存入 MCP 的 `acceptance.verificationGuide`
 
 **儲存內容格式**：
 
@@ -89,7 +89,7 @@ description: 確認進入下一個任務階段
 - to_stage = 目標階段
 - agent_name = 下一階段的 Agent
 
-> 此事件會統一處理：MCP 同步、Task JSON 更新、Kanban 移動、描述更新（進入 testing 時）。
+> 此事件會統一處理：MCP 狀態更新、Kanban 移動、描述更新（進入 testing 時）。
 
 ---
 

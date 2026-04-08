@@ -42,6 +42,11 @@ atdd_task_add_history(
 > - 階段轉移 → `atdd_task_update` + `atdd_task_add_history`
 > - Metrics → `atdd_task_add_metrics`
 > - 讀取任務 → `atdd_task_get(task_id)` 或 `atdd_task_list()`
+>
+> **MCP 回傳結構**：
+> - `atdd_task_list()` → `{"items": [...], "total": N}`
+> - `atdd_task_get(task_id)` → 單一任務物件
+> - 所有 task_id 參數必須使用完整 UUID，禁止截斷
 
 ---
 
@@ -63,7 +68,7 @@ atdd_task_add_history(
 }
 ```
 
-- `causedBy`: 調查階段才填寫，非建立時。Specist 可用 `git blame` → commit → 反查 task JSON 的 `context.commitHash` 來追溯
+- `causedBy`: 調查階段才填寫，非建立時。Specist 可用 `git blame` → commit → 透過 `atdd_task_list()` 搜尋 `context.commitHash` 來追溯
 - `rootCauseType`: 分類 bug 根因，用於統計分析
 - `discoveredIn`: 在哪個環節發現，用於計算 Escape Rate
 - Feature/Refactor/Test 任務的 `causation` 保持 null

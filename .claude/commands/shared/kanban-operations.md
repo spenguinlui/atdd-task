@@ -63,7 +63,7 @@ bash .claude/scripts/kanban-adapter.sh complete \
   --title "{description}" \
   --commit {commit_hash} \
   --phase-history "{phase1} → {phase2} → ..." \
-  --task-id {task_id_prefix} \
+  --task-id {task_id} \
   --type {Feature/Fix/Refactor} \
   --domain {domain} \
   --branch {branch} \

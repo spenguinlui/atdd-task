@@ -128,7 +128,7 @@ AskUserQuestion(
 - commit_hash = 從 context.commit 讀取，或 null
 - metrics = null（close 不收集新 metrics）
 
-> 此事件會統一處理：Task JSON 更新、檔案移動、Kanban 結案、Epic 同步（如有）。
+> 此事件會統一處理：MCP 狀態更新、Kanban 結案、Epic 同步（如有）。
 
 ---
 

@@ -40,7 +40,7 @@ atdd_task_add_history(
 
 ### 2. 更新 Kanban
 
-檢查任務 JSON 的 `jira.issueKey`：
+檢查 MCP 任務資料（`atdd_task_get()` 回傳）的 `metadata.jira.issueKey`：
 - **不為 null** → `KANBAN_BACKEND=jira`
 - **為 null** → `KANBAN_BACKEND=markdown`
 
@@ -58,11 +58,12 @@ bash .claude/scripts/kanban-adapter.sh move \
 
 詳細步驟：
 
-1. 從任務 JSON 取得 `id`（UUID 前 8 碼）和 `projectId`
-2. 用 UUID 前綴 glob 找到相關檔案：
-   - BA 報告：`requirements/{projectId}/{uuid前綴}*-ba.md`
-   - Requirement：`requirements/{projectId}/{uuid前綴}*.md`（排除 `-ba.md`）
-   - Spec：`specs/{projectId}/{uuid前綴}*.md`（fix 可能沒有 Spec）
+1. 從任務取得完整 `id`（UUID）和 `projectId`
+2. 用完整 UUID 前綴 glob 找到相關檔案：
+   - BA 報告：`requirements/{projectId}/{uuid}*-ba.md`
+   - Requirement：`requirements/{projectId}/{uuid}*.md`（排除 `-ba.md`）
+   - Spec：`specs/{projectId}/{uuid}*.md`（fix 可能沒有 Spec）
+3. 如果 glob 沒有匹配結果，跳過該來源（不報錯）
 3. 依優先序擷取業務描述（見下方格式相容規則）
 4. 若有 Spec 檔案，從中擷取 `## Acceptance Criteria` 區塊
 5. 組合成描述文字，寫入暫存檔 `/tmp/jira-desc-{uuid}.md`
@@ -180,7 +181,7 @@ bash .claude/scripts/kanban-adapter.sh complete \
   --title "{description}" \
   --commit {commit_hash} \
   --phase-history "{phase1} → {phase2} → ..." \
-  --task-id {task_id_prefix} \
+  --task-id {task_id} \
   --type {Feature/Fix/Refactor} \
   --domain {domain} \
   --branch {branch} \

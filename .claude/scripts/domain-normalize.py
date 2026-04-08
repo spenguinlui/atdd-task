@@ -115,7 +115,7 @@ def main():
             result = normalize_task(task, dry_run)
             if result:
                 modified += 1
-                task_id = task["id"][:8]
+                task_id = task["id"]
                 old = result["old_domain"]
                 new = result["new_domain"]
                 extra = ""
@@ -126,7 +126,7 @@ def main():
                 print(f"    '{old}' → '{new}'{extra}")
         except Exception as e:
             errors += 1
-            print(f"  [ERROR] [{task['id'][:8]}]: {e}")
+            print(f"  [ERROR] [{task['id']}]: {e}")
 
     print()
     print("=== Summary ===")
