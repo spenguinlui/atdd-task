@@ -15,10 +15,18 @@ USER_PROMPT="${TOOL_INPUT:-}"
 # /e2e-manual 授權 flag（供 protect-e2e-mode.sh 驗證）
 if [[ "$USER_PROMPT" == "/e2e-manual"* ]]; then
     echo "$(date +%s)|e2e-manual|user_command" > "${ATDD_HUB_DIR}/.claude/.e2e-manual-authorized"
-    exit 0
 fi
 
-# 只處理 /continue 命令
+# ─── Skill 授權 flag（供 guard-skill-invoke.sh 驗證）───
+# 偵測用戶輸入的 /xxx 命令，寫入一次性授權 flag
+if [[ "$USER_PROMPT" =~ ^/([a-zA-Z][a-zA-Z0-9_-]*) ]]; then
+    SKILL_NAME="${BASH_REMATCH[1]}"
+    AUTH_DIR="${ATDD_HUB_DIR}/.claude/.skill-authorized"
+    mkdir -p "$AUTH_DIR"
+    echo "$(date +%s)|${SKILL_NAME}|user_command" > "${AUTH_DIR}/${SKILL_NAME}"
+fi
+
+# 只處理 /continue 命令（後續路由邏輯）
 if [[ "$USER_PROMPT" != "/continue"* ]]; then
     exit 0
 fi
