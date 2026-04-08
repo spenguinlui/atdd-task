@@ -20,18 +20,25 @@ description: 確認進入下一個任務階段
 
 ---
 
-## Step 2: 階段轉移
+## Step 2: 階段轉移（決定 next_stage 和 next_agent）
+
+> **重要**：此步驟的產出是 `next_stage` 和 `next_agent` 兩個變數。
+> 後續 Step 2.1 和 Step 3 **必須使用這兩個變數**，禁止從任務 JSON 的 `currentAgent` 決定呼叫對象。
 
 參考：`shared/task-flow-diagrams.md`
 
-| 當前 | 下一個 | 條件 |
-|------|--------|------|
-| requirement | specification/testing | 信心度達標 |
-| specification | testing | 規格完成 |
-| testing | development/gate | 測試生成 |
-| development | review | 測試通過 + E2E 檢查 |
-| review | gate | 審查完成 |
-| gate | completed | GO 決策 |
+### 轉移表
+
+| 當前 status | next_stage | next_agent | 條件 |
+|-------------|------------|------------|------|
+| requirement | specification | specist | Feature：信心度達標 |
+| requirement | testing | tester | Fix：信心度達標（跳過 spec） |
+| specification | testing | tester | 規格完成 |
+| testing | development | coder | 測試生成 |
+| testing | gate | gatekeeper | 僅 test 類型任務（無 dev） |
+| development | review | risk-reviewer | 測試通過 + E2E 檢查（見下方） |
+| review | gate | gatekeeper | 審查完成 |
+| gate | completed | — | GO 決策（由 /done 處理，非 /continue） |
 
 ### E2E 檢查（development → review）
 
@@ -42,11 +49,13 @@ description: 確認進入下一個任務階段
 
 ### Review Agent
 
+`next_agent` 為 risk-reviewer，但依任務類型決定是否加 style-reviewer：
+
 | type | Reviewer |
 |------|----------|
 | feature | risk only |
 | fix | risk only |
-| refactor | style + risk |
+| refactor | style + risk（平行呼叫） |
 
 ---
 
@@ -85,17 +94,20 @@ description: 確認進入下一個任務階段
 執行 `shared/task-state-update.md` 的 **`stage-changed`** 事件：
 
 - task_id = 任務 UUID
-- from_stage = 當前階段
-- to_stage = 目標階段
-- agent_name = 下一階段的 Agent
+- from_stage = 當前 status（從 Step 1 讀取）
+- to_stage = **`next_stage`**（從 Step 2 轉移表決定）
+- agent_name = **`next_agent`**（從 Step 2 轉移表決定）
 
 > 此事件會統一處理：MCP 狀態更新、Kanban 移動、描述更新（進入 testing 時）。
 
 ---
 
-## Step 3: 呼叫 Agent 並記錄 Metrics
+## Step 3: 呼叫 next_agent 並記錄 Metrics
 
-參考：`shared/agent-call-patterns.md`
+> **禁止**從任務 JSON 的 `metadata.workflow.currentAgent` 決定呼叫對象。
+> **必須**使用 Step 2 轉移表產出的 `next_agent`。
+
+參考：`shared/agent-call-patterns.md`，以 `next_agent` 作為 `subagent_type`。
 
 **Agent 完成後的輸出格式**（必須嚴格遵守，所有命令帶 task_id）：
 ```
