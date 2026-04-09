@@ -128,7 +128,7 @@ description: 確認進入下一個任務階段
 - to_stage = **`next_stage`**（從 Step 2 轉移表決定）
 - agent_name = **`next_agent`**（從 Step 2 轉移表決定）
 
-> 此事件會統一處理：MCP 狀態更新、Kanban 移動、描述更新（進入 testing 時）。
+> 此事件會統一處理：MCP 狀態更新、Jira 描述更新（進入 testing 時）。
 
 ---
 

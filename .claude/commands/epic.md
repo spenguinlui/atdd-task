@@ -50,7 +50,7 @@ description: 建立 Epic（大型功能拆分為多個子任務）
 ┌─────────────────────┐
 │ Step 3: CREATE      │ ← 主流程直接執行
 │    建立 epic.yml    │
-│    建立 Kanban      │
+│    建立子任務 JSON    │
 └──────────┬──────────┘
            ▼
       📦 Epic 就緒
@@ -357,36 +357,7 @@ epics:
 - **任務 JSON 的 `id`**：使用 UUID（與一般 Feature/Fix 一致）
 - **Epic 內部任務 ID**：使用 `T{phase}-{seq}` 格式（如 `T1-1`），存於 `epic.taskId`
 
-### 3d. 更新 Kanban
-
-執行 `shared/kanban-operations.md` 的「新增卡片」，在 Requirement 之前新增 Epic 區塊：
-
-```markdown
-## Epic: {標題}
-> 📄 **Epic 文件**: [epics/{project}/{epic-id}/epic.yml]
->
-> 進度：0/{total_tasks} (0%)
-
-### T1-1 {title}
-
-  - tags: [{domain}, {type}]
-  - priority: high
-  - workload: Easy
-  - defaultExpanded: true
-  - steps:
-    - [ ] 待開始
-    ```md
-    **Epic**: {標題}
-    **Phase**: Phase 1: {name}
-    **依賴**: 無
-    **狀態**: pending
-    ```
-
-### T1-2 {title}
-  ...
-```
-
-### 3e. 輸出建立完成訊息
+### 3d. 輸出建立完成訊息
 
 ```markdown
 ┌──────────────────────────────────────────────────────┐
@@ -456,7 +427,6 @@ requirements/
 
 tasks/
 └── {project}/
-    ├── kanban.md
     ├── active/
     │   ├── {uuid}.json        # 子任務（含 epic.taskId 關聯）
     │   └── ...

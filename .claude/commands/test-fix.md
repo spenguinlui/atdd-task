@@ -119,11 +119,7 @@ issues:
 }
 ```
 
-### Step 5: 更新 Kanban
-
-執行 `shared/kanban-operations.md` 的「新增卡片」，在 Requirement 欄位新增 Fix 卡片。
-
-### Step 6: 更新測試記錄
+### Step 5: 更新測試記錄
 
 更新 `results.yml`：
 ```yaml

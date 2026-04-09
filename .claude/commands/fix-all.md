@@ -45,11 +45,7 @@ description: 修復 Review 發現的所有問題（TDD 流程）
 }
 ```
 
-### Step 3: 更新 Kanban
-
-執行 `shared/kanban-operations.md` 的「移動卡片」
-
-### Step 4: 輸出訊息
+### Step 3: 輸出訊息
 
 ```markdown
 ┌──────────────────────────────────────────────────────┐

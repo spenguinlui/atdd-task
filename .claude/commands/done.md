@@ -17,7 +17,7 @@ description: 完整結案（Commit + 更新任務狀態）
 
 ## Step 2: 確認執行
 
-AskUserQuestion 確認：Commit + 更新狀態 + 更新 Kanban
+AskUserQuestion 確認：Commit + 更新狀態
 
 ---
 
@@ -27,10 +27,10 @@ AskUserQuestion 確認：Commit + 更新狀態 + 更新 Kanban
 
 ```bash
 # 使用 "latest" 自動找最新的 session
-ruby .claude/scripts/session-stats.rb latest --format kanban
+ruby .claude/scripts/session-stats.rb latest --format compact
 
 # 或指定特定 session ID
-ruby .claude/scripts/session-stats.rb {session_id} --task {task_id_prefix} --format kanban
+ruby .claude/scripts/session-stats.rb {session_id} --task {task_id_prefix} --format compact
 ```
 
 **輸出格式**：
@@ -80,7 +80,7 @@ Metrics: {total_tools} tools / {total_tokens} tokens / {duration}
 - commit_hash = Step 4 的 commit hash
 - metrics = Step 3 的統計數據
 
-> 此事件會統一處理：MCP 狀態更新、Kanban 結案、Epic 同步（如有）。
+> 此事件會統一處理：MCP 狀態更新、Epic 同步（如有）。
 
 ---
 

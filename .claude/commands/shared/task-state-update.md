@@ -38,21 +38,7 @@ atdd_task_add_history(
 )
 ```
 
-### 2. 更新 Kanban
-
-檢查 MCP 任務資料（`atdd_task_get()` 回傳）的 `metadata.jira.issueKey`：
-- **不為 null** → `KANBAN_BACKEND=jira`
-- **為 null** → `KANBAN_BACKEND=markdown`
-
-```bash
-bash .claude/scripts/kanban-adapter.sh move \
-  --project {project} \
-  --title "{description}" \
-  --from {from_stage} \
-  --to {to_stage}
-```
-
-### 3. 描述更新（條件式：進入 testing 且非 test 類型）
+### 2. Jira 描述更新（條件式：進入 testing 且非 test 類型）
 
 當 `to_stage == testing` 且任務 `type != test` 時，額外執行「更新描述」。
 
@@ -67,11 +53,11 @@ bash .claude/scripts/kanban-adapter.sh move \
 3. 依優先序擷取業務描述（見下方格式相容規則）
 4. 若有 Spec 檔案，從中擷取 `## Acceptance Criteria` 區塊
 5. 組合成描述文字，寫入暫存檔 `/tmp/jira-desc-{uuid}.md`
-6. 檢查任務 JSON 的 `jira.source`，決定寫入方式：
+6. 檢查任務的 `jira.issueKey`，若為 null 則跳過 Jira 更新。否則依 `jira.source` 決定寫入方式：
 
 **`jira.source == "created"` 或 null**（我們建立的票）→ 更新 Description：
 ```bash
-bash .claude/scripts/kanban-adapter.sh update \
+KANBAN_BACKEND=jira bash .claude/scripts/kanban-adapter.sh update \
   --project {project} \
   --title "{description}" \
   --description-file /tmp/jira-desc-{uuid}.md
@@ -79,7 +65,7 @@ bash .claude/scripts/kanban-adapter.sh update \
 
 **`jira.source == "linked"`**（既有票）→ 寫入 Comment，避免覆蓋 PM 原本的 Description：
 ```bash
-bash .claude/scripts/kanban-adapter.sh update \
+KANBAN_BACKEND=jira bash .claude/scripts/kanban-adapter.sh update \
   --project {project} \
   --title "{description}" \
   --description-file /tmp/jira-desc-{uuid}.md \
@@ -169,26 +155,7 @@ atdd_task_add_metrics(
 )
 ```
 
-### 2. 更新 Kanban
-
-```bash
-# 先取得 metrics
-ruby .claude/scripts/session-stats.rb latest --format kanban > /tmp/kanban-metrics.txt
-
-# 結案
-bash .claude/scripts/kanban-adapter.sh complete \
-  --project {project} \
-  --title "{description}" \
-  --commit {commit_hash} \
-  --phase-history "{phase1} → {phase2} → ..." \
-  --task-id {task_id} \
-  --type {Feature/Fix/Refactor} \
-  --domain {domain} \
-  --branch {branch} \
-  --metrics-file /tmp/kanban-metrics.txt
-```
-
-### 3. Epic 同步（條件式）
+### 2. Epic 同步（條件式）
 
 透過 `atdd_task_get(task_id)` 取得任務的 `metadata.epic` 字段：
 - **有 epic 字段** → 執行 `shared/epic-sync-on-complete.md`
@@ -229,14 +196,6 @@ atdd_task_add_history(
 )
 ```
 
-### 2. 更新 Kanban
-
-```bash
-bash .claude/scripts/kanban-adapter.sh fail \
-  --project {project} \
-  --title "{description}"
-```
-
 ---
 
 ## Event 4: `task-deployed`
@@ -271,16 +230,6 @@ atdd_task_add_history(
 )
 ```
 
-### 2. 更新 Kanban
-
-```bash
-bash .claude/scripts/kanban-adapter.sh move \
-  --project {project} \
-  --title "{description}" \
-  --from gate \
-  --to deployed
-```
-
 ---
 
 ## Event 5: `task-verified`
@@ -310,16 +259,6 @@ atdd_task_add_history(
   status: "verified",
   note: "Verified by: {verified_by}"
 )
-```
-
-### 2. 更新 Kanban
-
-```bash
-bash .claude/scripts/kanban-adapter.sh complete \
-  --project {project} \
-  --title "{description}" \
-  --commit {commit_hash} \
-  ...（同 task-completed 的 kanban 參數）
 ```
 
 ---
@@ -354,15 +293,7 @@ atdd_task_add_history(
 )
 ```
 
-### 2. 更新 Kanban
-
-```bash
-bash .claude/scripts/kanban-adapter.sh fail \
-  --project {project} \
-  --title "{description}"
-```
-
-### 3. 建議建立 Fix 票
+### 2. 建議建立 Fix 票
 
 輸出提示：
 ```

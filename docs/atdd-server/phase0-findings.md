@@ -17,7 +17,7 @@
 - `/debug-tips`
 
 ### 淘汰
-- `/atdd`, `/atdd-kanban`, `/atdd-list`, `/atdd-status`, `/guide`
+- `/atdd`, `/atdd-list`, `/atdd-status`, `/guide`
 
 ---
 
