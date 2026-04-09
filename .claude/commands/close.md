@@ -54,10 +54,6 @@ description: 僅結案（更新任務狀態，不執行 Git Commit）
 │    • 狀態：gate → completed                          │
 │    • 移動：active/{id}.json → completed/{id}.json   │
 │                                                      │
-│ 2. 更新 Kanban                                       │
-│    • 移動卡片至 Completed 欄                         │
-│    • 加入 Metrics 摘要                               │
-│                                                      │
 │ ⚠️ 不會執行 Git Commit                               │
 │                                                      │
 │ 確認執行？(y/n)                                      │
@@ -128,7 +124,7 @@ AskUserQuestion(
 - commit_hash = 從 context.commit 讀取，或 null
 - metrics = null（close 不收集新 metrics）
 
-> 此事件會統一處理：MCP 狀態更新、Kanban 結案、Epic 同步（如有）。
+> 此事件會統一處理：MCP 狀態更新、Epic 同步（如有）。
 
 ---
 
@@ -153,7 +149,7 @@ AskUserQuestion(
 │ ═══ 任務狀態 ═══                                     │
 │ ✅ 狀態：completed                                   │
 │ 📁 記錄：已保存至 DB                                 │
-│ 📋 Kanban：已更新                                    │
+│ 📋 MCP：已更新                                       │
 │                                                      │
 │ ═══ Git ═══                                          │
 │ ⚠️ 未執行新的 commit                                 │

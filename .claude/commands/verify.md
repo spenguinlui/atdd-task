@@ -32,7 +32,6 @@ description: 確認已部署任務在 production 正常運作
 4. **執行狀態更新**：觸發 `task-state-update.md` 的 Event 5 `task-verified`
    - verified_by: "user"
    - 移動 JSON 檔案：`deployed/` → `completed/`
-   - 更新 Kanban
 
 5. **知識收斂（條件式）**：
 

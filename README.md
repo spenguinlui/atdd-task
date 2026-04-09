@@ -230,7 +230,6 @@ atdd-hub/
 │── requirements/{project}/  # 需求文件（BA 分析產出）
 │── specs/{project}/         # 規格文件（Given-When-Then 驗收條件）
 │── tasks/{project}/         # 任務追蹤
-│   ├── kanban.md            #   Kanban 看板
 │   ├── active/              #   進行中任務 JSON
 │   ├── completed/           #   已完成任務
 │   └── failed/              #   失敗任務

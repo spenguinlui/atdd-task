@@ -14,12 +14,11 @@ description: 啟動重構任務（確保不破壞現有功能）
 
 ## 執行步驟（嚴格按順序，不得增加額外步驟）
 
-1. **Jira 確認**：執行 `shared/kanban-operations.md` 的「Jira 開票確認」（三選一：否、是、已有 Jira 票），取得 Jira 決定和 issue key（如有）
+1. **Jira 確認**：執行 `shared/jira-operations.md` 的「Jira 開票確認」（三選一：否、是、已有 Jira 票），取得 Jira 決定和 issue key（如有）
 2. **Git Branch 選擇**：參考 `shared/git-branch-selection.md`，詢問要在 master 開發還是建立新分支（建議命名 `refactor/{short-description}`）
 3. **Epic 子任務偵測**：參考 `shared/epic-task-flow.md`
 4. **建立任務 JSON**：參考 `shared/task-json-template.md`，type=refactor
-5. **更新 Kanban**：執行 `shared/kanban-operations.md` 的「新增卡片」（使用 Step 1 的 Jira 決定，不再重複詢問）
-6. **回寫 Jira Issue Key**（選擇「是」或「已有 Jira 票」時）：新建票從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），貼上連結則直接使用解析結果。寫入任務 JSON 的 `jira.issueKey`、`jira.url`（`{base_url}/browse/{KEY}`）和 `jira.source`（`"created"` 或 `"linked"`），並同步 MCP：`atdd_task_update(task_id, metadata={"jira": {"issueKey": "{KEY}", "url": "{url}", "source": "{created|linked}"}})`
+5. **回寫 Jira Issue Key**（選擇「是」或「已有 Jira 票」時）：新建票從 kanban-adapter.sh 輸出解析 issue key（格式 `✓ Jira issue created: {KEY} —`），貼上連結則直接使用解析結果。寫入任務 JSON 的 `jira.issueKey`、`jira.url`（`{base_url}/browse/{KEY}`）和 `jira.source`（`"created"` 或 `"linked"`），並同步 MCP：`atdd_task_update(task_id, metadata={"jira": {"issueKey": "{KEY}", "url": "{url}", "source": "{created|linked}"}})`
 6. **輸出任務建立訊息**：類型、專案、標題、ID、Jira 連結（若有）
 7. **立即呼叫 specist Agent**（見下方）
 

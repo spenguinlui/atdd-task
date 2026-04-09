@@ -68,10 +68,6 @@ suites:
     lastStatus: null
 ```
 
-### 6. 更新 Kanban
-
-執行 `shared/kanban-operations.md` 的「新增卡片」
-
 ---
 
 ## 呼叫 specist Agent

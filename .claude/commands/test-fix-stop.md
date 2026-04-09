@@ -163,11 +163,7 @@ results:
       fixTask: "{fix_task_id}"
 ```
 
-### Step 6: 更新 Kanban
-
-執行 `shared/kanban-operations.md` 的「新增卡片」，在 Requirement 欄位新增 Fix 卡片（標記為 critical）。
-
-### Step 7: 更新任務 JSON
+### Step 6: 更新任務 JSON
 
 透過 `atdd_task_update()` 更新任務：
 ```json

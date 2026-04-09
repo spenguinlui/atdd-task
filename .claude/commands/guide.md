@@ -114,7 +114,7 @@ description: 顯示 ATDD Hub 指令使用說明
 ## 常見問題
 
 **Q: 如何查看當前有哪些任務？**
-A: 輸入 `/status`，或查看 `tasks/{專案}/kanban.md`
+A: 輸入 `/status` 或 `/atdd-list`
 
 **Q: 可以同時進行多個任務嗎？**
 A: 可以。`/continue` 會列出所有 active 任務讓你選擇，或用 `/continue {project}` 指定

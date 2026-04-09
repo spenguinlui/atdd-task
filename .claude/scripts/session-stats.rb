@@ -232,8 +232,8 @@ class SessionStats
     }.to_json
   end
 
-  def to_kanban_format
-    # 產生 Kanban 卡片格式的 agents 統計
+  def to_compact_format
+    # 產生精簡格式的 agents 統計
     agent_stats = @stats[:agents].map do |agent, data|
       "#{agent}(#{data[:tools]}/#{format_tokens(data[:tokens])})"
     end.join(', ')
@@ -261,7 +261,7 @@ if __FILE__ == $0
       options[:task_id] = id
     end
 
-    opts.on('--format FORMAT', 'Output format: text, json, kanban') do |format|
+    opts.on('--format FORMAT', 'Output format: text, json, compact') do |format|
       options[:format] = format
     end
 
@@ -274,7 +274,7 @@ if __FILE__ == $0
   session_id = ARGV[0]
   unless session_id
     puts "Error: Session ID required"
-    puts "Usage: #{$0} <session_id> [--since <timestamp>] [--task <task_id>] [--format text|json|kanban]"
+    puts "Usage: #{$0} <session_id> [--since <timestamp>] [--task <task_id>] [--format text|json|compact]"
     exit 1
   end
 
@@ -284,8 +284,8 @@ if __FILE__ == $0
   case options[:format]
   when 'json'
     puts stats.to_json
-  when 'kanban'
-    puts stats.to_kanban_format
+  when 'compact'
+    puts stats.to_compact_format
   else
     puts stats.to_s
   end

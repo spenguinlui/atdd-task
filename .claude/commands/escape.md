@@ -28,7 +28,6 @@ description: 回報已部署任務在 production 發現問題
 3. **執行狀態更新**：觸發 `task-state-update.md` 的 Event 6 `task-escaped`
    - escape_reason: 用戶描述的問題
    - 移動 JSON 檔案：`deployed/` → `escaped/`
-   - 更新 Kanban
 
 4. **輸出結果 + 建議 fix**：
    ```

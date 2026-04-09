@@ -33,7 +33,7 @@ atdd-hub/
 │
 ├── requirements/          # 需求文件（BA 分析產出）
 ├── specs/                 # 規格文件（Given-When-Then 驗收條件）
-├── tasks/                 # 任務追蹤（Kanban 看板 + 任務 JSON）
+├── tasks/                 # 任務追蹤（MCP + 任務 JSON）
 ├── epics/                 # Epic 管理（大型功能拆分）
 ├── tests/                 # E2E 測試套件（Chrome 自動化）
 │
@@ -57,7 +57,7 @@ atdd-hub/
 |------|-----------|---------|
 | `requirements/` | 每個任務的需求分析，含商務背景、Domain、信心度 | PM、工程師 |
 | `specs/` | 驗收規格，Given-When-Then 格式 | QA、工程師 |
-| `tasks/` | Kanban 看板，追蹤任務狀態和歷程 | 全員 |
+| `tasks/` | 任務追蹤，透過 MCP 管理狀態和歷程 | 全員 |
 | `epics/` | 大型功能的拆分計畫和子任務 | PM、架構師 |
 | `tests/` | E2E 測試套件（場景定義 + 執行記錄） | QA、工程師 |
 | **`domains/`** | **領域知識庫（商務邏輯 + 系統設計）** | **全員** |
@@ -97,7 +97,7 @@ atdd-hub/
     ▼
 ┌─ development → review → gate ──────────────────┐
 │  產出：程式碼提交到對應專案 Repo                  │
-│  記錄：tasks/core_web/kanban.md 更新任務狀態      │
+│  記錄：透過 MCP 更新任務狀態                       │
 └────────────────────────────────────────────────┘
     │
     ▼
@@ -107,13 +107,12 @@ atdd-hub/
 └────────────────────────────────────────────────┘
 ```
 
-### 任務追蹤（Kanban）
+### 任務追蹤
 
-每個專案有一個 `tasks/{project}/kanban.md`，記錄所有任務的狀態和執行摘要：
+每個專案透過 MCP 追蹤所有任務的狀態和執行摘要：
 
 ```
 tasks/{project}/
-├── kanban.md              # 看板（所有任務的狀態一覽）
 ├── active/                # 進行中的任務 JSON
 ├── completed/             # 已完成的任務 JSON
 ├── closed/                # 已關閉的任務 JSON
