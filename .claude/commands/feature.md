@@ -15,7 +15,7 @@ description: 啟動新功能開發任務（Guided 模式）
 ## 執行步驟（嚴格按順序，不得增加額外步驟）
 
 1. **Jira 確認**：執行 `shared/kanban-operations.md` 的「Jira 開票確認」（三選一：否、是、已有 Jira 票），取得 Jira 決定和 issue key（如有）
-2. **Git Branch 選擇**：參考 `shared/git-branch-selection.md`，如有 Jira issue key 則自動使用 issue key 作為分支名稱；否則建議命名 `feature/{short-description}`
+2. **Git Branch 選擇**：參考 `shared/git-branch-selection.md`，詢問要在 master 開發還是建立新分支（建議命名 `feature/{short-description}`）
 3. **Epic 子任務偵測**：參考 `shared/epic-task-flow.md`
 4. **建立任務 JSON**：參考 `shared/task-json-template.md`，type=feature
 5. **更新 Kanban**：執行 `shared/kanban-operations.md` 的「新增卡片」（使用 Step 1 的 Jira 決定，不再重複詢問）
