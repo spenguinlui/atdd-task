@@ -100,20 +100,35 @@ teardown:
 # spec/acceptance/accounting/weekly_settlement_spec.rb
 RSpec.describe "週結算驗收測試", type: :acceptance do
   describe "需求：每週一計算上週收益並產生報表" do
-    let(:project) { create(:project, :with_revenue_data) }
+    let(:project) { create(:project, :with_revenue_data, electricity_income: 100_000, management_fee_rate: 0.05) }
 
-    it "驗收：結算後顯示正確的收益數據" do
+    it "驗收：結算後產生正確期間和金額的報表" do
       travel_to(Time.zone.parse("2024-01-15 00:00:00")) do
         WeeklySettlementJob.perform_now
       end
 
       report = project.settlement_reports.last
-      expect(report).to be_present
+      # ✅ 精確斷言：驗證具體值，不只是 be_present
       expect(report.period).to eq("2024-01-08..2024-01-14")
+      expect(report.net_profit).to eq(95_000)
+      expect(report.status).to eq("completed")
+    end
+
+    # ✅ 邊界測試：無收入資料時的處理
+    it "驗收：無收入資料時不產生報表" do
+      empty_project = create(:project)
+
+      travel_to(Time.zone.parse("2024-01-15 00:00:00")) do
+        WeeklySettlementJob.perform_now
+      end
+
+      expect(empty_project.settlement_reports.count).to eq(0)
     end
   end
 end
 ```
+
+> **斷言原則**：預設用 `eq(具體值)`，禁止用 `be_present`/`be_truthy` 驗證業務結果。詳見 tester.md「斷言精確度規則」。
 
 ### Integration 測試 Helpers
 
