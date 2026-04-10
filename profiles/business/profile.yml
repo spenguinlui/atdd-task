@@ -1,0 +1,15 @@
+name: business
+display_name: "Business Unit (Triage)"
+description: "業務單位問題回報，透過 Slack Bot /report 命令互動"
+
+agents:
+  triage: profiles/business/agents/triage-agent.md
+
+allowed_commands:
+  - /report
+
+settings:
+  interface: slack
+  language: zh-TW
+  no_jira_access: true
+  no_technical_terms: true
