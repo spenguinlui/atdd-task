@@ -1,5 +1,6 @@
-"""ATDD Server — Slack Bot (Phase 4 MVP)."""
+"""ATDD Server — Slack Bot (Phase 4 MVP + Triage feature)."""
 
+import json
 import logging
 import os
 import re
@@ -12,11 +13,12 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 import re as _re
 from claude_bridge import run_claude, pull_project, get_project_path
-from slack_blocks import questions_to_blocks, result_to_blocks, action_buttons
+from slack_blocks import questions_to_blocks, result_to_blocks, action_buttons, triage_action_buttons
 from ul_filter import apply_ul_filter
 from git_sync import sync as git_sync
 import api_client
 import state
+import jira_client
 
 
 def _extract_confidence(text: str) -> float | None:
@@ -43,6 +45,11 @@ logger = logging.getLogger("atdd-bot")
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
 ATDD_HUB_PATH = os.environ.get("ATDD_HUB_PATH", os.path.expanduser("~/atdd-hub"))
+
+# Triage feature configuration
+TRIAGE_CHANNEL_ID = os.environ.get("TRIAGE_CHANNEL_ID", "")
+PM_CHANNEL_ID = os.environ.get("PM_CHANNEL_ID", "")
+RD_LEAD_SLACK_USER_ID = os.environ.get("RD_LEAD_SLACK_USER_ID", "")
 
 # Thread locks (in-memory, only needed during runtime)
 conv_locks = {}
@@ -128,21 +135,32 @@ def _process_claude(prompt: str, thread_ts: str, channel: str,
             )
             return
 
-        # Show action buttons — only show Confirm BA if confidence >= 95%
-        confidence = _extract_confidence(text)
-        show_confirm = confidence is not None and confidence >= 95.0
-
-        if confidence is not None:
-            conv["last_confidence"] = confidence
-            logger.info(f"Confidence: {confidence}%, show_confirm={show_confirm}")
-
-        conv["status"] = "waiting_answer"
+        # Show action buttons
+        # For triage flow: show triage-specific buttons; for feature/knowledge: show regular buttons
+        conv["status"] = "waiting_confirmation" if conv.get("phase") == "interview" else "waiting_answer"
         state.set(thread_ts, conv)
-        app.client.chat_postMessage(
-            channel=channel, thread_ts=thread_ts,
-            blocks=action_buttons(show_confirm=show_confirm),
-            text="Choose an action or reply to continue.",
-        )
+
+        if conv.get("phase") == "interview":
+            # Triage flow: show confirm/cancel buttons
+            app.client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts,
+                blocks=triage_action_buttons(),
+                text="訪談完成，請確認上面的信息。",
+            )
+        else:
+            # Feature/Knowledge flow: show regular buttons
+            confidence = _extract_confidence(text)
+            show_confirm = confidence is not None and confidence >= 95.0
+
+            if confidence is not None:
+                conv["last_confidence"] = confidence
+                logger.info(f"Confidence: {confidence}%, show_confirm={show_confirm}")
+
+            app.client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts,
+                blocks=action_buttons(show_confirm=show_confirm),
+                text="Choose an action or reply to continue.",
+            )
 
         # Auto sync any file changes to GitHub
         sync_err = git_sync(f"bot: {conv.get('type', 'feature')} — {conv.get('project', '?')}")
@@ -407,6 +425,330 @@ def handle_knowledge_submit(ack, body, client):
         args=(prompt, thread_ts, channel),
         daemon=True,
     ).start()
+
+
+# --- Slash Command: /report (Triage feature) ---
+
+
+@app.command("/report")
+def handle_report_command(ack, body, client):
+    """業務用戶問題回報命令。"""
+    ack()
+    projects = _load_projects()
+    project_options = [
+        {"text": {"type": "plain_text", "text": p}, "value": p}
+        for p in projects
+    ]
+
+    client.views_open(
+        trigger_id=body["trigger_id"],
+        view={
+            "type": "modal",
+            "callback_id": "report_submit",
+            "title": {"type": "plain_text", "text": "回報問題"},
+            "submit": {"type": "plain_text", "text": "開始分析"},
+            "blocks": [
+                {
+                    "type": "input",
+                    "block_id": "project_block",
+                    "element": {
+                        "type": "static_select",
+                        "placeholder": {"type": "plain_text", "text": "選擇系統"},
+                        "options": project_options,
+                        "action_id": "project_select",
+                    },
+                    "label": {"type": "plain_text", "text": "系統"},
+                },
+                {
+                    "type": "input",
+                    "block_id": "description_block",
+                    "element": {
+                        "type": "plain_text_input",
+                        "multiline": True,
+                        "placeholder": {"type": "plain_text", "text": "詳細描述遇到的問題..."},
+                        "action_id": "description_input",
+                    },
+                    "label": {"type": "plain_text", "text": "問題描述"},
+                },
+            ],
+        },
+    )
+
+
+@app.view("report_submit")
+def handle_report_submit(ack, body, client):
+    """業務提交問題報告，開始 Triage 訪談。"""
+    ack()
+    user = body["user"]["id"]
+    values = body["view"]["state"]["values"]
+    project = values["project_block"]["project_select"]["selected_option"]["value"]
+    description = values["description_block"]["description_input"]["value"]
+
+    channel = TRIAGE_CHANNEL_ID
+    if not channel:
+        logger.error("TRIAGE_CHANNEL_ID not configured")
+        return
+
+    msg = client.chat_postMessage(
+        channel=channel,
+        text=f":mag: *業務問題回報*\n*系統*: `{project}`\n*回報人*: <@{user}>\n\n_開始訪談中..._",
+    )
+    thread_ts = msg["ts"]
+
+    state.set(thread_ts, {
+        "user": user,
+        "project": project,
+        "description": description,
+        "session_id": None,
+        "status": "running",
+        "phase": "interview",
+    })
+
+    logger.info(f"Triage started by {user}: project={project}")
+
+    # Load triage agent
+    agent_path = os.path.join(ATDD_HUB_PATH, "profiles/business/agents/triage-agent.md")
+    agent_def = ""
+    try:
+        with open(agent_path) as f:
+            agent_def = f.read()
+    except FileNotFoundError:
+        logger.warning(f"Triage agent not found: {agent_path}")
+
+    prompt = f"""{agent_def}
+
+---
+
+## 目前任務
+
+**系統**: {project}
+
+**業務用戶的初始描述**:
+{description}
+
+---
+
+請開始 **Round 1 訪談** — 提出第一個問題（選項按鈕方式）。
+    """
+
+    threading.Thread(
+        target=_process_claude,
+        args=(prompt, thread_ts, channel),
+        daemon=True,
+    ).start()
+
+
+# --- Triage Action Handlers ---
+
+
+@app.action("confirm_triage")
+def handle_confirm_triage(ack, body, client):
+    """業務確認後，執行 Jira 立單。"""
+    ack()
+
+    thread_ts = body["container"]["thread_ts"]
+    channel = body["channel"]["id"]
+    conv = state.get(thread_ts) or {}
+
+    if conv.get("status") != "waiting_confirmation":
+        return
+
+    logger.info(f"Triage confirmed, starting Jira creation: {thread_ts}")
+
+    # Phase 2: 代碼分析 + Jira 立單
+    conv["phase"] = "triage_analysis"
+    conv["status"] = "analyzing"
+    state.set(thread_ts, conv)
+
+    app.client.chat_postMessage(
+        channel=channel,
+        thread_ts=thread_ts,
+        text=":gear: 正在分析代碼和建立 Jira 票...",
+    )
+
+    threading.Thread(
+        target=_run_triage_and_create,
+        args=(thread_ts, channel, conv),
+        daemon=True,
+    ).start()
+
+
+@app.action("continue_triage")
+def handle_continue_triage(ack, body, client):
+    """業務補充說明。"""
+    ack()
+
+    thread_ts = body["container"]["thread_ts"]
+    channel = body["channel"]["id"]
+    conv = state.get(thread_ts) or {}
+
+    app.client.chat_postMessage(
+        channel=channel,
+        thread_ts=thread_ts,
+        text=":pencil2: 請補充說明或回答更多問題...",
+    )
+
+    conv["status"] = "waiting_answer"
+    conv["phase"] = "interview"
+    state.set(thread_ts, conv)
+
+    prompt = "用戶要補充說明。請詢問相關跟進問題或要求詳細說明。"
+
+    threading.Thread(
+        target=_process_claude,
+        args=(prompt, thread_ts, channel, conv.get("session_id")),
+        daemon=True,
+    ).start()
+
+
+@app.action("cancel_triage")
+def handle_cancel_triage(ack, body, client):
+    """業務取消。"""
+    ack()
+
+    thread_ts = body["container"]["thread_ts"]
+    channel = body["channel"]["id"]
+
+    app.client.chat_postMessage(
+        channel=channel,
+        thread_ts=thread_ts,
+        text=":no_entry_sign: 已取消。如需回報問題，請使用 `/report` 命令。",
+    )
+
+    state.delete(thread_ts)
+
+
+def _run_triage_and_create(thread_ts: str, channel: str, conv: dict):
+    """Phase 2: 代碼分析 + Jira 立單。"""
+    session_id = conv.get("session_id")
+    project = conv.get("project", "")
+
+    # 生成 triage 分析 prompt
+    agent_path = os.path.join(ATDD_HUB_PATH, "profiles/business/agents/triage-agent.md")
+    agent_def = ""
+    try:
+        with open(agent_path) as f:
+            agent_def = f.read()
+    except FileNotFoundError:
+        logger.warning(f"Triage agent not found: {agent_path}")
+
+    prompt = f"""{agent_def}
+
+---
+
+## Phase 2: Jira 準備
+
+訪談已完成。現在請整理訪談信息，輸出結構化結果。
+
+按照 TRIAGE_RESULT 格式輸出最終結果（app.py 會自動解析建立 Jira 票）。
+
+開始輸出 TRIAGE_RESULT。
+    """
+
+    try:
+        result = run_claude(prompt, session_id=session_id)
+
+        if result["is_error"]:
+            app.client.chat_postMessage(
+                channel=channel,
+                thread_ts=thread_ts,
+                text=f":x: 分析失敗: {result['result'][:500]}",
+            )
+            conv["status"] = "waiting_answer"
+            state.set(thread_ts, conv)
+            return
+
+        text = result["result"]
+
+        # Parse TRIAGE_RESULT JSON
+        match = re.search(r"TRIAGE_RESULT:\s*\{(.+?)\}", text, re.DOTALL)
+        if not match:
+            logger.error(f"TRIAGE_RESULT not found in: {text[:500]}")
+            app.client.chat_postMessage(
+                channel=channel,
+                thread_ts=thread_ts,
+                text=":x: 無法解析分析結果，請稍後重試。",
+            )
+            conv["status"] = "waiting_answer"
+            state.set(thread_ts, conv)
+            return
+
+        json_str = "{" + match.group(1) + "}"
+        triage_data = json.loads(json_str)
+
+        # Create Jira issue
+        priority_map = {
+            "P0": "Highest",
+            "P1": "High",
+            "P2": "Medium",
+            "P3": "Low",
+        }
+
+        sections = {
+            "problem": triage_data.get("interview_summary", conv.get("description", "")),
+            "steps": triage_data.get("steps_to_reproduce", []),
+            "expected": triage_data.get("expected", ""),
+            "actual": triage_data.get("actual", ""),
+            "impact": triage_data.get("impact", ""),
+            "analysis": f"**優先級**: {triage_data.get('priority')} — {triage_data.get('priority_reason', '')}\n\n**受影響領域**: {triage_data.get('affected_domain', '')}",
+        }
+
+        issue = jira_client.create_issue(
+            summary=triage_data.get("summary", ""),
+            sections=sections,
+            priority=priority_map.get(triage_data.get("priority", "P2"), "Medium"),
+            labels=[triage_data.get("affected_domain", "")] if triage_data.get("affected_domain") else None,
+            project_key=None,
+            issue_type=None,
+        )
+
+        # Notify business user
+        app.client.chat_postMessage(
+            channel=channel,
+            thread_ts=thread_ts,
+            text=f":white_check_mark: *Jira 票已建立*\n"
+                 f"*票號*: <{issue['url']}|{issue['key']}>\n"
+                 f"*優先級*: {triage_data.get('priority', 'P2')}\n"
+                 f"*受影響領域*: {triage_data.get('affected_domain', 'N/A')}\n\n"
+                 f"PM 將在 24 小時內 review。謝謝你的回報！",
+        )
+
+        # Notify PM channel
+        if PM_CHANNEL_ID:
+            app.client.chat_postMessage(
+                channel=PM_CHANNEL_ID,
+                text=f":bell: *新 Triage 票 — 需要 Review*\n"
+                     f"*票號*: <{issue['url']}|{issue['key']}>\n"
+                     f"*摘要*: {triage_data.get('summary', '')}\n"
+                     f"*優先級*: {triage_data.get('priority', 'P2')}\n"
+                     f"*受影響範圍*: {triage_data.get('impact', '')}\n"
+                     f"*優先級原因*: {triage_data.get('priority_reason', '')}",
+            )
+
+        # Handle P0 urgency
+        if triage_data.get("priority") == "P0" and RD_LEAD_SLACK_USER_ID:
+            try:
+                app.client.chat_postMessage(
+                    channel=RD_LEAD_SLACK_USER_ID,
+                    text=f":rotating_light: *P0 緊急問題* — <{issue['url']}|{issue['key']}>\n"
+                         f"業務已回報，PM 正在確認。",
+                )
+            except Exception as e:
+                logger.error(f"Failed to DM RD Lead: {e}")
+
+        # Clean up
+        state.delete(thread_ts)
+        logger.info(f"Jira issue created: {issue['key']}")
+
+    except Exception as e:
+        logger.exception(f"Error in _run_triage_and_create: {e}")
+        app.client.chat_postMessage(
+            channel=channel,
+            thread_ts=thread_ts,
+            text=f":warning: 立單失敗: {str(e)[:300]}",
+        )
+        conv["status"] = "error"
+        state.set(thread_ts, conv)
 
 
 # --- App Home Tab ---

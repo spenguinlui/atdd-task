@@ -112,3 +112,38 @@ def result_to_blocks(text: str) -> list[dict]:
             "text": {"type": "mrkdwn", "text": chunk},
         })
     return blocks
+
+
+def triage_action_buttons() -> list[dict]:
+    """Action buttons shown after triage interview."""
+    return [
+        {"type": "divider"},
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "✅ 確認立單"},
+                    "action_id": "confirm_triage",
+                    "style": "primary",
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "📝 補充說明"},
+                    "action_id": "continue_triage",
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "❌ 取消"},
+                    "style": "danger",
+                    "action_id": "cancel_triage",
+                },
+            ],
+        },
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": "確認後將自動建立 Jira 票，並通知 PM review。"}
+            ],
+        },
+    ]

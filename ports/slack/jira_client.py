@@ -1,4 +1,4 @@
-"""Jira Cloud REST API v3 client for Triage Bot."""
+"""Jira Cloud REST API v3 client for Triage feature."""
 
 import base64
 import json
@@ -32,19 +32,7 @@ def _auth_header() -> str:
 
 
 def _request(method: str, path: str, data: dict | None = None) -> dict | list:
-    """Make HTTP request to Jira API.
-
-    Args:
-        method: HTTP method (GET, POST, etc.)
-        path: API path (e.g., "/rest/api/3/issue")
-        data: Request body (will be JSON-encoded)
-
-    Returns:
-        Parsed JSON response
-
-    Raises:
-        JiraError: If API returns error
-    """
+    """Make HTTP request to Jira API."""
     url = f"{JIRA_BASE_URL}{path}"
     body = json.dumps(data, default=str).encode() if data else None
 
@@ -67,57 +55,8 @@ def _request(method: str, path: str, data: dict | None = None) -> dict | list:
         raise JiraError(0, f"Connection error: {e}")
 
 
-def search_similar(project_key: str, keywords: str, limit: int = 5) -> list[dict]:
-    """Search for similar Jira issues by keywords.
-
-    Uses JQL to find recent issues matching keywords.
-
-    Args:
-        project_key: Jira project key (e.g., "CORE")
-        keywords: Search keywords (comma-separated or phrases)
-        limit: Max results
-
-    Returns:
-        List of issue dicts with key, summary, created, priority
-    """
-    # Escape keywords for JQL
-    safe_keywords = keywords.replace('"', '\\"').replace("'", "\\'")
-
-    # JQL: search in summary + description, order by created DESC
-    jql = f'project = {project_key} AND text ~ "{safe_keywords}" ORDER BY created DESC'
-
-    try:
-        response = _request("POST", "/rest/api/3/search", {
-            "jql": jql,
-            "maxResults": limit,
-            "fields": ["key", "summary", "created", "priority", "status"],
-        })
-    except JiraError as e:
-        logger.warning(f"Search similar issues failed: {e.detail}")
-        return []
-
-    issues = []
-    for issue in response.get("issues", []):
-        issues.append({
-            "key": issue.get("key"),
-            "summary": issue.get("fields", {}).get("summary", ""),
-            "created": issue.get("fields", {}).get("created", "")[:10],  # Date only
-            "priority": issue.get("fields", {}).get("priority", {}).get("name", ""),
-            "status": issue.get("fields", {}).get("status", {}).get("name", ""),
-        })
-
-    return issues
-
-
 def _build_adf_document(sections: dict) -> dict:
-    """Build Atlassian Document Format (ADF) for Jira description.
-
-    Args:
-        sections: Dict with keys like "problem", "steps", "expected", "actual", "analysis"
-
-    Returns:
-        ADF document (nested dict structure)
-    """
+    """Build Atlassian Document Format (ADF) for Jira description."""
     content = []
 
     # Problem description
@@ -208,22 +147,7 @@ def create_issue(
     project_key: str | None = None,
     issue_type: str | None = None,
 ) -> dict:
-    """Create a Jira issue.
-
-    Args:
-        summary: Issue title
-        sections: Dict with problem, steps, expected, actual, impact, analysis
-        priority: Priority name (Highest, High, Medium, Low)
-        labels: List of labels (will add "triage-auto")
-        project_key: Override default project
-        issue_type: Override default issue type
-
-    Returns:
-        Dict with keys: key, id, url
-
-    Raises:
-        JiraError: If API call fails
-    """
+    """Create a Jira issue."""
     pkey = project_key or JIRA_PROJECT_KEY
     itype = issue_type or JIRA_ISSUE_TYPE
 

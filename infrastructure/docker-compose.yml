@@ -53,32 +53,6 @@ services:
     depends_on:
       - api
 
-  triage-bot:
-    build: ../ports/triage-bot
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      - ATDD_HUB_PATH=/app/atdd-hub
-      - REPOS_PATH=/app/repos
-      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-6}
-      - JIRA_BASE_URL=${JIRA_BASE_URL:-}
-      - JIRA_EMAIL=${JIRA_EMAIL:-}
-      - JIRA_API_TOKEN=${JIRA_API_TOKEN:-}
-      - JIRA_PROJECT_KEY=${JIRA_PROJECT_KEY:-CORE}
-      - JIRA_ISSUE_TYPE=${JIRA_ISSUE_TYPE:-Bug}
-      - TRIAGE_CHANNEL_ID=${TRIAGE_CHANNEL_ID:-}
-      - PM_CHANNEL_ID=${PM_CHANNEL_ID:-}
-      - RD_LEAD_SLACK_USER_ID=${RD_LEAD_SLACK_USER_ID:-}
-    volumes:
-      # atdd-hub repo (read-only access)
-      - ${ATDD_HUB_PATH:-/home/ubuntu/atdd-hub}:/app/atdd-hub:ro
-      # Project code repos (read-only for analysis)
-      - ${REPOS_PATH:-/home/ubuntu/repos}:/app/repos:ro
-      # Claude CLI session persistence
-      - claude-data:/home/app/.claude
-    depends_on:
-      - api
-
   worker:
     build: ../ports/api
     restart: unless-stopped
