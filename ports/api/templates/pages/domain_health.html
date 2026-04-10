@@ -2,59 +2,66 @@
 {% block title %}Domain Health — ATDD Dashboard{% endblock %}
 
 {% block content %}
-<hgroup>
-  <h2>Domain Health Map</h2>
-  <p>Health scores and coupling relationships</p>
-</hgroup>
-
-<fieldset role="group" class="time-selector">
-  <select name="project" onchange="window.location='/dashboard/domains?project='+this.value">
-    <option value="">All projects</option>
-    {% for p in projects %}
-    <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
-    {% endfor %}
-  </select>
-</fieldset>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Domain Health Map</h1>
+    <p class="page-subtitle">Health scores and coupling relationships</p>
+  </div>
+  <div class="filters">
+    <select class="filter-select" onchange="window.location='/dashboard/domains?project='+this.value">
+      <option value="">All Projects</option>
+      {% for p in projects %}
+      <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
 
 {% if domains %}
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot healthy"></div> Healthy (70-100)</div>
+  <div class="legend-item"><div class="legend-dot degraded"></div> Degraded (40-69)</div>
+  <div class="legend-item"><div class="legend-dot critical"></div> Critical (0-39)</div>
+</div>
+
 {% set ns = namespace(current_project='') %}
 {% for d in domains|sort(attribute='project,name') %}
-  {% set meta = d.metadata if d.metadata else {} %}
   {% if d.project != ns.current_project %}
-    {% if ns.current_project != '' %}</div>{% endif %}
+    {% if ns.current_project != '' %}</div></div>{% endif %}
     {% set ns.current_project = d.project %}
-    <h3 style="margin-top:1.5rem;">{{ d.project }}</h3>
-    <div class="health-grid">
+    <div class="project-group">
+      <div class="project-group-title">
+        {{ d.project }}
+        <span class="badge">{{ domains|selectattr('project', 'equalto', d.project)|list|length }} domains</span>
+      </div>
+      <div class="health-grid">
   {% endif %}
   <a href="/dashboard/domains/{{ d.name }}{% if d.project %}?project={{ d.project }}{% endif %}"
-     class="domain-tile health-{{ d.status or 'degraded' }}"
-     {% if meta.get('description') %}title="{{ meta.get('description') }}"{% endif %}>
+     class="domain-tile health-{{ d.status or 'degraded' }}">
     <div class="domain-score">{{ d.health_score|round(0)|int if d.health_score else '?' }}</div>
-    <div class="domain-name">{{ meta.get('chinese_name', '') }}</div>
-    <div style="font-size:0.65rem; opacity:0.7;">{{ d.name }}</div>
-    <div style="font-size:0.6rem; opacity:0.6;">{{ meta.get('domain_type', '') }}</div>
+    <div class="domain-name">{{ d.name }}</div>
   </a>
 {% endfor %}
-{% if ns.current_project != '' %}</div>{% endif %}
+{% if ns.current_project != '' %}</div></div>{% endif %}
 
 {% if couplings %}
-<h3 style="margin-top:2rem;">Top Couplings</h3>
-<figure>
-  <table class="coupling-matrix">
+<div class="card" style="margin-top: 1.5rem;">
+  <div class="card-title">Top Domain Couplings</div>
+  <table>
     <thead>
       <tr><th>Domain A</th><th>Domain B</th><th>Co-occurrences</th></tr>
     </thead>
     <tbody>
       {% for c in couplings %}
       <tr>
-        <td><a href="/dashboard/domains/{{ c.domain_a }}">{{ c.domain_a }}</a></td>
-        <td><a href="/dashboard/domains/{{ c.domain_b }}">{{ c.domain_b }}</a></td>
-        <td>{{ c.co_occurrence_count }}</td>
+        <td><a href="/dashboard/domains/{{ c.domain_a }}" class="cause-link">{{ c.domain_a }}</a></td>
+        <td><a href="/dashboard/domains/{{ c.domain_b }}" class="cause-link">{{ c.domain_b }}</a></td>
+        <td><strong>{{ c.co_occurrence_count }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-</figure>
+</div>
 {% endif %}
 
 {% else %}

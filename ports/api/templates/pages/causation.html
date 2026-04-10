@@ -2,22 +2,44 @@
 {% block title %}Causation Explorer — ATDD Dashboard{% endblock %}
 
 {% block content %}
-<hgroup>
-  <h2>Causation Explorer</h2>
-  <p>Fix chains and bug causation relationships</p>
-</hgroup>
-
-<fieldset role="group" class="time-selector">
-  <select name="project" onchange="window.location='/dashboard/causation?project='+this.value">
-    <option value="">All projects</option>
-    {% for p in projects %}
-    <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
-    {% endfor %}
-  </select>
-</fieldset>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Causation Explorer</h1>
+    <p class="page-subtitle">Fix chains and bug causation relationships</p>
+  </div>
+  <div class="filters">
+    <select class="filter-select" onchange="window.location='/dashboard/causation?project='+this.value">
+      <option value="">All Projects</option>
+      {% for p in projects %}
+      <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
 
 {% if chains %}
-<figure>
+<!-- Summary Cards -->
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="summary-label">Total Fix Tasks</div>
+    <div class="summary-value">{{ chains|length }}</div>
+    <div class="summary-sub">With causation data</div>
+  </div>
+  <div class="summary-card danger">
+    <div class="summary-label">Fix Regressions</div>
+    <div class="summary-value">{{ chains|selectattr('root_cause_type', 'equalto', 'fix-regression')|list|length }}</div>
+    <div class="summary-sub">Fixes that caused more fixes</div>
+  </div>
+  <div class="summary-card warning">
+    <div class="summary-label">Unique Domains</div>
+    <div class="summary-value">{{ chains|map(attribute='domain')|unique|list|length }}</div>
+    <div class="summary-sub">Domains with fix tasks</div>
+  </div>
+</div>
+
+<!-- Fix Tasks Table -->
+<div class="card">
+  <div class="card-title">Fix Task Causation Chain</div>
   <table>
     <thead>
       <tr>
@@ -30,27 +52,26 @@
     </thead>
     <tbody>
       {% for c in chains %}
-      <tr>
-        <td>
-          <span class="task-type task-type-fix">fix</span>
-          {{ c.description or '—' }}
-          <br><small style="color:var(--pico-muted-color);">{{ c.project }}{% if c.domain %} / {{ c.domain }}{% endif %}</small>
-        </td>
+      <tr {% if c.root_cause_type == 'fix-regression' %}class="regression"{% endif %}>
         <td>
           {% if c.root_cause_type == 'fix-regression' %}
-            <mark>{{ c.root_cause_type }}</mark>
+            <span class="type-tag fix-regression">FIX-REGRESSION</span>
           {% else %}
-            {{ c.root_cause_type }}
+            <span class="type-tag fix">FIX</span>
           {% endif %}
+          <div style="margin-top:0.25rem;font-weight:500;">{{ c.description or '—' }}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">{{ c.project }}{% if c.domain %} / {{ c.domain }}{% endif %}</div>
         </td>
+        <td>{{ c.root_cause_type }}</td>
         <td>{{ c.discovered_in }}</td>
         <td>
           {% if c.parent_id %}
             <a href="/dashboard/tasks/{{ c.parent_id }}/detail"
                hx-get="/dashboard/tasks/{{ c.parent_id }}/detail"
-               hx-target="#modal-content">{{ c.parent_desc or c.parent_id }}</a>
+               hx-target="#modal-content"
+               class="cause-link">{{ c.parent_desc or c.parent_id }}</a>
           {% else %}
-            <span style="color:var(--pico-muted-color);">unknown</span>
+            <span style="color:var(--text-muted);">unknown</span>
           {% endif %}
         </td>
         <td>{{ c.status }}</td>
@@ -58,27 +79,13 @@
       {% endfor %}
     </tbody>
   </table>
-</figure>
-
-<!-- Summary -->
-<div class="dashboard-grid">
-  <article class="metric-card">
-    <h3>Total Fix Tasks</h3>
-    <p class="metric-value">{{ chains|length }}</p>
-    <p class="metric-label">With causation data</p>
-  </article>
-  <article class="metric-card">
-    <h3>Fix Regressions</h3>
-    <p class="metric-value">{{ chains|selectattr('root_cause_type', 'equalto', 'fix-regression')|list|length }}</p>
-    <p class="metric-label">Fixes that caused more fixes</p>
-  </article>
 </div>
 
 <dialog id="taskModal" class="task-modal">
   <article>
-    <header>
-      <button aria-label="Close" rel="prev" onclick="document.getElementById('taskModal').close()"></button>
-      <h3>Task Detail</h3>
+    <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h3 style="margin:0;">Task Detail</h3>
+      <button onclick="document.getElementById('taskModal').close()" style="border:none;background:none;cursor:pointer;font-size:1.25rem;color:var(--text-muted);">&times;</button>
     </header>
     <div id="modal-content"><p>Loading...</p></div>
   </article>

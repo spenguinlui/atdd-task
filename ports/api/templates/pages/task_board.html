@@ -2,26 +2,27 @@
 {% block title %}Task Board — ATDD Dashboard{% endblock %}
 
 {% block content %}
-<hgroup>
-  <h2>Task Board</h2>
-  <p>Active tasks across all projects</p>
-</hgroup>
-
-<fieldset role="group" class="time-selector">
-  <select name="project" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='type']">
-    <option value="">All projects</option>
-    {% for p in projects %}
-    <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
-    {% endfor %}
-  </select>
-  <select name="type" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='project']">
-    <option value="">All types</option>
-    <option value="feature" {% if type == 'feature' %}selected{% endif %}>Feature</option>
-    <option value="fix" {% if type == 'fix' %}selected{% endif %}>Fix</option>
-    <option value="refactor" {% if type == 'refactor' %}selected{% endif %}>Refactor</option>
-    <option value="test" {% if type == 'test' %}selected{% endif %}>Test</option>
-  </select>
-</fieldset>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Task Board</h1>
+    <p class="page-subtitle">Active tasks across all projects</p>
+  </div>
+  <div class="filters">
+    <select class="filter-select" name="project" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='type']">
+      <option value="">All Projects</option>
+      {% for p in projects %}
+      <option value="{{ p }}" {% if project == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <div class="filter-pills">
+      <button class="filter-pill active all" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='project']" hx-vals='{"type":""}'>All</button>
+      <button class="filter-pill feature" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='project']" hx-vals='{"type":"feature"}'>Feature</button>
+      <button class="filter-pill fix" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='project']" hx-vals='{"type":"fix"}'>Fix</button>
+      <button class="filter-pill refactor" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='project']" hx-vals='{"type":"refactor"}'>Refactor</button>
+      <button class="filter-pill test" hx-get="/dashboard/tasks" hx-target="#board" hx-include="[name='project']" hx-vals='{"type":"test"}'>Test</button>
+    </div>
+  </div>
+</div>
 
 <div id="board">
 {% include "pages/_task_board_inner.html" %}
@@ -29,9 +30,9 @@
 
 <dialog id="taskModal" class="task-modal">
   <article>
-    <header>
-      <button aria-label="Close" rel="prev" onclick="document.getElementById('taskModal').close()"></button>
-      <h3>Task Detail</h3>
+    <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h3 style="margin:0;">Task Detail</h3>
+      <button onclick="document.getElementById('taskModal').close()" style="border:none;background:none;cursor:pointer;font-size:1.25rem;color:var(--text-muted);">&times;</button>
     </header>
     <div id="modal-content">
       <p>Loading...</p>
@@ -44,6 +45,14 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target.id === 'modal-content') {
     document.getElementById('taskModal').showModal();
   }
+});
+
+// Filter pill toggle
+document.querySelectorAll('.filter-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+    pill.classList.add('active');
+  });
 });
 </script>
 {% endblock %}

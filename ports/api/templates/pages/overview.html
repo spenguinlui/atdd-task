@@ -2,12 +2,13 @@
 {% block title %}Overview — ATDD Dashboard{% endblock %}
 
 {% block content %}
-<hgroup>
-  <h2>Executive Overview</h2>
-  <p>Delivery, quality, and cost metrics</p>
-</hgroup>
-
-{% include "partials/_time_selector.html" %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Executive Overview</h1>
+    <p class="page-subtitle">Delivery, quality, and cost metrics</p>
+  </div>
+  {% include "partials/_time_selector.html" %}
+</div>
 
 <div id="metrics">
 {% include "pages/_overview_metrics.html" %}

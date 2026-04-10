@@ -6,14 +6,15 @@
       {{ col }}
       <span class="kanban-count">{{ board[col]|length }}</span>
     </div>
+    <div class="kanban-cards">
     {% for task in board[col] %}
     <div class="task-card"
          hx-get="/dashboard/tasks/{{ task.id }}/detail"
          hx-target="#modal-content"
          hx-swap="innerHTML">
-      <div class="task-type task-type-{{ task.type }}">{{ task.type }}</div>
-      <div>{{ task.description or '(no description)' }}</div>
-      <div style="font-size:0.7rem; color:var(--pico-muted-color); margin-top:0.3rem;">
+      <div class="task-type type-tag {{ task.type }}">{{ task.type }}</div>
+      <div class="task-desc">{{ task.description or '(no description)' }}</div>
+      <div class="task-meta">
         {{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}
       </div>
     </div>
@@ -21,6 +22,7 @@
     {% if not board[col] %}
     <div class="empty-state" style="padding:1rem; font-size:0.8rem;">No tasks</div>
     {% endif %}
+    </div>
   </div>
   {% endfor %}
 </div>
