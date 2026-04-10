@@ -1,23 +1,31 @@
 <!DOCTYPE html>
-<html lang="zh-TW" data-theme="light">
+<html lang="zh-TW">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ATDD Dashboard{% endblock %}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/dashboard.css">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
-  <nav class="container-fluid">
-    {% include "partials/_nav.html" %}
-  </nav>
-  <main class="container-fluid">
-    <div id="content">
+
+  <!-- Icon Strip -->
+  {% include "partials/_icon_strip.html" %}
+
+  <!-- Sidebar Panel -->
+  {% include "partials/_nav.html" %}
+
+  <!-- Main Content -->
+  <div class="main-wrapper">
+    <div class="main">
+      {% include "partials/_org_switcher.html" %}
       {% block content %}{% endblock %}
     </div>
-  </main>
+  </div>
+
   {% block scripts %}{% endblock %}
   <script>
   // SSE: Auto-refresh dashboard on server events
@@ -28,7 +36,6 @@
 
     refreshEvents.forEach(function(evt) {
       evtSource.addEventListener(evt, function(e) {
-        // Show notification
         const data = JSON.parse(e.data);
         const toast = document.createElement('div');
         toast.className = 'sse-toast';
@@ -37,9 +44,9 @@
         setTimeout(() => toast.remove(), 5000);
 
         // Refresh current page content via HTMX
-        const content = document.getElementById('content');
+        const content = document.querySelector('.main');
         if (content) {
-          htmx.ajax('GET', window.location.pathname, {target: '#content', swap: 'innerHTML'});
+          htmx.ajax('GET', window.location.pathname, {target: '.main', swap: 'innerHTML'});
         }
       });
     });
@@ -48,6 +55,15 @@
       console.log('SSE connection lost, will retry...');
     };
   })();
+
+  // Sidebar toggle JS
+  document.querySelectorAll('.sidebar-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      this.classList.toggle('open');
+      var nested = this.nextElementSibling;
+      if (nested) nested.classList.toggle('open');
+    });
+  });
   </script>
 </body>
 </html>

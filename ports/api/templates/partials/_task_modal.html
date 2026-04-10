@@ -1,23 +1,28 @@
 {% if task %}
-<p><strong>{{ task.type|upper }}</strong> — {{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}</p>
-<p>{{ task.description or '(no description)' }}</p>
-<p><small>Status: <strong>{{ task.status }}</strong> | Created: {{ task.created_at.strftime('%Y-%m-%d') if task.created_at else 'N/A' }}</small></p>
+<p>
+  <span class="type-tag {{ task.type }}">{{ task.type }}</span>
+  <span style="color:var(--text-muted);font-size:0.8125rem;margin-left:0.5rem;">{{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}</span>
+</p>
+<p style="font-weight:500;margin:0.75rem 0;">{{ task.description or '(no description)' }}</p>
+<p style="font-size:0.8125rem;color:var(--text-secondary);">
+  Status: <strong>{{ task.status }}</strong> | Created: {{ task.created_at|fdate }}
+</p>
 
 {% if task.causation %}
-<details>
-  <summary>Causation</summary>
-  <pre style="font-size:0.75rem;">{{ task.causation }}</pre>
+<details style="margin-top:0.75rem;">
+  <summary style="cursor:pointer;font-weight:600;font-size:0.875rem;">Causation</summary>
+  <pre style="font-size:0.75rem;background:var(--bg-main);padding:0.75rem;border-radius:var(--radius-sm);margin-top:0.5rem;overflow-x:auto;">{{ task.causation }}</pre>
 </details>
 {% endif %}
 
 {% if history %}
-<h4>History</h4>
+<h4 style="margin-top:1rem;font-size:0.9375rem;">History</h4>
 <div class="timeline">
   {% for h in history %}
   <div class="timeline-event">
-    <div><strong>{{ h.phase or h.status or 'event' }}</strong>{% if h.agent %} ({{ h.agent }}){% endif %}</div>
-    {% if h.note %}<div style="font-size:0.8rem;">{{ h.note }}</div>{% endif %}
-    <div class="timeline-time">{{ h.timestamp.strftime('%Y-%m-%d %H:%M') if h.timestamp else '' }}</div>
+    <div><strong>{{ h.phase or h.status or 'event' }}</strong>{% if h.agent %} <span style="color:var(--text-muted);">({{ h.agent }})</span>{% endif %}</div>
+    {% if h.note %}<div style="font-size:0.8rem;color:var(--text-secondary);">{{ h.note }}</div>{% endif %}
+    <div class="timeline-time">{{ h.timestamp|fdate('%Y-%m-%d %H:%M') }}</div>
   </div>
   {% endfor %}
 </div>

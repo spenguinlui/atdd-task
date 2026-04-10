@@ -2,53 +2,68 @@
 {% block title %}{{ domain_name }} — ATDD Dashboard{% endblock %}
 
 {% block content %}
-{% set meta = domain.metadata if domain and domain.metadata else {} %}
-<hgroup>
-  <h2>{{ meta.get('chinese_name', '') }}{% if meta.get('chinese_name') %} {% endif %}{{ domain_name }}</h2>
-  <p>{% if meta.get('description') %}{{ meta.get('description') }}{% else %}Domain Diagnostic Report{% endif %}</p>
-</hgroup>
+<a href="/dashboard/domains" class="back-link">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+  Back to Domain Health
+</a>
 
-<p><a href="/dashboard/domains">&larr; Back to Domain Health Map</a></p>
-
-{% if domain %}
-<!-- Health Card -->
-<div class="dashboard-grid">
-  <article class="metric-card">
-    <h3>Health Score</h3>
-    <p class="metric-value" style="color: {% if domain.status == 'healthy' %}#16a34a{% elif domain.status == 'degraded' %}#d97706{% else %}#dc2626{% endif %}">
-      {{ domain.health_score|round(0)|int if domain.health_score else '?' }}
-    </p>
-    <p class="metric-label">{{ domain.status or 'unknown' }} | {{ domain.project }}{% if meta.get('domain_type') %} · {{ meta.get('domain_type') }}{% endif %}</p>
-  </article>
-  <article>
-    <h4>Health Dimensions</h4>
-    <div class="chart-container" style="height:250px;">
-      <canvas id="radarChart"></canvas>
-    </div>
-  </article>
+<div class="page-header" style="margin-bottom:1rem;">
+  <div>
+    <h1 class="page-title">{{ domain_name }}</h1>
+    <p class="page-subtitle">Domain Diagnostic Report</p>
+  </div>
 </div>
 
-<div class="dashboard-grid" style="margin-top:1.5rem;">
-  <article>
-    <h4>Fix Timeline</h4>
+{% if domain %}
+<!-- Health Score + Radar -->
+<div class="dashboard-grid" style="margin-bottom:1rem;">
+  <div class="card" style="text-align:center;">
+    <div class="card-title">Health Score</div>
+    {% set score = domain.health_score|round(0)|int if domain.health_score else 0 %}
+    {% set circumference = 439.8 %}
+    {% set offset = circumference - (circumference * score / 100) %}
+    <div class="score-ring {{ domain.status or 'degraded' }}" style="margin:0 auto;">
+      <svg viewBox="0 0 160 160">
+        <circle class="bg" cx="80" cy="80" r="70" fill="none" stroke-width="10"/>
+        <circle class="fg" cx="80" cy="80" r="70" fill="none" stroke-width="10"
+          stroke-dasharray="{{ circumference }}" stroke-dashoffset="{{ offset }}"/>
+      </svg>
+      <div class="score-text">{{ score if domain.health_score else '?' }}</div>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <span class="status-badge {{ domain.status or 'degraded' }}">{{ domain.status or 'unknown' }}</span>
+      <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">{{ domain.project }}</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Dimension Analysis</div>
+    <div class="chart-container">
+      <canvas id="radarChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid" style="margin-bottom:1rem;">
+  <div class="card">
+    <div class="card-title">Fix Timeline</div>
     {% if fix_labels != '[]' %}
     <div class="chart-container" style="height:200px;">
       <canvas id="fixChart"></canvas>
     </div>
     {% else %}
-    <div class="empty-state">No fix tasks recorded</div>
+    <div class="empty-state" style="padding:1.5rem;">No fix tasks recorded</div>
     {% endif %}
-  </article>
-  <article>
-    <h4>Knowledge Coverage</h4>
+  </div>
+  <div class="card">
+    <div class="card-title">Knowledge Coverage</div>
     {% if knowledge_labels != '[]' %}
     <div class="chart-container" style="height:200px;">
       <canvas id="knowledgeChart"></canvas>
     </div>
     {% else %}
-    <div class="empty-state">No knowledge entries</div>
+    <div class="empty-state" style="padding:1.5rem;">No knowledge entries</div>
     {% endif %}
-  </article>
+  </div>
 </div>
 {% else %}
 <div class="empty-state">
@@ -58,8 +73,8 @@
 
 <!-- Recent Tasks -->
 {% if tasks %}
-<h3 style="margin-top:2rem;">Recent Tasks</h3>
-<figure>
+<div class="card" style="margin-bottom:1rem;">
+  <div class="card-title">Recent Tasks</div>
   <table>
     <thead>
       <tr><th>Type</th><th>Description</th><th>Status</th><th>Created</th></tr>
@@ -67,28 +82,28 @@
     <tbody>
       {% for t in tasks %}
       <tr>
-        <td><span class="task-type task-type-{{ t.type }}">{{ t.type }}</span></td>
+        <td><span class="type-tag {{ t.type }}">{{ t.type }}</span></td>
         <td>{{ t.description or '—' }}</td>
         <td>{{ t.status }}</td>
-        <td>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '—' }}</td>
+        <td style="color:var(--text-muted);">{{ t.created_at|fdate }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-</figure>
+</div>
 {% endif %}
 
-<!-- Couplings -->
+<!-- Coupled Domains -->
 {% if couplings %}
-<h3>Coupled Domains</h3>
-<figure>
+<div class="card">
+  <div class="card-title">Coupled Domains</div>
   <table>
     <thead><tr><th>Domain</th><th>Co-occurrences</th></tr></thead>
     <tbody>
       {% for c in couplings %}
       <tr>
         <td>
-          <a href="/dashboard/domains/{{ c.domain_b if c.domain_a == domain_name else c.domain_a }}">
+          <a href="/dashboard/domains/{{ c.domain_b if c.domain_a == domain_name else c.domain_a }}" class="cause-link">
             {{ c.domain_b if c.domain_a == domain_name else c.domain_a }}
           </a>
         </td>
@@ -97,14 +112,17 @@
       {% endfor %}
     </tbody>
   </table>
-</figure>
+</div>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Radar
-const radarCtx = document.getElementById('radarChart');
+Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#6B7280';
+
+var radarCtx = document.getElementById('radarChart');
 if (radarCtx) {
   new Chart(radarCtx, {
     type: 'radar',
@@ -113,37 +131,41 @@ if (radarCtx) {
       datasets: [{
         label: '{{ domain_name }}',
         data: {{ health_dims_values|safe }},
-        borderColor: '#2563eb',
-        backgroundColor: 'rgba(37,99,235,0.15)',
+        borderColor: '#6B9EB3',
+        backgroundColor: 'rgba(107, 158, 179, 0.15)',
+        borderWidth: 2, pointRadius: 4,
+        pointBackgroundColor: '#6B9EB3',
       }]
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100 } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: { beginAtZero: true, max: 100, ticks: { stepSize: 25, display: false }, grid: { color: '#E5E7EB' }, angleLines: { color: '#E5E7EB' } } }
+    }
   });
 }
 
-// Fix timeline
-const fixCtx = document.getElementById('fixChart');
+var fixCtx = document.getElementById('fixChart');
 if (fixCtx) {
   new Chart(fixCtx, {
     type: 'line',
     data: {
       labels: {{ fix_labels|safe }},
-      datasets: [{ label: 'Fixes', data: {{ fix_counts|safe }}, borderColor: '#dc2626', tension: 0.3 }]
+      datasets: [{ label: 'Fixes', data: {{ fix_counts|safe }}, borderColor: '#DC2626', backgroundColor: 'rgba(220,38,38,0.08)', fill: true, tension: 0.3, pointRadius: 4, borderWidth: 2 }]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true } } }
   });
 }
 
-// Knowledge doughnut
-const knCtx = document.getElementById('knowledgeChart');
+var knCtx = document.getElementById('knowledgeChart');
 if (knCtx) {
   new Chart(knCtx, {
     type: 'doughnut',
     data: {
       labels: {{ knowledge_labels|safe }},
-      datasets: [{ data: {{ knowledge_values|safe }}, backgroundColor: ['#2563eb','#7c3aed','#059669','#d97706'] }]
+      datasets: [{ data: {{ knowledge_values|safe }}, backgroundColor: ['#6B9EB3','#A8BE72','#E8C44D','#7C3AED'], borderWidth: 0, cutout: '65%' }]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
   });
 }
 </script>
