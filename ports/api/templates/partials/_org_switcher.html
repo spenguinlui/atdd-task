@@ -1,0 +1,8 @@
+{% if org_switchable %}
+<div class="org-switcher">
+  {% for key, label in org_labels.items() %}
+  <a href="?org={{ key }}"
+     class="org-pill {% if org_key == key %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+{% endif %}
