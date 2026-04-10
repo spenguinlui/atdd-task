@@ -1,45 +1,58 @@
 <!-- HTMX partial: overview metrics content -->
-<div class="dashboard-grid">
-  <article class="metric-card">
-    <h3>Tasks Created</h3>
-    <p class="metric-value">{{ total_created }}</p>
-    <p class="metric-label">Total tasks in period</p>
-  </article>
-  <article class="metric-card">
-    <h3>Completion Rate</h3>
-    <p class="metric-value">{{ completion_rate }}%</p>
-    <p class="metric-label">{{ total_completed }} completed</p>
-  </article>
-  <article class="metric-card">
-    <h3>Fix Rate</h3>
-    <p class="metric-value">{{ fix_rate }}%</p>
-    <p class="metric-label">Fixes / Features ratio</p>
-  </article>
-  <article class="metric-card">
-    <h3>Escape Rate</h3>
-    <p class="metric-value">{{ escape_rate }}%</p>
-    <p class="metric-label">Bugs discovered in production</p>
-  </article>
+<div class="kpi-grid">
+  <div class="kpi-card highlight">
+    <div class="kpi-label">Tasks Created</div>
+    <div class="kpi-value">{{ total_created }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Completion Rate</div>
+    <div class="kpi-value" style="color: var(--success);">{{ completion_rate }}%</div>
+    <div class="kpi-trend up">{{ total_completed }} completed</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Fix Rate</div>
+    <div class="kpi-value" style="color: var(--warning);">{{ fix_rate }}%</div>
+    <div class="kpi-trend down">Fixes / Features</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Escape Rate</div>
+    <div class="kpi-value" style="color: {% if escape_rate > 5 %}var(--danger){% else %}var(--teal){% endif %};">{{ escape_rate }}%</div>
+  </div>
 </div>
 
-<div class="dashboard-grid" style="margin-top: 1.5rem;">
-  <article>
-    <h4>Task Trend (Weekly)</h4>
+<div class="chart-row">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Weekly Trend</div>
+        <div class="card-subtitle">Created vs Completed tasks over time</div>
+      </div>
+    </div>
     <div class="chart-container">
       <canvas id="trendChart"></canvas>
     </div>
-  </article>
-  <article>
-    <h4>Cost by Task Type</h4>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Cost by Task Type</div>
+        <div class="card-subtitle">Tool uses and token consumption</div>
+      </div>
+    </div>
     <div class="chart-container">
       <canvas id="costChart"></canvas>
     </div>
-  </article>
+  </div>
 </div>
 
 <script>
-// Trend chart
-const trendCtx = document.getElementById('trendChart');
+Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#6B7280';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
+
+var trendCtx = document.getElementById('trendChart');
 if (trendCtx) {
   if (trendCtx._chart) trendCtx._chart.destroy();
   trendCtx._chart = new Chart(trendCtx, {
@@ -47,16 +60,23 @@ if (trendCtx) {
     data: {
       labels: {{ trend_labels|safe }},
       datasets: [
-        { label: 'Created', data: {{ trend_created|safe }}, borderColor: '#2563eb', tension: 0.3 },
-        { label: 'Completed', data: {{ trend_completed|safe }}, borderColor: '#16a34a', tension: 0.3 },
+        { label: 'Created', data: {{ trend_created|safe }}, borderColor: '#6B9EB3', backgroundColor: 'rgba(107, 158, 179, 0.08)', fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2.5 },
+        { label: 'Completed', data: {{ trend_completed|safe }}, borderColor: '#16A34A', backgroundColor: 'rgba(22, 163, 74, 0.08)', fill: true, tension: 0.4, pointRadius: 4, borderWidth: 2.5 },
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: { legend: { position: 'top', align: 'end' } },
+      scales: {
+        x: { grid: { display: false }, border: { display: false } },
+        y: { grid: { color: '#F3F4F6' }, border: { display: false }, beginAtZero: true }
+      }
+    }
   });
 }
 
-// Cost chart
-const costCtx = document.getElementById('costChart');
+var costCtx = document.getElementById('costChart');
 if (costCtx) {
   if (costCtx._chart) costCtx._chart.destroy();
   costCtx._chart = new Chart(costCtx, {
@@ -64,11 +84,18 @@ if (costCtx) {
     data: {
       labels: {{ cost_labels|safe }},
       datasets: [
-        { label: 'Tool Uses', data: {{ cost_tools|safe }}, backgroundColor: '#2563eb' },
-        { label: 'Tokens (k)', data: {{ cost_tokens|safe }}.map(v => Math.round(v/1000)), backgroundColor: '#7c3aed' },
+        { label: 'Tool Uses', data: {{ cost_tools|safe }}, backgroundColor: '#2563EB', borderRadius: 6, barPercentage: 0.6 },
+        { label: 'Tokens (k)', data: {{ cost_tokens|safe }}.map(v => Math.round(v/1000)), backgroundColor: '#7C3AED', borderRadius: 6, barPercentage: 0.6 },
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, border: { display: false } },
+        y: { grid: { color: '#F3F4F6' }, border: { display: false }, beginAtZero: true }
+      }
+    }
   });
 }
 </script>
