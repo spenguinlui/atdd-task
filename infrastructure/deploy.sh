@@ -170,6 +170,11 @@ step "Rebuilding containers..."
 
 build_output=$(ssm_run "cd $APP_DIR/infrastructure && docker compose up -d --build api worker 2>&1" 15)
 
+# Restart nginx to pick up new container DNS (api container gets a new IP after rebuild)
+step "Restarting nginx..."
+
+ssm_run "cd $APP_DIR/infrastructure && docker compose restart nginx 2>&1" 5 >/dev/null
+
 # === Step 4: Health Check ===
 step "Health check..."
 
