@@ -30,6 +30,8 @@ _pool: psycopg2.pool.ThreadedConnectionPool | None = None
 
 def init_pool(min_conn: int = 2, max_conn: int = 10):
     global _pool
+    if _pool is not None:
+        return  # Already initialized
     _pool = psycopg2.pool.ThreadedConnectionPool(min_conn, max_conn, DATABASE_URL)
 
 

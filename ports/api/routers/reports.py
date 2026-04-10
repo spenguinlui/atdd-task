@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import json
+import os
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from db import get_cursor
+from services import report_service
 
 router = APIRouter()
 
-import os
 DEFAULT_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
 
 
@@ -35,48 +34,21 @@ def list_reports(
     limit: int = Query(default=20, le=100),
 ):
     """List reports with optional filters."""
-    conditions = ["org_id = %s"]
-    params: list = [str(org_id)]
-
-    if project:
-        conditions.append("project = %s")
-        params.append(project)
-    if type:
-        conditions.append("type = %s")
-        params.append(type)
-
-    where = " AND ".join(conditions)
-    params.append(limit)
-
-    with get_cursor() as cur:
-        cur.execute(
-            f"SELECT * FROM reports WHERE {where} ORDER BY created_at DESC LIMIT %s",
-            params,
-        )
-        return cur.fetchall()
+    return report_service.list_reports(str(org_id), project=project or "", type=type or "", limit=limit)
 
 
 @router.post("", status_code=201)
 def create_report(body: ReportCreate, org_id: UUID = Query(default=DEFAULT_ORG)):
     """Create a new report."""
-    with get_cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO reports (org_id, project, type, period, data)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            (str(org_id), body.project, body.type, body.period, json.dumps(body.data)),
-        )
-        return cur.fetchone()
+    return report_service.create_report(
+        str(org_id), body.project, body.type, body.data, period=body.period,
+    )
 
 
 @router.get("/{report_id}")
 def get_report(report_id: UUID):
     """Get a single report."""
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM reports WHERE id = %s", (str(report_id),))
-        report = cur.fetchone()
+    report = report_service.get_report(str(report_id))
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     return report
