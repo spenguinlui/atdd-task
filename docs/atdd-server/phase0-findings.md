@@ -89,36 +89,6 @@ else
 
 ---
 
-## 0-4 同步機制
-
-### 架構
-
-```
-atdd-task (public framework)
-  └── sync-to-instances.sh → atdd-hub (唯一實例)
-
-atdd-hub (private, 一份資料兩處使用)
-  ├── Server clone — single writer (PM 任務)
-  └── Local clone — read-only for PM tasks, read-write for local tasks
-
-同步：GitHub private repo 為中心
-```
-
-### 資料流
-
-| 方向 | 機制 | 時機 | 內容 |
-|------|------|------|------|
-| Server → GitHub | git commit + push | 每次資料變更 | tasks/, requirements/, specs/, domains/ |
-| GitHub → Local | git pull | Dev 主動（開工前） | 同上 |
-| Local → Server | API call | Dev 操作 PM 任務時 | 狀態變更（done, abort） |
-
-### MVP 簡化
-- atdd-hub GitHub repo 只有 Server 一個寫入者
-- Dev local 任務不進 server 視野（不 push）
-- 零 conflict 風險
-
----
-
 ## 0-5 資料量
 
 | 資料類型 | 現有數量 | 大小 | 成長率 |

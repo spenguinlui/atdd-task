@@ -37,9 +37,6 @@ github-actions-workflow-audit-report.md
 .claude/config/aws-instances.yml
 acceptance/fixtures/
 
-# Instance registry (本機設定，每台機器不同)
-.instances
-
 # Knowledge confirmation (含本機路徑)
 .claude/.knowledge-confirmed
 .DS_Store
