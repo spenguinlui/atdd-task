@@ -1,7 +1,7 @@
 """Dashboard HTML page routes — server-rendered with Jinja2 + HTMX.
 
-Each deployment (local / server) reads its own DB only.
-Cross-environment access is via org switcher URL redirect.
+Supports multi-org: ?org=local (default) or ?org=server.
+Local org queries the local DB; server org queries the remote API.
 """
 
 from __future__ import annotations
@@ -9,21 +9,32 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from db import get_cursor, ORG_PERSONAL, ORG_COMPANY
+from services import task_service, domain_service, knowledge_service, overview_service
+import remote_client
 
 router = APIRouter()
 
 # Which org does THIS deployment serve?
-LOCAL_ORG = os.environ.get("ATDD_ORG", ORG_PERSONAL)
+LOCAL_ORG = os.environ.get("ATDD_ORG", "00000000-0000-0000-0000-000000000001")
+SERVER_ORG = os.environ.get("ATDD_SERVER_ORG", "00000000-0000-0000-0000-000000000002")
 
 # Remote dashboard URL for org switcher (empty = no switcher)
 REMOTE_DASHBOARD_URL = os.environ.get("REMOTE_DASHBOARD_URL", "")
+
+ORG_MAP = {"local": LOCAL_ORG, "server": SERVER_ORG}
+ORG_LABELS = {"local": "Local", "server": "Server"}
+
+
+def _resolve_org(org: str) -> tuple[str, str]:
+    """Return (org_id, org_key) from the ?org= query param."""
+    if org in ORG_MAP:
+        return ORG_MAP[org], org
+    return LOCAL_ORG, "local"
 
 # Status → Kanban column mapping
 COLUMN_MAP = {
@@ -62,28 +73,25 @@ def _json_serial(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 
-def _get_projects() -> list[str]:
-    with get_cursor() as cur:
-        cur.execute(
-            "SELECT DISTINCT project FROM tasks WHERE org_id = %s ORDER BY project",
-            (LOCAL_ORG,),
-        )
-        return [row["project"] for row in cur.fetchall()]
-
-
-def _period_start(period: str) -> Optional[datetime]:
+def _period_start(period: str):
     days = PERIOD_DAYS.get(period)
     if days is None:
         return None
     return datetime.now(timezone.utc) - timedelta(days=days)
 
 
-def _base_ctx(request: Request, active_page: str, **extra) -> dict:
+def _base_ctx(request: Request, active_page: str, org_id: str = "", org_key: str = "local", **extra) -> dict:
     """Common template context shared by all pages."""
+    effective_org = org_id or LOCAL_ORG
     return {
         "request": request,
         "active_page": active_page,
         "remote_dashboard_url": REMOTE_DASHBOARD_URL,
+        "sidebar_domains": domain_service.list_sidebar_domains(effective_org),
+        "sidebar_projects": task_service.list_projects(effective_org),
+        "org_key": org_key,
+        "org_labels": ORG_LABELS,
+        "org_switchable": remote_client.is_configured(),
         **extra,
     }
 
@@ -92,61 +100,17 @@ def _base_ctx(request: Request, active_page: str, **extra) -> dict:
 
 
 @router.get("/", response_class=HTMLResponse)
-def overview(request: Request, period: str = "30d", project: str = ""):
+def overview(request: Request, period: str = "30d", project: str = "", org: str = "local"):
     templates = request.app.state.templates
     is_htmx = request.headers.get("HX-Request") == "true"
+    org_id, org_key = _resolve_org(org)
 
     start = _period_start(period)
-    projects = _get_projects()
+    projects = task_service.list_projects(org_id)
 
-    conditions = ["org_id = %s"]
-    params: list = [LOCAL_ORG]
-    if start:
-        conditions.append("created_at >= %s")
-        params.append(start)
-    if project:
-        conditions.append("project = %s")
-        params.append(project)
-    where = " AND ".join(conditions)
-
-    with get_cursor() as cur:
-        cur.execute(f"""
-            SELECT type, status, count(*) as cnt
-            FROM tasks WHERE {where}
-            GROUP BY type, status
-        """, params)
-        type_status = cur.fetchall()
-
-        cur.execute(f"""
-            SELECT date_trunc('week', created_at AT TIME ZONE 'Asia/Taipei')::date as week,
-                   count(*) as created,
-                   count(*) FILTER (WHERE status IN ('completed','verified')) as completed
-            FROM tasks WHERE {where}
-            GROUP BY week ORDER BY week
-        """, params)
-        weekly = cur.fetchall()
-
-        metric_conditions = ["t.org_id = %s"]
-        metric_params: list = [LOCAL_ORG]
-        if start:
-            metric_conditions.append("m.timestamp >= %s")
-            metric_params.append(start)
-        if project:
-            metric_conditions.append("t.project = %s")
-            metric_params.append(project)
-        metric_where = " AND ".join(metric_conditions)
-
-        cur.execute(f"""
-            SELECT t.type,
-                   coalesce(sum(m.tool_uses), 0) as total_tools,
-                   coalesce(sum(m.tokens), 0) as total_tokens,
-                   coalesce(avg(m.duration), 0) as avg_duration
-            FROM task_metrics m
-            JOIN tasks t ON t.id = m.task_id
-            WHERE {metric_where}
-            GROUP BY t.type
-        """, metric_params)
-        cost_by_type = cur.fetchall()
+    type_status = overview_service.get_type_status_aggregation(org_id, start, project)
+    weekly = overview_service.get_weekly_trends(org_id, start, project)
+    cost_by_type = overview_service.get_cost_by_type(org_id, start, project)
 
     total_created = sum(r["cnt"] for r in type_status)
     total_completed = sum(r["cnt"] for r in type_status if r["status"] in ("completed", "verified"))
@@ -164,7 +128,7 @@ def overview(request: Request, period: str = "30d", project: str = ""):
     cost_tools = [r["total_tools"] for r in cost_by_type]
     cost_tokens = [r["total_tokens"] for r in cost_by_type]
 
-    ctx = _base_ctx(request, "overview",
+    ctx = _base_ctx(request, "overview", org_id=org_id, org_key=org_key,
         period=period, project=project, projects=projects,
         total_created=total_created, total_completed=total_completed,
         fix_rate=fix_rate, escape_rate=escape_rate, completion_rate=completion_rate,
@@ -182,82 +146,30 @@ def overview(request: Request, period: str = "30d", project: str = ""):
 
 
 @router.get("/domains", response_class=HTMLResponse)
-def domain_health(request: Request, project: str = ""):
+def domain_health(request: Request, project: str = "", org: str = "local"):
     templates = request.app.state.templates
-    projects = _get_projects()
+    org_id, org_key = _resolve_org(org)
+    projects = task_service.list_projects(org_id)
 
-    conditions = ["org_id = %s"]
-    params: list = [LOCAL_ORG]
-    if project:
-        conditions.append("project = %s")
-        params.append(project)
-    where = " AND ".join(conditions)
-
-    with get_cursor() as cur:
-        cur.execute(f"""
-            SELECT * FROM domains WHERE {where}
-            ORDER BY project, name
-        """, params)
-        domains = cur.fetchall()
-
-        cur.execute(f"""
-            SELECT * FROM domain_couplings WHERE {where}
-            ORDER BY co_occurrence_count DESC LIMIT 30
-        """, params)
-        couplings = cur.fetchall()
+    domains = domain_service.list_domains(org_id, project=project)
+    couplings = domain_service.list_couplings(org_id, project=project)
 
     return templates.TemplateResponse("pages/domain_health.html", _base_ctx(
-        request, "domains",
+        request, "domains", org_id=org_id, org_key=org_key,
         project=project, projects=projects, domains=domains, couplings=couplings,
     ))
 
 
 @router.get("/domains/{domain_name:path}", response_class=HTMLResponse)
-def domain_detail(request: Request, domain_name: str, project: str = ""):
+def domain_detail(request: Request, domain_name: str, project: str = "", org: str = "local"):
     templates = request.app.state.templates
+    org_id, org_key = _resolve_org(org)
 
-    with get_cursor() as cur:
-        if project:
-            cur.execute(
-                "SELECT * FROM domains WHERE org_id = %s AND project = %s AND name = %s",
-                (LOCAL_ORG, project, domain_name),
-            )
-        else:
-            cur.execute(
-                "SELECT * FROM domains WHERE org_id = %s AND name = %s LIMIT 1",
-                (LOCAL_ORG, domain_name),
-            )
-        domain = cur.fetchone()
-
-        cur.execute("""
-            SELECT id, type, status, description, created_at, updated_at
-            FROM tasks WHERE org_id = %s AND domain = %s
-            ORDER BY created_at DESC LIMIT 20
-        """, (LOCAL_ORG, domain_name))
-        tasks = cur.fetchall()
-
-        cur.execute("""
-            SELECT file_type, count(*) as cnt
-            FROM knowledge_entries
-            WHERE org_id = %s AND domain = %s
-            GROUP BY file_type
-        """, (LOCAL_ORG, domain_name))
-        knowledge = {r["file_type"]: r["cnt"] for r in cur.fetchall()}
-
-        cur.execute("""
-            SELECT * FROM domain_couplings
-            WHERE org_id = %s AND (domain_a = %s OR domain_b = %s)
-            ORDER BY co_occurrence_count DESC
-        """, (LOCAL_ORG, domain_name, domain_name))
-        couplings = cur.fetchall()
-
-        cur.execute("""
-            SELECT date_trunc('week', created_at AT TIME ZONE 'Asia/Taipei')::date as week, count(*) as cnt
-            FROM tasks
-            WHERE org_id = %s AND domain = %s AND type = 'fix'
-            GROUP BY week ORDER BY week
-        """, (LOCAL_ORG, domain_name))
-        fix_timeline = cur.fetchall()
+    domain = domain_service.get_domain_by_name(org_id, domain_name, project)
+    tasks = domain_service.get_domain_tasks(org_id, domain_name)
+    knowledge = domain_service.get_domain_knowledge_stats(org_id, domain_name)
+    couplings = domain_service.list_couplings_for_domain(org_id, domain_name)
+    fix_timeline = domain_service.get_domain_fix_timeline(org_id, domain_name)
 
     health_dimensions = {}
     if domain:
@@ -270,7 +182,7 @@ def domain_detail(request: Request, domain_name: str, project: str = ""):
         }
 
     return templates.TemplateResponse("pages/domain_detail.html", _base_ctx(
-        request, "domains",
+        request, "domains", org_id=org_id, org_key=org_key,
         domain_name=domain_name, domain=domain, tasks=tasks,
         knowledge=knowledge, couplings=couplings,
         health_dims_labels=json.dumps(list(health_dimensions.keys())),
@@ -283,35 +195,13 @@ def domain_detail(request: Request, domain_name: str, project: str = ""):
 
 
 @router.get("/tasks", response_class=HTMLResponse)
-def task_board(request: Request, project: str = "", type: str = "", domain: str = ""):
+def task_board(request: Request, project: str = "", type: str = "", domain: str = "", org: str = "local"):
     templates = request.app.state.templates
     is_htmx = request.headers.get("HX-Request") == "true"
-    projects = _get_projects()
+    org_id, org_key = _resolve_org(org)
+    projects = task_service.list_projects(org_id)
 
-    conditions = ["org_id = %s"]
-    params: list = [LOCAL_ORG]
-    if project:
-        conditions.append("project = %s")
-        params.append(project)
-    if type:
-        conditions.append("type = %s")
-        params.append(type)
-    if domain:
-        conditions.append("domain = %s")
-        params.append(domain)
-    conditions.append(
-        "(status NOT IN ('completed','verified','aborted','failed')"
-        " OR (status IN ('completed','verified') AND updated_at > NOW() - INTERVAL '7 days'))"
-    )
-    where = " AND ".join(conditions)
-
-    with get_cursor() as cur:
-        cur.execute(f"""
-            SELECT id, type, status, project, domain, description, created_at, updated_at
-            FROM tasks WHERE {where}
-            ORDER BY updated_at DESC
-        """, params)
-        all_tasks = cur.fetchall()
+    all_tasks = task_service.list_tasks_for_board(org_id, project, type, domain)
 
     board: dict[str, list] = {col: [] for col in KANBAN_COLUMNS}
     for t in all_tasks:
@@ -319,7 +209,7 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
         if col in board:
             board[col].append(t)
 
-    ctx = _base_ctx(request, "tasks",
+    ctx = _base_ctx(request, "tasks", org_id=org_id, org_key=org_key,
         project=project, type=type, domain=domain,
         projects=projects, board=board, columns=KANBAN_COLUMNS,
     )
@@ -333,14 +223,8 @@ def task_board(request: Request, project: str = "", type: str = "", domain: str 
 def task_detail(request: Request, task_id: str):
     templates = request.app.state.templates
 
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-        task = cur.fetchone()
-        cur.execute(
-            "SELECT * FROM task_history WHERE task_id = %s ORDER BY timestamp",
-            (task_id,),
-        )
-        history = cur.fetchall()
+    task = task_service.get_task(task_id)
+    history = task_service.list_task_history(task_id)
 
     return templates.TemplateResponse("partials/_task_modal.html", {
         "request": request,
@@ -349,25 +233,35 @@ def task_detail(request: Request, task_id: str):
     })
 
 
-@router.get("/causation", response_class=HTMLResponse)
-def causation_explorer(request: Request, project: str = ""):
+@router.get("/knowledge", response_class=HTMLResponse)
+def knowledge_browser(request: Request, project: str = "", domain: str = "", file_type: str = "", org: str = "local"):
     templates = request.app.state.templates
-    projects = _get_projects()
+    org_id, org_key = _resolve_org(org)
+    projects = task_service.list_projects(org_id)
 
-    conditions = ["org_id = %s", "type = 'fix'", "causation IS NOT NULL"]
-    params: list = [LOCAL_ORG]
-    if project:
-        conditions.append("project = %s")
-        params.append(project)
-    where = " AND ".join(conditions)
+    type_stats = knowledge_service.get_type_stats(org_id, project, domain, file_type)
+    grouped = knowledge_service.list_entries_grouped(org_id, project, domain, file_type)
+    terms = knowledge_service.list_terms(org_id, project, domain)
+    all_domains = knowledge_service.list_all_domains(org_id)
 
-    with get_cursor() as cur:
-        cur.execute(f"""
-            SELECT id, type, status, project, domain, description, causation, created_at
-            FROM tasks WHERE {where}
-            ORDER BY created_at DESC
-        """, params)
-        fix_tasks = cur.fetchall()
+    total_entries = sum(r["cnt"] for r in type_stats)
+
+    return templates.TemplateResponse("pages/knowledge.html", _base_ctx(
+        request, "knowledge", org_id=org_id, org_key=org_key,
+        project=project, domain=domain, file_type=file_type,
+        projects=projects, all_domains=all_domains,
+        type_stats=type_stats, total_entries=total_entries,
+        grouped=grouped, terms=terms,
+    ))
+
+
+@router.get("/causation", response_class=HTMLResponse)
+def causation_explorer(request: Request, project: str = "", org: str = "local"):
+    templates = request.app.state.templates
+    org_id, org_key = _resolve_org(org)
+    projects = task_service.list_projects(org_id)
+
+    fix_tasks = task_service.list_fix_tasks_with_causation(org_id, project)
 
     chains: list[dict] = []
     for t in fix_tasks:
@@ -397,6 +291,6 @@ def causation_explorer(request: Request, project: str = ""):
         })
 
     return templates.TemplateResponse("pages/causation.html", _base_ctx(
-        request, "causation",
+        request, "causation", org_id=org_id, org_key=org_key,
         project=project, projects=projects, chains=chains,
     ))

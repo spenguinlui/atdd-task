@@ -23,11 +23,25 @@ PUBLIC_PATHS = ("/health", "/static/", "/docs", "/openapi.json", "/redoc",
 BASE_DIR = Path(__file__).resolve().parent
 
 
+def _format_date(value, fmt="%Y-%m-%d"):
+    """Jinja2 filter: handle both datetime objects and ISO strings."""
+    if not value:
+        return "—"
+    if isinstance(value, str):
+        # ISO string: return date part, or date+time if requested
+        if "%H" in fmt or "%M" in fmt:
+            return value[:16].replace("T", " ")
+        return value[:10]
+    return value.strftime(fmt)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_pool()
     # Make templates available via app.state
-    app.state.templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+    templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+    templates.env.filters["fdate"] = _format_date
+    app.state.templates = templates
     yield
     close_pool()
 
