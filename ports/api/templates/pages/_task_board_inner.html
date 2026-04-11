@@ -1,28 +1,31 @@
-<!-- HTMX partial: kanban board columns -->
-<div class="kanban-board">
+<!-- HTMX partial: task list grouped by status -->
+<div class="task-list">
   {% for col in columns %}
-  <div class="kanban-column">
-    <div class="kanban-column-header">
-      {{ col }}
-      <span class="kanban-count">{{ board[col]|length }}</span>
-    </div>
-    <div class="kanban-cards">
-    {% for task in board[col] %}
-    <div class="task-card"
-         hx-get="/dashboard/tasks/{{ task.id }}/detail"
-         hx-target="#modal-content"
-         hx-swap="innerHTML">
-      <div class="task-type type-tag {{ task.type }}">{{ task.type }}</div>
-      <div class="task-desc">{{ task.description or '(no description)' }}</div>
-      <div class="task-meta">
-        {{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}
+  {% set tasks = board[col] %}
+  {% set count = tasks|length %}
+  {% if count %}
+  <div class="task-group {% if col not in ('Completed', 'Failed') %}open{% endif %}">
+    <button class="task-group-header" onclick="this.parentElement.classList.toggle('open')">
+      <div>
+        <span class="task-group-name">{{ col }}</span>
+        <span class="badge">{{ count }}</span>
       </div>
-    </div>
-    {% endfor %}
-    {% if not board[col] %}
-    <div class="empty-state" style="padding:1rem; font-size:0.8rem;">No tasks</div>
-    {% endif %}
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="task-group-body">
+      {% for task in tasks %}
+      <div class="task-row"
+           hx-get="/dashboard/tasks/{{ task.id }}/detail"
+           hx-target="#modal-content"
+           hx-swap="innerHTML">
+        <span class="type-tag {{ task.type }}">{{ task.type }}</span>
+        <span class="task-row-desc">{{ task.description or '(no description)' }}</span>
+        <span class="task-row-meta">{{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}</span>
+        <span class="task-row-date">{{ task.updated_at|fdate }}</span>
+      </div>
+      {% endfor %}
     </div>
   </div>
+  {% endif %}
   {% endfor %}
 </div>

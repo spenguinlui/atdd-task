@@ -378,78 +378,84 @@ tr:hover td { background: #FAFAFA; }
 .status-badge.in-progress { background: #EFF6FF; color: #2563EB; }
 .status-badge.review { background: #FEF3C7; color: #92400E; }
 
-/* ── Kanban Board ── */
-.kanban-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-  overflow-x: auto;
-}
-
-.kanban-column {
-  background: var(--bg-main);
-  border-radius: var(--radius);
-  min-height: 300px;
+/* ── Task List (grouped by status) ── */
+.task-list {
   display: flex; flex-direction: column;
+  gap: 0.75rem;
 }
 
-.kanban-column-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.75rem 0.75rem 0.5rem;
-  font-size: 0.8125rem; font-weight: 600;
-  color: var(--text-secondary);
-  border-bottom: 2px solid var(--border);
-  margin-bottom: 0.5rem;
-}
-
-.kanban-count {
-  font-size: 0.6875rem; font-weight: 600;
-  background: var(--bg-card); color: var(--text-muted);
-  padding: 0.1rem 0.5rem; border-radius: 999px;
-  border: 1px solid var(--border);
-}
-
-.kanban-cards {
-  flex: 1; padding: 0 0.5rem 0.5rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
-}
-
-.task-card {
+.task-group {
   background: var(--bg-card);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem;
-  box-shadow: var(--shadow-card);
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  cursor: pointer; transition: all 0.2s ease;
-  font-size: 0.8125rem;
-}
-
-.task-card:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
-}
-
-.task-card .task-type {
-  font-size: 0.625rem; font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 0.375rem;
-  display: inline-block;
-  padding: 0.1rem 0.375rem;
-  border-radius: 3px;
-}
-
-.task-card .task-desc {
-  font-weight: 500; line-height: 1.4;
-  margin-bottom: 0.5rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.task-card .task-meta {
-  font-size: 0.6875rem; color: var(--text-muted);
+.task-group-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 0.75rem 1.25rem;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-family);
+  font-size: 0.9375rem; font-weight: 600;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.task-group-header:hover { background: var(--bg-main); }
+
+.task-group-header .chevron {
+  width: 18px; height: 18px; color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.task-group.open .task-group-header .chevron {
+  transform: rotate(180deg);
+}
+
+.task-group-name { margin-right: 0.5rem; }
+
+.task-group-body {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+
+.task-group.open .task-group-body { display: block; }
+
+.task-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+  font-size: 0.8125rem;
+}
+
+.task-row:last-child { border-bottom: none; }
+.task-row:hover { background: var(--bg-main); }
+
+.task-row-desc {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row-meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row-date {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  width: 5.5rem;
+  text-align: right;
 }
 
 /* ── Domain Health Heatmap ── */
