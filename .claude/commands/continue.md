@@ -94,7 +94,7 @@ description: 確認進入下一個任務階段
 當階段轉移為 `gate → completed` 且 `acceptance.testLayers.e2e.required == true` 時執行：
 
 1. 從 gatekeeper 輸出提取 `═══ 人工驗收指南 ═══` 區塊
-2. 讀取 spec 檔（`specs/{project}/{task_id}*.md`）的 Given-When-Then 場景描述
+2. 從 MCP 讀取 spec 內容（`atdd_task_get(task_id)` → `metadata.spec`）的 Given-When-Then 場景描述
 3. 搜尋相關 test suite（`tests/{project}/suites/*/scenarios/S*.yml`），讀取具體操作步驟
 4. 組合成結構化驗收指南，透過 `atdd_task_update()` 存入 MCP 的 `acceptance.verificationGuide`
 

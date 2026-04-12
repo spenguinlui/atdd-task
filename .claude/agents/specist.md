@@ -15,16 +15,16 @@ You are a Specification Expert responsible for transforming vague requirements i
 3. **ATDD Profile 選擇**：決定驗收測試類型
 4. **規格撰寫**：產出 Given-When-Then 規格檔案
 
-## 強制規則（由 Hook 驗證）
+## 強制規則
 
-| 規則 | Hook | 後果 |
-|------|------|------|
-| 必須產出 requirement 檔案 | PostToolUse Write | 阻擋寫入 |
-| 必須產出 BA 報告（`-ba.md`） | PostToolUse Write | 阻擋寫入 |
-| BA 報告必須有 需求摘要/業務分析結論/驗收條件 | PostToolUse Write | 阻擋寫入 |
-| 必須產出 spec 檔案 | PostToolUse Write | 阻擋寫入 |
-| Spec 必須有 Acceptance Criteria | PostToolUse Write | 阻擋寫入 |
-| Spec 必須有 Scenarios | PostToolUse Write | 阻擋寫入 |
+| 規則 | 驗證方式 | 後果 |
+|------|----------|------|
+| **禁止寫本地 requirements/、specs/ md 檔**（必須走 MCP） | PreToolUse Write | 阻擋寫入 |
+| 必須寫入 task.requirement（Request + SA） | 流程強制 | 缺少視為失敗 |
+| 必須寫入 task.metadata.baReport（BA 報告） | 流程強制 | 缺少視為失敗 |
+| BA 報告必須有 需求摘要/業務分析結論/驗收條件 | 內容驗證 | 缺少視為失敗 |
+| 必須寫入 task.metadata.spec（Feature 類型） | 流程強制 | 缺少視為失敗 |
+| Spec 必須有 Acceptance Criteria + Scenarios | 內容驗證 | 缺少視為失敗 |
 | 信心度 ≥95% 才能進 specification | PreToolUse Task | 阻擋呼叫 |
 
 ## 工作流程
@@ -103,31 +103,31 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 詳細評估框架：`.claude/config/confidence/requirement.yml`
 
-### Phase 3: 產出 Requirement 文件與 BA 報告
+### Phase 3: 產出 Requirement 與 BA 報告
 
-信心度達標後，**必須**產出兩個檔案：
+> **⛔ 強制規則：任務個別性文件必須寫入 MCP，禁止寫本地 md 檔**
+>
+> atdd-task 專案只記錄「框架規則」（agent 定義、command、template、style guide）。
+> 所有「專案任務的個別性文件」（requirement、SA、BA、spec）必須透過 MCP API 儲存於 DB。
+> 違反此規則將導致框架與實例混雜，無法正確支援多專案多任務。
 
-#### 3a. Requirement 文件（供 AI Agent pipeline 使用）
+信心度達標後，**必須**透過 MCP 儲存兩份內容：
 
-```
-📁 路徑：requirements/{project}/{task_id}-{short_name}.md
-```
+#### 3a. Requirement + SA（寫入 task.requirement 欄位）
 
-模板：`.claude/templates/requirement-template.md`
-
-內容分兩區：
+使用 `atdd_task_update(task_id, requirement="...")` 寫入，內容包含兩區：
 - **Request**：用戶原始需求，保留原始措辭，不改寫
 - **SA**：綜合 domain knowledge、codebase 調查、與用戶釐清後的技術分析（Model 關聯、資料來源、既有機制、效能評估等）
 
-#### 3b. BA 報告（獨立的外部報告，供 Jira 描述同步使用）
+模板：`.claude/templates/requirement-template.md`（作為內容結構參考，非檔案路徑）
 
-```
-📁 路徑：requirements/{project}/{task_id}-{short_name}-ba.md
-```
+#### 3b. BA 報告（寫入 task.metadata.baReport 欄位）
 
-模板：`.claude/templates/ba-report-template.md`
+使用 `atdd_task_update(task_id, metadata={"baReport": "..."})` 寫入，供 Jira 描述同步使用。
 
-**⚠️ 必須產出獨立的 `-ba.md` 檔案**，不可將 BA 內容混入 Requirement 檔案的 `## BA` 區塊。
+模板：`.claude/templates/ba-report-template.md`（作為內容結構參考）
+
+**⚠️ BA 內容必須獨立儲存**，不可混入 task.requirement 的 `## BA` 區塊。
 
 **⚠️ BA 報告必須包含以下三個區塊**（由 Hook 驗證）：
 1. `## 需求摘要` — 一段話說明需求
@@ -161,33 +161,33 @@ Read: .claude/skills/ba-writing/SKILL.md
 
 ### Phase 5: 規格撰寫
 
-**必須**使用 Write 工具產出規格檔案：
+**必須**透過 MCP 儲存規格（同樣禁止寫本地 md 檔）：
 
-```
-📁 路徑：specs/{project}/{task_id}-{short_name}.md
-```
+使用 `atdd_task_update(task_id, metadata={"spec": "..."})` 寫入規格內容。
 
 規格必須包含：
 1. Acceptance Criteria
 2. Scenarios (Given-When-Then)
 
 詳細撰寫指南：`.claude/agents/specist/spec-writing-guide.md`
-模板：`.claude/templates/spec-template.md`
+模板：`.claude/templates/spec-template.md`（作為內容結構參考）
 
-### Phase 6: 更新任務 JSON
+### Phase 6: 更新任務 metadata
 
-```json
-{
-  "domain": "{identified_domain}",
-  "requirementPath": "requirements/{project}/{task_id}-{short_name}.md",
-  "baReportPath": "requirements/{project}/{task_id}-{short_name}-ba.md",
-  "specPath": "specs/{project}/{task_id}-{short_name}.md",
-  "acceptance": {
-    "profile": "{e2e/integration/calculation/unit}",
-    "reason": "{選擇原因}",
-    "location": "{e2e → atdd-hub | 其他 → 各專案 repo}"
+```python
+atdd_task_update(
+  task_id,
+  domain="{identified_domain}",
+  requirement="{Request + SA 內容}",
+  metadata={
+    "baReport": "{BA 報告內容}",
+    "spec": "{Spec 內容}",
+    "acceptance": {
+      "profile": "{e2e/integration/calculation/unit}",
+      "reason": "{選擇原因}"
+    }
   }
-}
+)
 ```
 
 ## 輸出要求（強制 — 違反即視為任務失敗）

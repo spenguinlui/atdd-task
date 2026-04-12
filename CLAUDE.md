@@ -77,6 +77,35 @@
 
 ---
 
+# atdd-task 專案邊界（強制執行）
+
+> **atdd-task 只記錄「框架規則」，禁止記錄「任務/專案的個別性資料」。**
+
+## 允許寫入 atdd-task 的內容
+
+- Agent 定義、Slash Command、Hook、Template
+- Style Guide（`style-guides/`）
+- 通用工作流程規則、框架文件
+- 跨專案共用的設定（`.claude/config/`）
+
+## 禁止寫入 atdd-task 的內容
+
+以下所有「個別性資料」**必須**透過 MCP API 儲存於 DB，禁止寫本地 md 檔：
+
+| 類別 | 禁止路徑 | 正確做法 |
+|------|---------|---------|
+| Requirement + SA | `requirements/{project}/*.md` | `atdd_task_update(task_id, requirement="...")` |
+| BA 報告 | `requirements/{project}/*-ba.md` | `atdd_task_update(task_id, metadata={"baReport": "..."})` |
+| Spec (Given-When-Then) | `specs/{project}/*.md` | `atdd_task_update(task_id, metadata={"spec": "..."})` |
+| Domain 知識 | `domains/{project}/*.md`（除 domain-map 結構檔） | `atdd_knowledge_create/update` |
+| 任務狀態、歷史、metrics | 任何本地 JSON | `atdd_task_*` MCP API |
+
+**Why**: atdd-task 是框架定義（Class），個別任務/專案的資料屬於實例（Instance），應集中於 MCP DB 以支援多專案多任務管理，避免框架與實例混雜。
+
+**How to apply**: 所有 agent（specist、tester、coder、gatekeeper、curator）產出任務個別性內容時，一律透過 MCP API 寫入，不使用 Write 工具建立 md 檔。
+
+---
+
 # ATDD 任務工作流程
 
 > **本專案使用 Command-Driven 工作流程。所有專案任務必須透過 Slash Command 啟動。**
