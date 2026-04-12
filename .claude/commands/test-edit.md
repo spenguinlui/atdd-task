@@ -90,7 +90,7 @@ description: 修改現有測試套件（新增、刪除、修改場景或更新 
 #### 5a: add（新增場景）
 
 1. 詢問用戶：新場景的簡要描述
-2. 讀取 domain 知識：`domains/{project}/` 相關檔案
+2. 讀取 domain 知識：透過 `mcp__atdd__atdd_term_list` / `atdd_knowledge_list` MCP API 取得
 3. 呼叫 specist agent，prompt 包含：
    - 套件現有場景清單
    - domain 知識

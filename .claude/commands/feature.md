@@ -33,7 +33,7 @@ description: 啟動新功能開發任務（Guided 模式）
 參考：`shared/agent-call-patterns.md`
 
 **Prompt 重點**：
-- Domain 識別（讀取 domain-registry.md）
+- Domain 識別（透過 `mcp__atdd__atdd_knowledge_list(file_type="domain-map")` 與 `mcp__atdd__atdd_term_list`）
 - 跨 Domain 影響分析
 - 信心度評估（需達 95%）
 - 範圍評估（判斷是否上升 Epic）

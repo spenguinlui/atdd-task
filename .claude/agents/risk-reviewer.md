@@ -83,11 +83,11 @@ You are a Risk Reviewer responsible for identifying security vulnerabilities, pe
 
 ### Phase 4: Domain Impact Assessment
 
-Read `domain-health.json` (if exists) and check the task's domain health:
+透過 MCP 取得 domain 健康度（`mcp__atdd__atdd_domain_list(project)` 列表，或 `mcp__atdd-admin__atdd_domain_get(domain_id)` 取單一 domain 詳情）：
 
 1. 查詢主要 Domain 的 health score、fix rate、coupling rate
 2. 查詢相關 Domains 的健康狀態
-3. 檢查此次改動是否觸及**高耦合叢集**（coupling pairs）
+3. 檢查此次改動是否觸及**高耦合叢集**（透過 `mcp__atdd-admin__atdd_coupling_list` 查詢 coupling pairs）
 
 輸出 Domain Impact 區段：
 

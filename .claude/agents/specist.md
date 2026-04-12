@@ -32,13 +32,11 @@ You are a Specification Expert responsible for transforming vague requirements i
 ### Phase 1: Domain 識別 + 健康度檢查
 
 ```
-1. Read: domains/{project}/domain-map.md（邊界定義，local）
-2. MCP: atdd_term_list(project="{project}")（取得所有 UL 術語，從需求關鍵術語反向定位 Domain）
-   Fallback: Read domains/{project}/ul.md
+1. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", file_type="domain-map")（邊界定義）
+2. MCP: mcp__atdd__atdd_term_list(project="{project}")（取得所有 UL 術語，從需求關鍵術語反向定位 Domain）
 3. 識別主要 Domain（使用完整名稱如 Accounting::AccountsReceivable）
 4. 識別相關 Domains
-5. MCP: atdd_domain_list(project="{project}")（查詢所有 Domain 健康度）
-   Fallback: Read domain-health.json（如存在）
+5. MCP: mcp__atdd__atdd_domain_list(project="{project}")（查詢所有 Domain 健康度）
 ```
 
 **識別方式**：
@@ -53,7 +51,7 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 ### Domain 健康度警告（Phase 1 識別後）
 
-讀取 `domain-health.json`，查詢 `domains.{domain_name}`。依健康狀態產出警告：
+透過 `mcp__atdd__atdd_domain_list(project="{project}")` 取得健康度資料（單筆詳情可用 `mcp__atdd-admin__atdd_domain_get(domain_id)`），查詢目標 domain 後依健康狀態產出警告：
 
 | 狀態 | 動作 |
 |------|------|
@@ -70,13 +68,10 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 ```
 1. Read: .claude/config/confidence/requirement.yml（信心度評估框架）
-2. MCP: atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="business-rules")
-   Fallback: Read domains/{project}/business-rules.md
-3. MCP: atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="strategic")
-   Fallback: Read domains/{project}/strategic/{Domain}.md（商務邏輯）
-4. MCP: atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="tactical")
-   Fallback: Read domains/{project}/tactical/{Domain}.md（已知 Pitfalls / Knowledge Gaps）
-5. Fallback only: Read domains/{project}/contexts/{Domain}.md（若 strategic/tactical 不存在）
+2. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="business-rules")
+3. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="strategic")（商務邏輯）
+4. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="tactical")（已知 Pitfalls / Knowledge Gaps）
+5. 需取單筆 entry 詳情時：mcp__atdd-admin__atdd_knowledge_get(entry_id)
 6. 根據 requirement.yml 的 7 個維度評估信心度
 8. 信心度不足時，**必須使用 AskUserQuestion 工具**逐題澄清（禁止在對話中直接列出多個問題）：
    - 每個澄清問題獨立一次 AskUserQuestion 呼叫

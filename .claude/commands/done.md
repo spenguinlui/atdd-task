@@ -110,16 +110,17 @@ completed
     │       Gatekeeper 在 Gate 階段識別到以下新知識：
     │       {knowledge_discoveries from gate report}
     │
-    │       === 必讀規範 ===
-    │       1. knowledge/access/reader.md
-    │       2. knowledge/access/writer.md
+    │       === 知識存取（MCP-only） ===
+    │       讀取：mcp__atdd__atdd_term_list / atdd_knowledge_list / atdd_domain_list
+    │       讀取單筆：mcp__atdd-admin__atdd_knowledge_get / atdd_domain_get
+    │       寫入：mcp__atdd-admin__atdd_term_upsert / atdd_knowledge_create / update / delete / atdd_domain_upsert
     │
-    │       === 知識文件路徑 ===
-    │       - 術語表：domains/{project}/ul.md
-    │       - 業務規則：domains/{project}/business-rules.md
-    │       - 商務邏輯：domains/{project}/strategic/{domain}.md
-    │       - 系統設計：domains/{project}/tactical/{domain}.md
-    │       - 領域邊界：domains/{project}/domain-map.md
+    │       === 本輪要讀取的知識 ===
+    │       - 術語：atdd_term_list({project})
+    │       - 業務規則：atdd_knowledge_list({project}, file_type="business-rules")
+    │       - 商務邏輯：atdd_knowledge_list({project}, domain="{domain}", file_type="strategic")
+    │       - 系統設計：atdd_knowledge_list({project}, domain="{domain}", file_type="tactical")
+    │       - 領域邊界：atdd_knowledge_list({project}, file_type="domain-map")
     │
     │       === 執行流程 ===
     │       請執行標準 5-phase 流程。
