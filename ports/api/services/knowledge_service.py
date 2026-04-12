@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 from db import get_cursor
-from services.org_routing import is_remote
+from services.org_routing import merge_lists, merge_paginated
 import remote_client
 
 logger = logging.getLogger("knowledge-service")
@@ -23,17 +23,6 @@ def list_entries(
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
-    if is_remote(org_id):
-        try:
-            return remote_client.get(
-                "/api/v1/knowledge/entries",
-                project=project, domain=domain, file_type=file_type,
-                limit=limit, offset=offset,
-            )
-        except Exception:
-            logger.warning("Failed to fetch remote knowledge entries")
-            return {"items": [], "total": 0, "limit": limit, "offset": offset}
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
 
@@ -61,7 +50,11 @@ def list_entries(
 
     total = rows[0]["total_count"] if rows else 0
     items = [{k: v for k, v in row.items() if k != "total_count"} for row in rows]
-    return {"items": items, "total": total, "limit": limit, "offset": offset}
+    local = {"items": items, "total": total, "limit": limit, "offset": offset}
+
+    return merge_paginated(local, "/api/v1/knowledge/entries",
+                           project=project, domain=domain, file_type=file_type,
+                           limit=limit, offset=offset)
 
 
 def get_entry(entry_id: str) -> Optional[dict]:
@@ -115,14 +108,6 @@ def delete_entry(entry_id: str) -> bool:
 
 
 def list_terms(org_id: str, project: str = "", domain: str = "") -> list[dict]:
-    if is_remote(org_id):
-        try:
-            return remote_client.get(
-                "/api/v1/knowledge/terms", project=project, domain=domain,
-            )
-        except Exception:
-            return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
 
@@ -140,7 +125,10 @@ def list_terms(org_id: str, project: str = "", domain: str = "") -> list[dict]:
             f"SELECT * FROM knowledge_terms WHERE {where} ORDER BY english_term",
             params,
         )
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    return merge_lists(local, "/api/v1/knowledge/terms",
+                       project=project, domain=domain)
 
 
 def upsert_term(org_id: str, project: str, english_term: str, chinese_term: str,
@@ -159,25 +147,11 @@ def upsert_term(org_id: str, project: str, english_term: str, chinese_term: str,
         return cur.fetchone()
 
 
-# ── Dashboard-specific queries ──
+# ── Dashboard-specific queries (merged local + remote) ──
 
 
 def get_type_stats(org_id: str, project: str = "", domain: str = "",
                    file_type: str = "") -> list[dict]:
-    if is_remote(org_id):
-        try:
-            result = remote_client.get(
-                "/api/v1/knowledge/entries",
-                project=project, domain=domain, file_type=file_type, limit=200,
-            )
-            stats: dict[str, int] = {}
-            for item in result.get("items", []):
-                ft = item.get("file_type") or "untyped"
-                stats[ft] = stats.get(ft, 0) + 1
-            return [{"file_type": k, "cnt": v} for k, v in stats.items()]
-        except Exception:
-            return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
     if project:
@@ -197,25 +171,25 @@ def get_type_stats(org_id: str, project: str = "", domain: str = "",
             FROM knowledge_entries WHERE {where}
             GROUP BY file_type ORDER BY cnt DESC
         """, params)
-        return cur.fetchall()
+        local_stats = {r["file_type"]: r["cnt"] for r in cur.fetchall()}
+
+    if remote_client.is_configured():
+        try:
+            result = remote_client.get("/api/v1/knowledge/entries",
+                                       project=project, domain=domain,
+                                       file_type=file_type, limit=200)
+            for item in result.get("items", []):
+                ft = item.get("file_type") or "untyped"
+                local_stats[ft] = local_stats.get(ft, 0) + 1
+        except Exception:
+            pass
+
+    return [{"file_type": k, "cnt": v} for k, v in
+            sorted(local_stats.items(), key=lambda x: -x[1])]
 
 
 def list_entries_grouped(org_id: str, project: str = "", domain: str = "",
                          file_type: str = "") -> dict[str, list]:
-    if is_remote(org_id):
-        try:
-            result = remote_client.get(
-                "/api/v1/knowledge/entries",
-                project=project, domain=domain, file_type=file_type, limit=200,
-            )
-            grouped: dict[str, list] = {}
-            for e in result.get("items", []):
-                key = e.get("domain") or "(no domain)"
-                grouped.setdefault(key, []).append(e)
-            return grouped
-        except Exception:
-            return {}
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
     if project:
@@ -235,28 +209,37 @@ def list_entries_grouped(org_id: str, project: str = "", domain: str = "",
             FROM knowledge_entries WHERE {where}
             ORDER BY domain, file_type, section
         """, params)
-        all_entries = cur.fetchall()
+        all_entries = list(cur.fetchall())
+
+    if remote_client.is_configured():
+        try:
+            result = remote_client.get("/api/v1/knowledge/entries",
+                                       project=project, domain=domain,
+                                       file_type=file_type, limit=200)
+            all_entries.extend(result.get("items", []))
+        except Exception:
+            pass
 
     grouped: dict[str, list] = {}
     for e in all_entries:
-        key = e["domain"] or "(no domain)"
+        key = (e.get("domain") if isinstance(e, dict) else e["domain"]) or "(no domain)"
         grouped.setdefault(key, []).append(e)
     return grouped
 
 
 def list_all_domains(org_id: str) -> list[str]:
-    if is_remote(org_id):
-        try:
-            result = remote_client.get("/api/v1/knowledge/entries", limit=200)
-            return sorted(set(
-                e["domain"] for e in result.get("items", []) if e.get("domain")
-            ))
-        except Exception:
-            return []
-
     with get_cursor() as cur:
         cur.execute(
             "SELECT DISTINCT domain FROM knowledge_entries WHERE org_id = %s AND domain IS NOT NULL ORDER BY domain",
             (org_id,),
         )
-        return [r["domain"] for r in cur.fetchall()]
+        local = [r["domain"] for r in cur.fetchall()]
+
+    if not remote_client.is_configured():
+        return local
+    try:
+        result = remote_client.get("/api/v1/knowledge/entries", limit=200)
+        remote = [e["domain"] for e in result.get("items", []) if e.get("domain")]
+        return sorted(set(local + remote))
+    except Exception:
+        return local

@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 
 from db import get_cursor
-from services.org_routing import is_remote
+from services.org_routing import merge_lists, merge_paginated
 import remote_client
 
 logger = logging.getLogger("task-service")
@@ -24,13 +24,6 @@ def list_tasks(
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
-    if is_remote(org_id):
-        return remote_client.get(
-            "/api/v1/tasks",
-            project=project, status=status, domain=domain,
-            limit=limit, offset=offset,
-        )
-
     conditions = ["t.org_id = %s"]
     params: list = [org_id]
 
@@ -161,37 +154,30 @@ def create_task_metrics(task_id: str, agent: str, tool_uses: int = None,
         return cur.fetchone()
 
 
-# ── Dashboard-specific queries ──
+# ── Dashboard-specific queries (merged local + remote) ──
 
 
 def list_projects(org_id: str) -> list[str]:
-    if is_remote(org_id):
-        try:
-            domains = remote_client.get("/api/v1/domains")
-            projects = sorted(set(d["project"] for d in domains if d.get("project")))
-            return projects
-        except Exception:
-            logger.warning("Failed to fetch remote projects, returning empty")
-            return []
-
     with get_cursor() as cur:
         cur.execute(
             "SELECT DISTINCT project FROM tasks WHERE org_id = %s ORDER BY project",
             (org_id,),
         )
-        return [row["project"] for row in cur.fetchall()]
+        local = [row["project"] for row in cur.fetchall()]
+
+    if not remote_client.is_configured():
+        return local
+    try:
+        domains = remote_client.get("/api/v1/domains")
+        remote = sorted(set(d["project"] for d in domains if d.get("project")))
+        return sorted(set(local + remote))
+    except Exception:
+        logger.warning("Failed to fetch remote projects")
+        return local
 
 
 def list_tasks_for_board(org_id: str, project: str = "", type: str = "",
                          domain: str = "") -> list[dict]:
-    if is_remote(org_id):
-        try:
-            result = list_tasks(org_id, project=project, domain=domain, limit=200)
-            return result.get("items", [])
-        except Exception:
-            logger.warning("Failed to fetch remote tasks for board")
-            return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
     if project:
@@ -215,19 +201,13 @@ def list_tasks_for_board(org_id: str, project: str = "", type: str = "",
             FROM tasks WHERE {where}
             ORDER BY updated_at DESC
         """, params)
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    return merge_lists(local, "/api/v1/tasks",
+                       project=project, domain=domain, limit=200)
 
 
 def list_fix_tasks_with_causation(org_id: str, project: str = "") -> list[dict]:
-    if is_remote(org_id):
-        try:
-            result = list_tasks(org_id, project=project, limit=200)
-            return [t for t in result.get("items", [])
-                    if t.get("type") == "fix" and t.get("causation")]
-        except Exception:
-            logger.warning("Failed to fetch remote fix tasks")
-            return []
-
     conditions = ["org_id = %s", "type = 'fix'", "causation IS NOT NULL"]
     params: list = [org_id]
     if project:
@@ -241,4 +221,8 @@ def list_fix_tasks_with_causation(org_id: str, project: str = "") -> list[dict]:
             FROM tasks WHERE {where}
             ORDER BY created_at DESC
         """, params)
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    merged = merge_lists(local, "/api/v1/tasks", project=project, limit=200)
+    # Filter remote results for fix + causation
+    return [t for t in merged if t.get("type") == "fix" and t.get("causation")]

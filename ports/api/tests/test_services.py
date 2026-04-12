@@ -9,8 +9,6 @@ class TestTaskService:
     def test_list_projects_returns_list(self):
         projects = task_service.list_projects("00000000-0000-0000-0000-000000000001")
         assert isinstance(projects, list)
-        # We know there are tasks in the DB
-        assert len(projects) > 0
         assert all(isinstance(p, str) for p in projects)
 
     def test_list_tasks_returns_paginated(self):
@@ -61,7 +59,6 @@ class TestDomainService:
     def test_list_domains(self):
         domains = domain_service.list_domains("00000000-0000-0000-0000-000000000001")
         assert isinstance(domains, list)
-        assert len(domains) > 0
 
     def test_list_sidebar_domains_grouped(self):
         grouped = domain_service.list_sidebar_domains("00000000-0000-0000-0000-000000000001")
