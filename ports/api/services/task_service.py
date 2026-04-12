@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Optional
 
 from db import get_cursor
@@ -19,6 +20,7 @@ logger = logging.getLogger("task-service")
 def list_tasks(
     org_id: str,
     project: str = "",
+    type: str = "",
     status: str = "",
     domain: str = "",
     limit: int = 50,
@@ -30,6 +32,9 @@ def list_tasks(
     if project:
         conditions.append("t.project = %s")
         params.append(project)
+    if type:
+        conditions.append("t.type = %s")
+        params.append(type)
     if status:
         conditions.append("t.status = %s")
         params.append(status)
@@ -57,7 +62,16 @@ def list_tasks(
 def get_task(task_id: str) -> Optional[dict]:
     with get_cursor() as cur:
         cur.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
-        return cur.fetchone()
+        task = cur.fetchone()
+    if task:
+        return task
+    # Fallback to remote API
+    if remote_client.is_configured():
+        try:
+            return remote_client.get(f"/api/v1/tasks/{task_id}")
+        except Exception:
+            logger.warning(f"Failed to fetch remote task {task_id}")
+    return None
 
 
 def create_task(org_id: str, project: str, type: str, **kwargs) -> dict:
@@ -126,7 +140,16 @@ def list_task_history(task_id: str) -> list:
             "SELECT * FROM task_history WHERE task_id = %s ORDER BY timestamp",
             (task_id,),
         )
-        return cur.fetchall()
+        local = cur.fetchall()
+    if local:
+        return local
+    # Fallback to remote API
+    if remote_client.is_configured():
+        try:
+            return remote_client.get(f"/api/v1/tasks/{task_id}/history") or []
+        except Exception:
+            logger.warning(f"Failed to fetch remote history for {task_id}")
+    return []
 
 
 def create_task_history(task_id: str, phase: str = None, status: str = None,
@@ -157,7 +180,13 @@ def create_task_metrics(task_id: str, agent: str, tool_uses: int = None,
 # ── Dashboard-specific queries (merged local + remote) ──
 
 
+_projects_cache: dict = {"data": [], "expires": 0}
+
 def list_projects(org_id: str) -> list[str]:
+    now = time.time()
+    if _projects_cache["data"] and now < _projects_cache["expires"]:
+        return _projects_cache["data"]
+
     with get_cursor() as cur:
         cur.execute(
             "SELECT DISTINCT project FROM tasks WHERE org_id = %s ORDER BY project",
@@ -166,14 +195,20 @@ def list_projects(org_id: str) -> list[str]:
         local = [row["project"] for row in cur.fetchall()]
 
     if not remote_client.is_configured():
-        return local
-    try:
-        domains = remote_client.get("/api/v1/domains")
-        remote = sorted(set(d["project"] for d in domains if d.get("project")))
-        return sorted(set(local + remote))
-    except Exception:
-        logger.warning("Failed to fetch remote projects")
-        return local
+        result = local
+    else:
+        try:
+            domains = remote_client.get("/api/v1/domains")
+            remote = sorted(set(d["project"] for d in domains if d.get("project")))
+            result = sorted(set(local + remote))
+        except Exception:
+            logger.warning("Failed to fetch remote projects")
+            # Use cached data if available, otherwise fall back to local
+            result = _projects_cache["data"] or local
+
+    _projects_cache["data"] = result
+    _projects_cache["expires"] = now + 300  # 5 minutes
+    return result
 
 
 def list_tasks_for_board(org_id: str, project: str = "", type: str = "",
@@ -203,8 +238,12 @@ def list_tasks_for_board(org_id: str, project: str = "", type: str = "",
         """, params)
         local = cur.fetchall()
 
-    return merge_lists(local, "/api/v1/tasks",
-                       project=project, domain=domain, limit=200)
+    merged = merge_lists(local, "/api/v1/tasks",
+                         project=project, type=type, domain=domain, limit=200)
+    # Filter merged results client-side (remote API may not support all filters)
+    if type:
+        merged = [t for t in merged if t.get("type") == type]
+    return merged
 
 
 def list_fix_tasks_with_causation(org_id: str, project: str = "") -> list[dict]:

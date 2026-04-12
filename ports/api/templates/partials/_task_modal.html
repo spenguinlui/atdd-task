@@ -1,30 +1,63 @@
 {% if task %}
-<p>
-  <span class="type-tag {{ task.type }}">{{ task.type }}</span>
-  <span style="color:var(--text-muted);font-size:0.8125rem;margin-left:0.5rem;">{{ task.project }}{% if task.domain %} / {{ task.domain }}{% endif %}</span>
-</p>
-<p style="font-weight:500;margin:0.75rem 0;">{{ task.description or '(no description)' }}</p>
-<p style="font-size:0.8125rem;color:var(--text-secondary);">
-  Status: <strong>{{ task.status }}</strong> | Created: {{ task.created_at|fdate }}
-</p>
+<div class="modal-header-section">
+  <div class="modal-title-row">
+    <span class="type-tag {{ task.type }}">{{ task.type }}</span>
+    <span class="status-badge {{ task.status|replace(' ', '-') }}">{{ task.status }}</span>
+  </div>
+  <div class="modal-task-id">
+    <span class="task-id-label">ID</span>
+    <code class="task-id-value">{{ task.id }}</code>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ task.id }}').then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy'},1200)})" title="Copy full ID">Copy</button>
+  </div>
+</div>
+
+<p class="modal-description">{{ task.description or '(no description)' }}</p>
+
+<div class="modal-meta-grid">
+  <div class="meta-item">
+    <span class="meta-label">Project</span>
+    <span class="meta-value">{{ task.project or '-' }}</span>
+  </div>
+  {% if task.domain %}
+  <div class="meta-item">
+    <span class="meta-label">Domain</span>
+    <span class="meta-value">{{ task.domain }}</span>
+  </div>
+  {% endif %}
+  <div class="meta-item">
+    <span class="meta-label">Created</span>
+    <span class="meta-value">{{ task.created_at|fdate('%Y-%m-%d %H:%M') }}</span>
+  </div>
+  {% if task.updated_at %}
+  <div class="meta-item">
+    <span class="meta-label">Updated</span>
+    <span class="meta-value">{{ task.updated_at|fdate('%Y-%m-%d %H:%M') }}</span>
+  </div>
+  {% endif %}
+</div>
 
 {% if task.causation %}
-<details style="margin-top:0.75rem;">
-  <summary style="cursor:pointer;font-weight:600;font-size:0.875rem;">Causation</summary>
-  <pre style="font-size:0.75rem;background:var(--bg-main);padding:0.75rem;border-radius:var(--radius-sm);margin-top:0.5rem;overflow-x:auto;">{{ task.causation }}</pre>
+<details class="modal-causation">
+  <summary>Causation</summary>
+  <pre class="causation-content">{{ task.causation }}</pre>
 </details>
 {% endif %}
 
 {% if history %}
-<h4 style="margin-top:1rem;font-size:0.9375rem;">History</h4>
-<div class="timeline">
-  {% for h in history %}
-  <div class="timeline-event">
-    <div><strong>{{ h.phase or h.status or 'event' }}</strong>{% if h.agent %} <span style="color:var(--text-muted);">({{ h.agent }})</span>{% endif %}</div>
-    {% if h.note %}<div style="font-size:0.8rem;color:var(--text-secondary);">{{ h.note }}</div>{% endif %}
-    <div class="timeline-time">{{ h.timestamp|fdate('%Y-%m-%d %H:%M') }}</div>
+<div class="modal-history">
+  <h4 class="modal-section-title">History</h4>
+  <div class="timeline">
+    {% for h in history %}
+    <div class="timeline-event">
+      <div class="timeline-event-header">
+        <strong>{{ h.phase or h.status or 'event' }}</strong>
+        {% if h.agent %}<span class="timeline-agent">{{ h.agent }}</span>{% endif %}
+      </div>
+      {% if h.note %}<div class="timeline-note">{{ h.note }}</div>{% endif %}
+      <div class="timeline-time">{{ h.timestamp|fdate('%Y-%m-%d %H:%M') }}</div>
+    </div>
+    {% endfor %}
   </div>
-  {% endfor %}
 </div>
 {% endif %}
 {% else %}
