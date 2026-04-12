@@ -2,28 +2,28 @@
 
 ## Phase 1: Knowledge Audit（知識盤點 + 代碼調查）
 
-### 1.1 讀取規範（必須）
+### 1.1 知識來源（MCP-only）
+
+知識讀寫統一透過 MCP API，本地 `domains/` 目錄已廢棄。可用工具：
+
+- 讀取術語：`mcp__atdd__atdd_term_list(project, domain?)`
+- 讀取知識（依類型）：`mcp__atdd__atdd_knowledge_list(project, domain?, file_type=...)`
+- 讀取單筆 entry：`mcp__atdd-admin__atdd_knowledge_get(entry_id)`
+- 讀取 domain 健康度列表：`mcp__atdd__atdd_domain_list(project)`
+- 讀取單一 domain：`mcp__atdd-admin__atdd_domain_get(domain_id)`
+- 寫入（僅 curator）：`mcp__atdd-admin__atdd_knowledge_create/update/delete`、`mcp__atdd-admin__atdd_term_upsert`、`mcp__atdd-admin__atdd_domain_upsert`
+
+### 1.2 知識盤點（MCP 查詢）
 
 ```
-先讀取：
-1. knowledge/access/reader.md - 了解讀取規範
-2. knowledge/access/writer.md - 了解寫入規範
+mcp__atdd__atdd_term_list(project="{project}")
+mcp__atdd__atdd_knowledge_list(project="{project}", domain="{domain}", file_type="business-rules")
+mcp__atdd__atdd_knowledge_list(project="{project}", domain="{domain}", file_type="strategic")（商務邏輯）
+mcp__atdd__atdd_knowledge_list(project="{project}", domain="{domain}", file_type="tactical")（系統設計）
+mcp__atdd__atdd_knowledge_list(project="{project}", file_type="domain-map")（跨域時）
 ```
 
-### 1.2 讀取知識文件
-
-```
-domains/{project}/ul.md
-domains/{project}/business-rules.md
-domains/{project}/strategic/{domain}.md（商務邏輯）
-domains/{project}/tactical/{domain}.md（系統設計）
-domains/{project}/domain-map.md（跨域時）
-
-fallback（未遷移的 domain）：
-domains/{project}/contexts/{domain}.md
-```
-
-對每筆讀取到的知識，標註來源 `[文件]`，含路徑和章節。
+對每筆讀取到的知識，標註來源 `[文件]`，含 entry_id 和章節。
 
 ### 1.3 代碼調查
 
@@ -60,7 +60,7 @@ domains/{project}/contexts/{domain}.md
 
 > **禁止提案已存在的知識。**
 
-將所有即將報告的術語、規則 vs ul.md / business-rules.md 現有條目交叉比對：
+將所有即將報告的術語、規則 vs MCP 中（`atdd_term_list` / `atdd_knowledge_list(file_type="business-rules")`）的現有條目交叉比對：
 
 | 分類 | 處理方式 |
 |------|----------|
@@ -100,9 +100,9 @@ domains/{project}/contexts/{domain}.md
 
 📂 我找到了什麼:
 
-  [文件] 來源:
-  - domains/{project}/ul.md: {N} 個相關術語（已覆蓋: {list}）
-  - domains/{project}/strategic/{domain}.md: {summary}
+  [文件] 來源（MCP）:
+  - atdd_term_list({project}): {N} 個相關術語（已覆蓋: {list}）
+  - atdd_knowledge_list({project}, {domain}, strategic): {summary}
   - ...
 
   [code] 來源:
@@ -360,46 +360,44 @@ Q&A 輪數: {N}（最少 3 輪）
 
 📊 內容信心度: {X}%（>= 95% ✅）
 
-即將更新以下文件：
-1. ul.md: 新增 {n} 術語
-2. business-rules.md: 新增 {n} 規則
-3. strategic/{domain}.md: {建立/更新}
-4. tactical/{domain}.md: {建立/更新}
-5. domain-map.md: {建立/更新}
+即將透過 MCP 寫入以下知識：
+1. 術語（atdd_term_upsert）：新增 {n} 筆
+2. 業務規則（atdd_knowledge_create, file_type="business-rules"）：新增 {n} 筆
+3. strategic/{domain}（atdd_knowledge_create/update, file_type="strategic"）：{建立/更新}
+4. tactical/{domain}（atdd_knowledge_create/update, file_type="tactical"）：{建立/更新}
+5. domain-map（atdd_knowledge_create/update, file_type="domain-map"）：{建立/更新}
 
 確認寫入嗎？(y/n)
 ```
 
 ### 5.2 執行寫入
 
-用戶確認後：
+用戶確認後，依序呼叫 MCP 寫入工具：
 
-1. 讀取 writer.md 規範
-2. 依序更新各文件（使用 Edit tool）
-3. 更新每個文件的 Maintenance Log（含來源欄位）
-4. 輸出更新摘要
+1. `mcp__atdd-admin__atdd_term_upsert` — 新增/更新術語
+2. `mcp__atdd-admin__atdd_knowledge_create` / `atdd_knowledge_update` — 新增或修改知識條目
+3. `mcp__atdd-admin__atdd_knowledge_delete` — 如需移除舊條目
+4. `mcp__atdd-admin__atdd_domain_upsert` — 如需建立/更新 domain 記錄
+5. 每筆寫入內容應在 payload 中記錄來源標註（[用戶]/[文件]/[code]）
+6. 輸出更新摘要
 
-### 5.3 Maintenance Log 格式
+### 5.3 來源標註格式
 
-```
-| {date} | {action} | curator | /knowledge session | 來源: {sources} |
-```
-
-其中 `{sources}` 列出本次寫入涉及的來源類型，例如：
+每筆 MCP 寫入的 payload 應在內容或 metadata 中記錄來源，例如：
 - `來源: [用戶] Q2, Q5 + [code] app/models/foo.rb`
-- `來源: [文件] strategic/Bar.md + [用戶] Q3`
+- `來源: [文件] strategic/Bar entry + [用戶] Q3`
 
 ### 5.4 完成摘要
 
 ```
 ═══ 更新完成 ═══
 
-✅ ul.md: 新增 {n} 術語，修正 {m} 術語
-✅ business-rules.md: 新增 {n} 規則，修正 {m} 規則
-✅ strategic/{domain}.md: 更新 {sections}
-✅ tactical/{domain}.md: 更新 {sections}
+✅ 術語（term_upsert）: 新增 {n}，修正 {m}
+✅ 業務規則（knowledge, business-rules）: 新增 {n}，修正 {m}
+✅ strategic/{domain}: 更新 {sections}
+✅ tactical/{domain}: 更新 {sections}
 
-📋 Maintenance Log 已更新（含來源標註）
+📋 來源標註已寫入 MCP entry metadata
 
-💡 提示：可使用 git diff domains/{project}/ 查看變更
+💡 提示：可透過 atdd_knowledge_list / atdd_term_list 查驗變更結果
 ```

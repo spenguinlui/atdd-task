@@ -14,21 +14,18 @@ agent: specist
 # Specist 評估信心度時必須參考的資料
 data_sources:
   required:
-    - path: "domains/{project}/domain-map.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, file_type='domain-map')"
       purpose: "識別主要 Domain 與跨域關係"
-    - path: "domains/{project}/ul.md"
+    - source: "mcp__atdd__atdd_term_list(project)"
       purpose: "領域語言對照，確認術語一致性"
-    - path: "domains/{project}/business-rules.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, file_type='business-rules')"
       purpose: "跨域商務規則比對"
-    - path: "domains/{project}/strategic/{Domain}.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, domain, file_type='strategic')"
       purpose: "商務目的、能力、範疇定義、狀態流程、商務依賴"
   conditional:
-    - path: "domains/{project}/tactical/{Domain}.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, domain, file_type='tactical')"
       purpose: "已知 Pitfalls、Knowledge Gaps、狀態轉移細節"
-      when: "identified domain has tactical document"
-    - path: "domains/{project}/contexts/{Domain}.md"
-      purpose: "Bounded Context 邊界與整合點"
-      when: "identified domain has context document"
+      when: "identified domain has tactical entries"
   excluded:
     - path: "codebase (app/, db/, config/)"
       reason: "codebase analysis is coder's responsibility, not specist's"

@@ -14,21 +14,18 @@ agent: curator
 # Curator 評估信心度時必須參考的資料
 data_sources:
   required:
-    - path: "domains/{project}/ul.md"
+    - source: "mcp__atdd__atdd_term_list(project)"
       purpose: "術語定義完整性、類型分類、交叉引用"
-    - path: "domains/{project}/business-rules.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, file_type='business-rules')"
       purpose: "商務規則覆蓋度（VR/ST/CA/AU/CD）"
-    - path: "domains/{project}/domain-map.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, file_type='domain-map')"
       purpose: "跨域關係、Context Mapping、邊界定義"
-    - path: "domains/{project}/strategic/{Domain}.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, domain, file_type='strategic')"
       purpose: "商務邏輯、能力定義、範疇（Includes/Excludes）、狀態流程"
   conditional:
-    - path: "domains/{project}/tactical/{Domain}.md"
+    - source: "mcp__atdd__atdd_knowledge_list(project, domain, file_type='tactical')"
       purpose: "系統設計決策、已知 Pitfalls、Knowledge Gaps"
-      when: "identified domain has tactical document"
-    - path: "domains/{project}/contexts/{Domain}.md"
-      purpose: "Bounded Context 邊界（舊格式 fallback）"
-      when: "domain has not been migrated to strategic/tactical structure"
+      when: "identified domain has tactical entries"
   excluded:
     - path: "codebase (app/, db/, config/)"
       reason: "code-knowledge 一致性是 review/gate 階段的責任，不是 curator 的責任。Curator 從業務對話取得知識，不從程式碼推導。"

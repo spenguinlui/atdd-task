@@ -5,13 +5,13 @@
 | Criterion | Threshold |
 |-----------|-----------|
 | Domain Recorded | task.domain 必須已記錄 |
-| Domain Format | 必須使用 domain-registry.md 中的標準名稱 |
+| Domain Format | 必須使用 `mcp__atdd__atdd_domain_list` 取得的標準名稱 |
 | Cross-Domain Noted | 如有跨 domain 影響，必須已記錄 |
 
 **驗證步驟**：
 ```
 1. 檢查 task.domain 是否存在且非空
-2. 對照 domain-registry.md 驗證格式正確
+2. 對照 `mcp__atdd__atdd_domain_list(project)` 取得的標準名稱驗證格式正確
 3. 如果任務涉及多個 domain，確認 context.relatedDomains 已記錄
 ```
 
@@ -62,7 +62,7 @@
 
 **驗證步驟**：
 ```
-1. Read domains/{project}/domain-registry.md
+1. MCP: mcp__atdd__atdd_domain_list(project="{project}")（取得所有 domain 與邊界）；如需單筆詳情用 mcp__atdd-admin__atdd_domain_get(domain_id)
 2. 檢查主要 domain 的依賴和被依賴關係
 3. 如果修改了被其他 domain 依賴的介面：
    - 確認是否向下相容

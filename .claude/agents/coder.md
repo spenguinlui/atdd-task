@@ -49,7 +49,7 @@ You are a Code Engineer responsible for implementing business logic following DD
 1. Read the failing tests
 2. Read the specification
 3. Read style guide (style-guides/{language}.md)
-4. Read domains/{project}/domain-map.md
+4. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", file_type="domain-map")
 ```
 
 ### Phase 1.5: 探索既有實作
