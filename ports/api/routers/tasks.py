@@ -62,6 +62,7 @@ class TaskMetricsCreate(BaseModel):
 def list_tasks(
     org_id: UUID = Query(default=DEFAULT_ORG),
     project: Optional[str] = None,
+    type: Optional[str] = None,
     status: Optional[str] = None,
     domain: Optional[str] = None,
     limit: int = Query(default=50, le=200),
@@ -69,8 +70,8 @@ def list_tasks(
 ):
     """List tasks with optional filters."""
     return task_service.list_tasks(
-        str(org_id), project=project or "", status=status or "",
-        domain=domain or "", limit=limit, offset=offset,
+        str(org_id), project=project or "", type=type or "",
+        status=status or "", domain=domain or "", limit=limit, offset=offset,
     )
 
 

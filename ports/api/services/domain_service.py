@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Optional
 
 from db import get_cursor
@@ -163,7 +164,13 @@ def upsert_coupling(org_id: str, project: str, domain_a: str, domain_b: str,
 # ── Dashboard-specific queries (merged local + remote) ──
 
 
+_sidebar_domains_cache: dict = {"data": {}, "expires": 0}
+
 def list_sidebar_domains(org_id: str) -> dict[str, list]:
+    now = time.time()
+    if _sidebar_domains_cache["data"] and now < _sidebar_domains_cache["expires"]:
+        return _sidebar_domains_cache["data"]
+
     with get_cursor() as cur:
         cur.execute(
             "SELECT name, project, status, health_score FROM domains WHERE org_id = %s ORDER BY project, name",
@@ -182,6 +189,9 @@ def list_sidebar_domains(org_id: str) -> dict[str, list]:
     grouped: dict[str, list] = {}
     for r in local_rows + remote_rows:
         grouped.setdefault(r.get("project", ""), []).append(r)
+
+    _sidebar_domains_cache["data"] = grouped
+    _sidebar_domains_cache["expires"] = now + 300  # 5 minutes
     return grouped
 
 

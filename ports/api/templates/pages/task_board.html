@@ -29,12 +29,12 @@
 </div>
 
 <dialog id="taskModal" class="task-modal">
-  <article>
-    <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-      <h3 style="margin:0;">Task Detail</h3>
-      <button onclick="document.getElementById('taskModal').close()" style="border:none;background:none;cursor:pointer;font-size:1.25rem;color:var(--text-muted);">&times;</button>
+  <article class="task-modal-article">
+    <header class="task-modal-header">
+      <h3 class="task-modal-title">Task Detail</h3>
+      <button class="task-modal-close" onclick="document.getElementById('taskModal').close()" title="Close">&times;</button>
     </header>
-    <div id="modal-content">
+    <div id="modal-content" class="task-modal-body">
       <p>Loading...</p>
     </div>
   </article>
