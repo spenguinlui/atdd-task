@@ -6,6 +6,18 @@
     "commit": "",
     "pr": ""
   },
+  "permissions": {
+    "deny": [
+      "Write(./domains/**)",
+      "Edit(./domains/**)",
+      "Write(./requirements/**)",
+      "Edit(./requirements/**)",
+      "Write(./specs/**)",
+      "Edit(./specs/**)",
+      "Write(./knowledge/access/**)",
+      "Edit(./knowledge/access/**)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

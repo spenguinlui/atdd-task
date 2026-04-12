@@ -97,7 +97,11 @@
 | Requirement + SA | `requirements/{project}/*.md` | `atdd_task_update(task_id, requirement="...")` |
 | BA 報告 | `requirements/{project}/*-ba.md` | `atdd_task_update(task_id, metadata={"baReport": "..."})` |
 | Spec (Given-When-Then) | `specs/{project}/*.md` | `atdd_task_update(task_id, metadata={"spec": "..."})` |
-| Domain 知識 | `domains/{project}/*.md`（除 domain-map 結構檔） | `atdd_knowledge_create/update` |
+| UL 術語 | `domains/{project}/ul.md` | `atdd_term_upsert(project, english_term, chinese_term, domain, ...)` |
+| 商務邏輯/系統設計知識 | `domains/{project}/strategic\|tactical/*.md` | `atdd_knowledge_create/update(file_type="strategic\|tactical", ...)` |
+| 業務規則 | `domains/{project}/business-rules.md` | `atdd_knowledge_create/update(file_type="business-rules", ...)` |
+| 領域邊界 | `domains/{project}/domain-map.md` | `atdd_knowledge_create/update(file_type="domain-map", ...)` |
+| Domain 健康度 | 任何本地 JSON | `atdd_domain_upsert(project, name, ...)` |
 | 任務狀態、歷史、metrics | 任何本地 JSON | `atdd_task_*` MCP API |
 
 **Why**: atdd-task 是框架定義（Class），個別任務/專案的資料屬於實例（Instance），應集中於 MCP DB 以支援多專案多任務管理，避免框架與實例混雜。
