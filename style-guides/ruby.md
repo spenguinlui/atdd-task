@@ -134,6 +134,33 @@ end
 
 Override action 時仍禁止業務邏輯，應委派給 UseCase / Service。
 
+#### Flash 訊息大小限制（CookieOverflow 防護）
+
+Rails 的 `flash[:alert]` / `flash[:notice]` 儲存於 cookie 中，Rails 預設上限 **4KB**。中文字元經 URL encoding 會膨脹約 3 倍，因此**批量操作**（匯入、批次建立、批次更新）的錯誤訊息必須在 Controller 層截斷，禁止直接將 UseCase 回傳的完整錯誤陣列塞入 flash。
+
+**禁止**：
+
+```ruby
+flash[:alert] = Array(result[:errors]).join("\n")   # 大量錯誤會觸發 CookieOverflow
+flash[:alert] = result.failure                       # 未知大小的 failure message 直接塞入
+```
+
+**正確做法**：前 10 筆錯誤 + 摘要
+
+```ruby
+errors = Array(result[:errors])
+max_display = 10
+if errors.size > max_display
+  truncated = errors.first(max_display)
+  truncated << "...等，共 #{errors.size} 筆錯誤，請修正後重新上傳"
+  flash[:alert] = truncated.join("\n")
+else
+  flash[:alert] = errors.join("\n")
+end
+```
+
+**適用情境**：所有可能產生 N 筆錯誤的 action（xlsx 匯入、批次表單、批次 API），UseCase 仍回傳完整錯誤，Controller 負責截斷後存入 flash。
+
 ### ViewModel — 統一繼承 BaseIndex / BaseShow
 
 **Index ViewModel** 繼承 `Admin::Layout::BaseIndex`，必須實作：
