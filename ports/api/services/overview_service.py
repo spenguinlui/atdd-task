@@ -1,7 +1,7 @@
 """Overview service — dashboard aggregation queries.
 
-Note: Remote org does not support overview aggregations (no dedicated API).
-When org is remote, returns empty results gracefully.
+Overview aggregations only query local DB (no remote API equivalent).
+Remote tasks are visible on the task board but not in overview stats.
 """
 
 from __future__ import annotations
@@ -10,14 +10,10 @@ from datetime import datetime
 from typing import Optional
 
 from db import get_cursor
-from services.org_routing import is_remote
 
 
 def get_type_status_aggregation(org_id: str, start: Optional[datetime] = None,
                                 project: str = "") -> list[dict]:
-    if is_remote(org_id):
-        return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
     if start:
@@ -39,9 +35,6 @@ def get_type_status_aggregation(org_id: str, start: Optional[datetime] = None,
 
 def get_weekly_trends(org_id: str, start: Optional[datetime] = None,
                       project: str = "") -> list[dict]:
-    if is_remote(org_id):
-        return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
     if start:
@@ -65,9 +58,6 @@ def get_weekly_trends(org_id: str, start: Optional[datetime] = None,
 
 def get_cost_by_type(org_id: str, start: Optional[datetime] = None,
                      project: str = "") -> list[dict]:
-    if is_remote(org_id):
-        return []
-
     conditions = ["t.org_id = %s"]
     params: list = [org_id]
     if start:

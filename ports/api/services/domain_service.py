@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 from db import get_cursor
-from services.org_routing import is_remote
+from services.org_routing import merge_lists
 import remote_client
 
 logger = logging.getLogger("domain-service")
@@ -16,15 +16,6 @@ logger = logging.getLogger("domain-service")
 
 
 def list_domains(org_id: str, project: str = "", status: str = "") -> list[dict]:
-    if is_remote(org_id):
-        try:
-            return remote_client.get(
-                "/api/v1/domains", project=project, status=status,
-            )
-        except Exception:
-            logger.warning("Failed to fetch remote domains")
-            return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
 
@@ -42,7 +33,9 @@ def list_domains(org_id: str, project: str = "", status: str = "") -> list[dict]
             f"SELECT * FROM domains WHERE {where} ORDER BY health_score ASC NULLS LAST",
             params,
         )
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    return merge_lists(local, "/api/v1/domains", project=project, status=status)
 
 
 def get_domain(domain_id: str) -> Optional[dict]:
@@ -52,16 +45,6 @@ def get_domain(domain_id: str) -> Optional[dict]:
 
 
 def get_domain_by_name(org_id: str, name: str, project: str = "") -> Optional[dict]:
-    if is_remote(org_id):
-        try:
-            domains = remote_client.get("/api/v1/domains", project=project)
-            for d in domains:
-                if d.get("name") == name:
-                    return d
-            return None
-        except Exception:
-            return None
-
     with get_cursor() as cur:
         if project:
             cur.execute(
@@ -73,7 +56,22 @@ def get_domain_by_name(org_id: str, name: str, project: str = "") -> Optional[di
                 "SELECT * FROM domains WHERE org_id = %s AND name = %s LIMIT 1",
                 (org_id, name),
             )
-        return cur.fetchone()
+        result = cur.fetchone()
+
+    if result:
+        return result
+
+    # Try remote
+    if not remote_client.is_configured():
+        return None
+    try:
+        domains = remote_client.get("/api/v1/domains", project=project)
+        for d in domains:
+            if d.get("name") == name:
+                return d
+    except Exception:
+        pass
+    return None
 
 
 def upsert_domain(org_id: str, name: str, project: str, **kwargs) -> dict:
@@ -110,12 +108,6 @@ def upsert_domain(org_id: str, name: str, project: str, **kwargs) -> dict:
 
 
 def list_couplings(org_id: str, project: str = "", limit: int = 30) -> list[dict]:
-    if is_remote(org_id):
-        try:
-            return remote_client.get("/api/v1/domains/couplings/list", project=project)
-        except Exception:
-            return []
-
     conditions = ["org_id = %s"]
     params: list = [org_id]
     if project:
@@ -129,25 +121,29 @@ def list_couplings(org_id: str, project: str = "", limit: int = 30) -> list[dict
             f"SELECT * FROM domain_couplings WHERE {where} ORDER BY co_occurrence_count DESC LIMIT %s",
             params,
         )
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    return merge_lists(local, "/api/v1/domains/couplings/list", project=project)
 
 
 def list_couplings_for_domain(org_id: str, domain_name: str) -> list[dict]:
-    if is_remote(org_id):
-        try:
-            all_couplings = remote_client.get("/api/v1/domains/couplings/list")
-            return [c for c in all_couplings
-                    if c.get("domain_a") == domain_name or c.get("domain_b") == domain_name]
-        except Exception:
-            return []
-
     with get_cursor() as cur:
         cur.execute("""
             SELECT * FROM domain_couplings
             WHERE org_id = %s AND (domain_a = %s OR domain_b = %s)
             ORDER BY co_occurrence_count DESC
         """, (org_id, domain_name, domain_name))
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    if not remote_client.is_configured():
+        return local
+    try:
+        all_remote = remote_client.get("/api/v1/domains/couplings/list")
+        remote = [c for c in all_remote
+                  if c.get("domain_a") == domain_name or c.get("domain_b") == domain_name]
+        return local + remote
+    except Exception:
+        return local
 
 
 def upsert_coupling(org_id: str, project: str, domain_a: str, domain_b: str,
@@ -164,59 +160,44 @@ def upsert_coupling(org_id: str, project: str, domain_a: str, domain_b: str,
         return cur.fetchone()
 
 
-# ── Dashboard-specific queries ──
+# ── Dashboard-specific queries (merged local + remote) ──
 
 
 def list_sidebar_domains(org_id: str) -> dict[str, list]:
-    if is_remote(org_id):
-        try:
-            domains = remote_client.get("/api/v1/domains")
-            grouped: dict[str, list] = {}
-            for d in domains:
-                grouped.setdefault(d.get("project", ""), []).append(d)
-            return grouped
-        except Exception:
-            return {}
-
     with get_cursor() as cur:
         cur.execute(
             "SELECT name, project, status, health_score FROM domains WHERE org_id = %s ORDER BY project, name",
             (org_id,),
         )
-        rows = cur.fetchall()
+        local_rows = cur.fetchall()
+
+    if remote_client.is_configured():
+        try:
+            remote_rows = remote_client.get("/api/v1/domains")
+        except Exception:
+            remote_rows = []
+    else:
+        remote_rows = []
+
     grouped: dict[str, list] = {}
-    for r in rows:
-        grouped.setdefault(r["project"], []).append(r)
+    for r in local_rows + remote_rows:
+        grouped.setdefault(r.get("project", ""), []).append(r)
     return grouped
 
 
 def get_domain_tasks(org_id: str, domain_name: str, limit: int = 20) -> list[dict]:
-    if is_remote(org_id):
-        from services.task_service import list_tasks
-        result = list_tasks(org_id, domain=domain_name, limit=limit)
-        return result.get("items", [])
-
     with get_cursor() as cur:
         cur.execute("""
             SELECT id, type, status, description, created_at, updated_at
             FROM tasks WHERE org_id = %s AND domain = %s
             ORDER BY created_at DESC LIMIT %s
         """, (org_id, domain_name, limit))
-        return cur.fetchall()
+        local = cur.fetchall()
+
+    return merge_lists(local, "/api/v1/tasks", domain=domain_name, limit=limit)
 
 
 def get_domain_knowledge_stats(org_id: str, domain_name: str) -> dict[str, int]:
-    if is_remote(org_id):
-        try:
-            result = remote_client.get("/api/v1/knowledge/entries", domain=domain_name, limit=200)
-            stats: dict[str, int] = {}
-            for item in result.get("items", []):
-                ft = item.get("file_type") or "untyped"
-                stats[ft] = stats.get(ft, 0) + 1
-            return stats
-        except Exception:
-            return {}
-
     with get_cursor() as cur:
         cur.execute("""
             SELECT file_type, count(*) as cnt
@@ -224,14 +205,21 @@ def get_domain_knowledge_stats(org_id: str, domain_name: str) -> dict[str, int]:
             WHERE org_id = %s AND domain = %s
             GROUP BY file_type
         """, (org_id, domain_name))
-        return {r["file_type"]: r["cnt"] for r in cur.fetchall()}
+        local = {r["file_type"]: r["cnt"] for r in cur.fetchall()}
+
+    if not remote_client.is_configured():
+        return local
+    try:
+        result = remote_client.get("/api/v1/knowledge/entries", domain=domain_name, limit=200)
+        for item in result.get("items", []):
+            ft = item.get("file_type") or "untyped"
+            local[ft] = local.get(ft, 0) + 1
+    except Exception:
+        pass
+    return local
 
 
 def get_domain_fix_timeline(org_id: str, domain_name: str) -> list[dict]:
-    if is_remote(org_id):
-        # Remote API doesn't have a dedicated fix timeline endpoint
-        return []
-
     with get_cursor() as cur:
         cur.execute("""
             SELECT date_trunc('week', created_at AT TIME ZONE 'Asia/Taipei')::date as week, count(*) as cnt
