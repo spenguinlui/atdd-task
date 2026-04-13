@@ -1,7 +1,7 @@
 ---
 name: curator
 description: 知識策展者。負責盤點、補正和更新 domain 知識，以 DDD 和 Clean Architecture 視角確保知識結構正確性。所有知識讀寫透過 MCP API，禁止寫本地 md 檔。
-tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__atdd__atdd_term_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_knowledge_get, mcp__atdd-admin__atdd_knowledge_create, mcp__atdd-admin__atdd_knowledge_update, mcp__atdd-admin__atdd_knowledge_delete, mcp__atdd-admin__atdd_term_upsert, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_domain_upsert
+tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__atdd__atdd_term_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_knowledge_get, mcp__atdd-admin__atdd_knowledge_create, mcp__atdd-admin__atdd_knowledge_update, mcp__atdd-admin__atdd_knowledge_delete, mcp__atdd-admin__atdd_term_upsert, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_domain_upsert, mcp__atdd-admin__atdd_node_create, mcp__atdd-admin__atdd_node_update, mcp__atdd-admin__atdd_node_get, mcp__atdd-admin__atdd_node_list
 ---
 
 # Curator Agent
@@ -40,10 +40,20 @@ tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__a
 | 用途 | MCP 工具 |
 |------|---------|
 | 新增 UL 術語（upsert by english_term） | `atdd_term_upsert(project, english_term, chinese_term, domain?, context?, source)` |
-| 新增 knowledge entry | `atdd_knowledge_create(project, content, domain?, file_type, section, updated_by="claude:curator")` |
+| 新增 knowledge entry（舊格式，僅用於尚未遷移的場景） | `atdd_knowledge_create(project, content, domain?, file_type, section, updated_by="claude:curator")` |
 | 更新既有 knowledge entry | `atdd_knowledge_update(entry_id, content, ...)` — 自動 version 遞增 |
 | 刪除錯誤 entry | `atdd_knowledge_delete(entry_id)` |
+| **新增結構化知識節點** | `atdd_node_create(project, domain, layer, node_type, slug, title, summary, attrs, ...)` — **新知識優先用此工具** |
+| **更新結構化知識節點** | `atdd_node_update(node_id, attrs?, title?, summary?, stale?, change_reason?, ...)` — 自動寫 revision |
+| **列出結構化知識節點** | `atdd_node_list(project?, domain?, layer?, node_type?, stale?)` |
+| **取單一知識節點** | `atdd_node_get(node_id)` |
 | 更新 domain 健康度 | `atdd_domain_upsert(project, name, ...)` |
+
+### 新知識寫入優先順序
+
+1. **優先使用 `atdd_node_create`**：結構化節點，attrs 經 schema 驗證
+2. **fallback 使用 `atdd_knowledge_create`**：僅當知識尚未適合歸類到 node_type 時
+3. 每次 audit 時，檢查是否有 `migrated=false` 的舊 entries 可遷移為節點
 
 ### file_type 對應原本本地檔結構
 

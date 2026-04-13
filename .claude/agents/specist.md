@@ -72,7 +72,11 @@ You are a Specification Expert responsible for transforming vague requirements i
 3. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="strategic")（商務邏輯）
 4. MCP: mcp__atdd__atdd_knowledge_list(project="{project}", domain="{Domain}", file_type="tactical")（已知 Pitfalls / Knowledge Gaps）
 5. 需取單筆 entry 詳情時：mcp__atdd-admin__atdd_knowledge_get(entry_id)
-6. 根據 requirement.yml 的 7 個維度評估信心度
+6. 若讀到的知識條目含 `_stale: true` 標記，**停下來提出 clarify**：
+   - 告知用戶該知識節點已過期，列出節點 slug 與 title
+   - 建議先 `/knowledge` 討論確認再繼續
+   - 用戶可選擇「仍使用」（acknowledge）或「先修正」
+7. 根據 requirement.yml 的 7 個維度評估信心度
 8. 信心度不足時，**必須使用 AskUserQuestion 工具**逐題澄清（禁止在對話中直接列出多個問題）：
    - 每個澄清問題獨立一次 AskUserQuestion 呼叫
    - 根據扣分最高的維度，提供 2-4 個具體選項（含推薦標記）
@@ -161,8 +165,9 @@ Read: .claude/skills/ba-writing/SKILL.md
 使用 `atdd_task_update(task_id, metadata={"spec": "..."})` 寫入規格內容。
 
 規格必須包含：
-1. Acceptance Criteria
-2. Scenarios (Given-When-Then)
+1. **參考節點**：列出此 spec 引用的知識節點（entity / business_rule / invariant 等），格式 `{project}/{domain}/{layer}/{node_type}/{slug}`，讓下游 coder/tester 不需讀知識庫即可看到依據
+2. Acceptance Criteria
+3. Scenarios (Given-When-Then)：每個 Given/When/Then 後方可加括號引用節點 slug，如 `(business_rule:cr-001-export-payment-filter)`
 
 詳細撰寫指南：`.claude/agents/specist/spec-writing-guide.md`
 模板：`.claude/templates/spec-template.md`（作為內容結構參考）
@@ -176,7 +181,13 @@ atdd_task_update(
   requirement="{Request + SA 內容}",
   metadata={
     "baReport": "{BA 報告內容}",
-    "spec": "{Spec 內容}",
+    "spec": "{Spec 內容（含參考節點 section）}",
+    "spec_refs": {
+      "nodes": [
+        {"layer": "...", "node_type": "...", "domain": "...", "slug": "..."}
+      ],
+      "terms": ["Term1", "Term2"]
+    },
     "acceptance": {
       "profile": "{e2e/integration/calculation/unit}",
       "reason": "{選擇原因}"

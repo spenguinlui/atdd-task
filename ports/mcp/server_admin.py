@@ -250,6 +250,153 @@ def atdd_term_upsert(
 
 
 # ════════════════════════════════════════════════════════════════
+# Knowledge Node Tools (structured nodes)
+# ════════════════════════════════════════════════════════════════
+
+
+@mcp.tool()
+@safe_api_call
+def atdd_node_list(
+    project: str | None = None,
+    domain: str | None = None,
+    layer: str | None = None,
+    node_type: str | None = None,
+    stale: bool | None = None,
+    limit: int = 50,
+) -> dict:
+    """List structured knowledge nodes with optional filters.
+
+    Args:
+        project: Filter by project name
+        domain: Filter by domain name
+        layer: Filter by layer — strategic, tactical, or rule
+        node_type: Filter by node type — e.g. entity, aggregate, business_rule
+        stale: Filter by stale status (true = needs reconciliation)
+        limit: Max results (default 50, max 200)
+    """
+    params = {"limit": limit}
+    if project is not None:
+        params["project"] = project
+    if domain is not None:
+        params["domain"] = domain
+    if layer is not None:
+        params["layer"] = layer
+    if node_type is not None:
+        params["node_type"] = node_type
+    if stale is not None:
+        params["stale"] = str(stale).lower()
+    return api.get("/api/v1/knowledge/nodes", **params)
+
+
+@mcp.tool()
+@safe_api_call
+def atdd_node_get(node_id: str) -> dict:
+    """Get a single knowledge node by UUID.
+
+    Args:
+        node_id: Knowledge node UUID
+    """
+    return api.get(f"/api/v1/knowledge/nodes/{node_id}")
+
+
+@mcp.tool()
+@safe_api_call
+def atdd_node_create(
+    project: str,
+    domain: str,
+    layer: str,
+    node_type: str,
+    slug: str,
+    title: str,
+    summary: str,
+    attrs: dict,
+    body_md: str | None = None,
+    source_task_id: str | None = None,
+    legacy_entry_id: str | None = None,
+    updated_by: str | None = None,
+) -> dict:
+    """Create a structured knowledge node.
+
+    Attrs are validated against the schema registry for (layer, node_type).
+    Automatically creates an initial revision (v1).
+
+    Args:
+        project: Project name (e.g. core_web)
+        domain: Domain name (e.g. Crowdfund::TaxInfo)
+        layer: strategic, tactical, or rule
+        node_type: e.g. entity, aggregate, bounded_context, business_rule, invariant
+        slug: URL-safe identifier, unique within (project, domain, layer, node_type)
+        title: Human-readable title
+        summary: One-line summary for list views
+        attrs: Structured attributes (validated per node_type schema)
+        body_md: Optional markdown body for detailed description
+        source_task_id: Task UUID this knowledge was learned from
+        legacy_entry_id: UUID of the knowledge_entry this migrated from
+        updated_by: Who created this node
+    """
+    data = {
+        "project": project, "domain": domain, "layer": layer,
+        "node_type": node_type, "slug": slug, "title": title,
+        "summary": summary, "attrs": attrs,
+    }
+    if body_md is not None:
+        data["body_md"] = body_md
+    if source_task_id is not None:
+        data["source_task_id"] = source_task_id
+    if legacy_entry_id is not None:
+        data["legacy_entry_id"] = legacy_entry_id
+    if updated_by is not None:
+        data["updated_by"] = updated_by
+    return api.post("/api/v1/knowledge/nodes", data)
+
+
+@mcp.tool()
+@safe_api_call
+def atdd_node_update(
+    node_id: str,
+    title: str | None = None,
+    summary: str | None = None,
+    attrs: dict | None = None,
+    body_md: str | None = None,
+    stale: bool | None = None,
+    updated_by: str | None = None,
+    change_reason: str | None = None,
+    source_task_id: str | None = None,
+) -> dict:
+    """Update a knowledge node (partial update, auto-increments version, writes revision).
+
+    Args:
+        node_id: Node UUID to update
+        title: New title
+        summary: New summary
+        attrs: New attrs (re-validated against schema)
+        body_md: New markdown body
+        stale: Mark as stale (true) or reconciled (false)
+        updated_by: Who made this change
+        change_reason: Why this change was made
+        source_task_id: Task UUID that triggered this change
+    """
+    data = {}
+    if title is not None:
+        data["title"] = title
+    if summary is not None:
+        data["summary"] = summary
+    if attrs is not None:
+        data["attrs"] = attrs
+    if body_md is not None:
+        data["body_md"] = body_md
+    if stale is not None:
+        data["stale"] = stale
+    if updated_by is not None:
+        data["updated_by"] = updated_by
+    if change_reason is not None:
+        data["change_reason"] = change_reason
+    if source_task_id is not None:
+        data["source_task_id"] = source_task_id
+    return api.patch(f"/api/v1/knowledge/nodes/{node_id}", data)
+
+
+# ════════════════════════════════════════════════════════════════
 # Report Tools
 # ════════════════════════════════════════════════════════════════
 
