@@ -100,6 +100,7 @@ scenarios:
   - id: "S1"
     title: "{場景標題}"
     file: "scenarios/S1-{scenario_name}.yml"
+    executor: null                    # 場景級覆寫：chrome-mcp | capybara（null = 用 suite default）
     priority: "high"                  # high | medium | low
     critical: false                   # 是否為關鍵場景
 
@@ -111,6 +112,24 @@ validationCriteria:
     description: "{驗證項目描述}"
     type: "visual"                    # visual | data | state | api
     scenarios: []                     # 相關場景 ID
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 執行器設定（Executors）
+# ═══════════════════════════════════════════════════════════════════════════════
+executors:
+  # 可用的執行器（至少一個）
+  # - chrome-mcp: AI Agent 透過 Chrome MCP 操作瀏覽器（適合探索性、視覺驗證）
+  # - capybara:   RSpec + Capybara 自動化測試（適合回歸、CI/CD）
+  available:
+    - chrome-mcp
+
+  # 預設執行器（/test-run 不帶選項時使用）
+  default: chrome-mcp
+
+  # Capybara 設定（僅 available 包含 capybara 時需要）
+  # capybara:
+  #   specFile: "spec/features/{suite_id}_spec.rb"   # 對應的 RSpec spec 檔案
+  #   tags: []                                        # RSpec tag 過濾（如 [:smoke, :critical]）
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 執行設定

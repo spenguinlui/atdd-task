@@ -25,6 +25,44 @@ description: 執行測試套件
 - 驗證套件存在
 - 若執行 `all` 或 `group:`，讀取 `index.yml` 取得套件清單
 
+### 1.5 執行器選單（Executor Selection）
+
+讀取 `suite.yml` 的 `executors.available` 和各場景的 `executor` 欄位：
+
+**單一 executor（只有 chrome-mcp 或只有 capybara）→ 跳過選單，直接執行。**
+
+**多 executor（available 包含兩種）→ 顯示選單：**
+
+```
+═══════════════════════════════════════
+📋 選擇執行方式
+
+Suite: {suite-id} - {title}
+
+  #  │ 場景              │ Chrome MCP │ Capybara
+─────┼───────────────────┼────────────┼──────────
+  S1 │ {title}           │     ✅     │    ❌
+  S2 │ {title}           │     ✅     │    ✅
+  S3 │ {title}           │     ❌     │    ✅
+
+選擇：
+  1) Chrome MCP only  → 執行 S1, S2（有 chrome-mcp 的場景）
+  2) Capybara only    → 執行 S2, S3（有 capybara 的場景）
+  3) All              → 全部場景，各用指定的 executor
+  4) Custom           → 逐場景選擇（僅雙支援場景可切換）
+═══════════════════════════════════════
+```
+
+**選單邏輯：**
+- 場景有 `executor: chrome-mcp` → 只出現在 Chrome MCP 欄
+- 場景有 `executor: capybara` → 只出現在 Capybara 欄
+- 場景 `executor: null`（未指定）→ 根據 `executors.available` 決定，若兩者都有則兩欄都 ✅
+- 選擇 Custom 時，對雙支援場景逐一詢問用哪個 executor
+
+**決定後記錄到 run.yml：**
+- 全用同一種 → `executor.type: "chrome-mcp"` 或 `"capybara"`
+- 混合使用 → `executor.type: "mixed"`，各場景記錄自己的 executor
+
 ### 2. 生成 Test Run ID
 
 ```
@@ -53,14 +91,18 @@ cd {project_path} && rails runner tests/{project}/suites/{suite-id}/fixtures/see
 - 記錄建立的資料數量
 - 失敗則停止並提示
 
-### 6. 呼叫 tester Agent
+### 6. 依 executor 類型執行場景
+
+根據步驟 1.5 決定的 executor 分配，分兩種路徑執行：
+
+#### 6a. Chrome MCP 場景 → 呼叫 tester Agent
 
 參考：`shared/agent-call-patterns.md`
 
 **傳遞資訊**：
 - suite.yml 內容
 - test_run_id
-- 場景清單
+- 場景清單（僅 executor=chrome-mcp 的場景）
 - 執行設定
 
 **tester 職責**：
@@ -69,6 +111,28 @@ cd {project_path} && rails runner tests/{project}/suites/{suite-id}/fixtures/see
 - 錄製 GIF（每場景一個）
 - 記錄結果到 run.yml
 - 發現問題時提供控制選項
+
+#### 6b. Capybara 場景 → 執行 RSpec
+
+**執行指令**：
+```bash
+cd {project_path} && bundle exec rspec {spec_file} --tag {scenario_tag} --format documentation --format json --out {run_dir}/capybara_results.json
+```
+
+- `spec_file`：從 `suite.yml` 的 `executors.capybara.specFile` 取得
+- `scenario_tag`：場景 ID 對應的 RSpec tag（如 `S1`、`S2`）
+- JSON 輸出用於解析結果寫入 run.yml
+
+**結果解析**：
+- 讀取 `capybara_results.json`
+- 將每個 example 的 status 映射到對應場景
+- 記錄 duration、failure message
+
+#### 6c. 執行順序
+
+- **Chrome MCP 場景先執行**（需要人互動監控）
+- **Capybara 場景後執行**（自動化，無需監控）
+- 若場景間有 dependency，依 dependency 順序執行，不論 executor 類型
 
 ### 7. 執行 Cleanup
 
@@ -105,6 +169,7 @@ ln -sf {timestamp} tests/{project}/suites/{suite-id}/runs/latest
 
 Suite: {suite-id} - {title}
 Test Run ID: {test_run_id}
+Executor: {chrome-mcp | capybara | mixed}
 場景數: {count}
 
 ⏳ 執行 Setup...
@@ -116,9 +181,11 @@ Test Run ID: {test_run_id}
 ### 場景執行中
 
 ```
-[S1] 前往電費帳款列表 ⏳
-[S1] 前往電費帳款列表 ✅ (45s)
-[S2] 篩選可加入 ERP 週期的帳款 ⏳
+[S1] 🌐 前往電費帳款列表 ⏳          ← 🌐 = Chrome MCP
+[S1] 🌐 前往電費帳款列表 ✅ (45s)
+[S2] 🌐 篩選可加入 ERP 的帳款 ⏳
+[S3] 🧪 Capybara 執行中... ⏳         ← 🧪 = Capybara
+[S3] 🧪 Capybara ✅ (12s)
 ```
 
 ### 完成
