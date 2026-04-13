@@ -342,27 +342,7 @@ scenarios:
 
 ### 專案環境注意事項
 
-#### Ruby 版本
-各專案用 RVM 管理 Ruby 版本，執行前需確保在正確目錄下：
-```bash
-source "$HOME/.rvm/scripts/rvm" && rvm use $(cat {project_path}/.ruby-version)
-```
-
-#### Chromedriver（本機環境）
-- `webdrivers` gem（<= 5.3.1）已 deprecated，無法處理 Chrome 115+
-- 本機需手動安裝 chromedriver：`brew install chromedriver`
-- 若 Gatekeeper 擋住，從 Chrome for Testing 手動下載對應版本
-- `selenium-webdriver` 4.x 需要 Ruby >= 3.0，舊專案（Ruby 2.x）無法升級
-
-#### Capybara Driver 設定
-各專案的 `spec/support/capybara.rb` 需註冊 Chrome driver：
-- 預設用 `chrome_headless`（本機），`firefox_headless`（CI）
-- `ENV['CAPYBARA_DRIVER']` 可覆蓋
-- 下載目錄設定在 driver preferences 中（`tmp/downloads`）
-
-#### Pundit / 權限 Fixture
-Admin 後台頁面通常需要 Pundit 授權。`Fixtures::Admin.run` 建立的帳號可能缺少特定頁面的存取權限。
-撰寫 feature spec 時需確認 admin 帳號有對應的 role/permission。
+詳見 `.claude/guides/capybara-setup.md`（chromedriver 安裝、driver 設定、Pundit 權限、常見問題）。
 
 ---
 
