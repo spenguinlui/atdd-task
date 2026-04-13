@@ -17,7 +17,7 @@
 
 **適用場景**：結果可在畫面即時看到（< 60 秒）
 
-**執行器**：Chrome MCP
+**執行器**：Chrome MCP 或 Capybara（由 suite.yml 的 `executors` 欄位決定）
 
 **生成物**（存放在 atdd-hub）：
 ```

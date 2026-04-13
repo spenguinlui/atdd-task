@@ -40,12 +40,17 @@ Phase 1: 準備（由 /test-run command 完成）
 Phase 2: 執行（tester 負責）
 ├── 讀取 suite.yml 和 scenarios/
 ├── 更新 run.yml status = "running"
-├── 執行每個場景
-│   ├── 開始 GIF 錄製
-│   ├── 執行步驟（Chrome MCP）
-│   ├── 驗證結果
-│   ├── 停止 GIF 錄製
-│   └── 更新 run.yml 場景結果
+├── 依場景 executor 分流執行：
+│   ├── chrome-mcp 場景：
+│   │   ├── 開始 GIF 錄製
+│   │   ├── 執行步驟（Chrome MCP）
+│   │   ├── 驗證結果
+│   │   ├── 停止 GIF 錄製
+│   │   └── 更新 run.yml 場景結果
+│   └── capybara 場景：
+│       ├── 執行 bundle exec rspec（spec file）
+│       ├── 解析 JSON 結果
+│       └── 更新 run.yml 場景結果
 └── 更新 run.yml status = "passed/failed"
 
 Phase 3: 清理（由 /test-run command 完成）
@@ -307,6 +312,57 @@ tester 執行時若遇到 `opensPopup: true`，應主動暫停並提示人工介
 ### 替代方案
 
 如果需要自動化驗證檔案內容或外部結果，應改用 **Integration Profile**（透過測試框架直接驗證資料/檔案）。
+
+---
+
+## Capybara 執行模式
+
+當場景的 executor 為 `capybara` 時，tester 不使用 Chrome MCP，而是透過 RSpec 執行。
+
+### 執行指令
+
+```bash
+cd {project_path} && bundle exec rspec {spec_file} --format documentation --format json --out {run_dir}/capybara_results.json
+```
+
+- `spec_file`：從 `suite.yml` 的 `executors.capybara.specFile` 取得
+- Capybara spec 存放在各專案的 `spec/features/` 目錄
+
+### 結果解析
+
+讀取 `capybara_results.json`，將每個 example 映射到對應場景，記錄到 run.yml：
+```yaml
+scenarios:
+  - id: "S1"
+    executor: "capybara"
+    status: "passed"         # 從 JSON 的 example status 映射
+    duration: "12s"
+    specOutput: "..."        # RSpec 輸出摘要
+```
+
+### 專案環境注意事項
+
+#### Ruby 版本
+各專案用 RVM 管理 Ruby 版本，執行前需確保在正確目錄下：
+```bash
+source "$HOME/.rvm/scripts/rvm" && rvm use $(cat {project_path}/.ruby-version)
+```
+
+#### Chromedriver（本機環境）
+- `webdrivers` gem（<= 5.3.1）已 deprecated，無法處理 Chrome 115+
+- 本機需手動安裝 chromedriver：`brew install chromedriver`
+- 若 Gatekeeper 擋住，從 Chrome for Testing 手動下載對應版本
+- `selenium-webdriver` 4.x 需要 Ruby >= 3.0，舊專案（Ruby 2.x）無法升級
+
+#### Capybara Driver 設定
+各專案的 `spec/support/capybara.rb` 需註冊 Chrome driver：
+- 預設用 `chrome_headless`（本機），`firefox_headless`（CI）
+- `ENV['CAPYBARA_DRIVER']` 可覆蓋
+- 下載目錄設定在 driver preferences 中（`tmp/downloads`）
+
+#### Pundit / 權限 Fixture
+Admin 後台頁面通常需要 Pundit 授權。`Fixtures::Admin.run` 建立的帳號可能缺少特定頁面的存取權限。
+撰寫 feature spec 時需確認 admin 帳號有對應的 role/permission。
 
 ---
 
