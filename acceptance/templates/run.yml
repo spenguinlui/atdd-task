@@ -21,8 +21,9 @@ status: "running"                       # running | passed | failed | aborted
 
 # 執行者資訊
 executor:
-  type: "chrome-mcp"                    # chrome-mcp | manual
+  type: "chrome-mcp"                    # chrome-mcp | capybara | mixed
   agent: "tester"
+  # mixed 表示本次執行包含多種 executor（見各場景的 executor 欄位）
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 環境資訊
@@ -66,11 +67,13 @@ scenarios: []
 # 範例：
 # - id: "S1"
 #   title: "場景標題"
+#   executor: "chrome-mcp"              # 此場景實際使用的 executor
 #   status: "passed"                    # passed | failed | skipped
 #   startedAt: "ISO_timestamp"
 #   completedAt: "ISO_timestamp"
 #   duration: "45s"
-#   recording: "recordings/S1-scenario-name.gif"
+#   recording: "recordings/S1-scenario-name.gif"   # chrome-mcp 才有
+#   specOutput: null                                # capybara 才有（RSpec 輸出）
 #   steps:
 #     - id: 1
 #       status: "passed"

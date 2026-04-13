@@ -22,6 +22,23 @@ description: 建立新的 E2E 測試套件
 - 根據標題推斷 prefix（A=電費、B=租金、C=用戶應發...）
 - 遞增 sequence
 
+### 1.5 選擇 Executor
+
+詢問用戶此套件支援哪些執行器：
+
+```
+選擇此套件的執行方式：
+  1) Chrome MCP only（預設）— AI 驅動瀏覽器測試
+  2) Capybara only — RSpec 自動化測試
+  3) Both — 不同場景可用不同執行器
+```
+
+- 選 1：`executors.available: [chrome-mcp]`
+- 選 2：`executors.available: [capybara]`，詢問 spec file 路徑
+- 選 3：`executors.available: [chrome-mcp, capybara]`，詢問 spec file 路徑
+
+若包含 capybara，設定 `executors.capybara.specFile`（預設 `spec/features/{suite_id}_spec.rb`）。
+
 ### 2. 建立套件目錄
 
 ```
@@ -168,3 +185,26 @@ specist 規劃場景時應考慮：
 3. **前置條件明確**：清楚定義 Given
 4. **可獨立執行**：場景間盡量獨立
 5. **資料需求明確**：定義 seed 腳本需建立的資料
+
+### Executor 選擇指南
+
+若套件支援 Both，specist 在規劃每個場景時需指定 `executor`：
+
+| 場景特性 | 建議 Executor |
+|---------|--------------|
+| 視覺驗證（版面、樣式、動畫） | chrome-mcp |
+| 彈窗、檔案下載、拖拉操作 | chrome-mcp |
+| 資料 CRUD 流程、表單送出 | capybara |
+| 回歸測試（需反覆跑） | capybara |
+| 非同步等待（Sidekiq、WebSocket） | 視複雜度，簡單用 capybara，複雜用 chrome-mcp |
+
+場景 YAML 的 `executor` 欄位：
+```yaml
+scenarios:
+  - id: S1
+    executor: chrome-mcp    # 需要視覺確認
+  - id: S2
+    executor: capybara      # 純資料流程，適合自動化
+  - id: S3
+    executor: null           # 未指定，跑 suite default
+```
