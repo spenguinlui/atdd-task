@@ -45,6 +45,113 @@ class TermUpsert(BaseModel):
     source: Optional[str] = None  # ul.md, slack, code
 
 
+class NodeCreate(BaseModel):
+    project: str
+    domain: str
+    layer: str        # strategic, tactical, rule
+    node_type: str    # see knowledge_schemas registry
+    slug: str
+    title: str
+    summary: str
+    attrs: dict
+    body_md: Optional[str] = None
+    source_task_id: Optional[str] = None
+    legacy_entry_id: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+class NodeUpdate(BaseModel):
+    domain: Optional[str] = None
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    attrs: Optional[dict] = None
+    body_md: Optional[str] = None
+    stale: Optional[bool] = None
+    source_task_id: Optional[str] = None
+    updated_by: Optional[str] = None
+    change_reason: Optional[str] = None
+
+
+# ── Migration Stats ──
+
+
+@router.get("/migration-stats")
+def migration_stats(org_id: UUID = Query(default=DEFAULT_ORG)):
+    """Get migration progress: entries migrated vs total, nodes by type."""
+    return knowledge_service.get_migration_stats(str(org_id))
+
+
+# ── Knowledge Nodes ──
+
+
+@router.get("/nodes")
+def list_nodes(
+    org_id: UUID = Query(default=DEFAULT_ORG),
+    project: Optional[str] = None,
+    domain: Optional[str] = None,
+    layer: Optional[str] = None,
+    node_type: Optional[str] = None,
+    stale: Optional[bool] = None,
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    """List knowledge nodes with optional filters."""
+    return knowledge_service.list_nodes(
+        str(org_id), project=project or "", domain=domain or "",
+        layer=layer or "", node_type=node_type or "",
+        stale=stale, limit=limit, offset=offset,
+    )
+
+
+@router.get("/nodes/{node_id}")
+def get_node(node_id: UUID):
+    """Get a single knowledge node."""
+    node = knowledge_service.get_node(str(node_id))
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return node
+
+
+@router.post("/nodes", status_code=201)
+def create_node(body: NodeCreate, org_id: UUID = Query(default=DEFAULT_ORG)):
+    """Create a knowledge node (attrs validated against schema registry)."""
+    try:
+        return knowledge_service.create_node(
+            str(org_id), body.project, body.domain,
+            body.layer, body.node_type, body.slug,
+            body.title, body.summary, body.attrs,
+            body_md=body.body_md, source_task_id=body.source_task_id,
+            legacy_entry_id=body.legacy_entry_id, updated_by=body.updated_by,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
+@router.patch("/nodes/{node_id}")
+def update_node(node_id: UUID, body: NodeUpdate):
+    """Update a knowledge node (partial update, auto-increments version, writes revision)."""
+    try:
+        node = knowledge_service.update_node(
+            str(node_id),
+            domain=body.domain, title=body.title, summary=body.summary,
+            attrs=body.attrs, body_md=body.body_md, stale=body.stale,
+            source_task_id=body.source_task_id, updated_by=body.updated_by,
+            change_reason=body.change_reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if node is None:
+        raise HTTPException(status_code=400, detail="No fields to update or node not found")
+    return node
+
+
+@router.delete("/nodes/{node_id}", status_code=204)
+def delete_node(node_id: UUID):
+    """Delete a knowledge node (cascades to revisions)."""
+    if not knowledge_service.delete_node(str(node_id)):
+        raise HTTPException(status_code=404, detail="Node not found")
+
+
 # ── Knowledge Entries ──
 
 

@@ -224,6 +224,7 @@ def knowledge_browser(request: Request, project: str = "", domain: str = "", fil
     all_domains = knowledge_service.list_all_domains(LOCAL_ORG)
 
     total_entries = sum(r["cnt"] for r in type_stats)
+    migration_stats = knowledge_service.get_migration_stats(LOCAL_ORG)
 
     return templates.TemplateResponse("pages/knowledge.html", _base_ctx(
         request, "knowledge",
@@ -231,6 +232,7 @@ def knowledge_browser(request: Request, project: str = "", domain: str = "", fil
         projects=projects, all_domains=all_domains,
         type_stats=type_stats, total_entries=total_entries,
         grouped=grouped, terms=terms,
+        migration_stats=migration_stats,
     ))
 
 
