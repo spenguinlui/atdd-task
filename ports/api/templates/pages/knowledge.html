@@ -48,20 +48,86 @@
   </div>
 </div>
 
+{% macro render_entry(e) %}
+<div class="knowledge-entry">
+  <div class="knowledge-entry-header" onclick="this.parentElement.classList.toggle('open')">
+    <div class="knowledge-entry-meta">
+      <span class="knowledge-type-tag {{ e.file_type or 'other' }}">{{ e.file_type or 'untyped' }}</span>
+      <span class="knowledge-section">{{ e.section or '—' }}</span>
+      {% if e.domain %}<span class="knowledge-entry-domain">{{ e.domain }}</span>{% endif %}
+      {% if e._source == 'node' %}<span class="badge badge-node">node</span>{% endif %}
+    </div>
+    <div class="knowledge-entry-info">
+      <span>v{{ e.version or 1 }}</span>
+      <span>{{ e.updated_at|fdate }}</span>
+      {% if e.updated_by %}<span>by {{ e.updated_by }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="knowledge-entry-content">
+    <pre>{{ e.content }}</pre>
+  </div>
+</div>
+{% endmacro %}
+
 {% if grouped_by_project %}
-<!-- Knowledge Entries: Project → Domain → Entry -->
-{% for project_name, domains in grouped_by_project.items()|sort %}
-{% set project_entry_count = namespace(total=0) %}
-{% for _, entries in domains.items() %}{% set project_entry_count.total = project_entry_count.total + entries|length %}{% endfor %}
+<!-- Knowledge Entries: Project → (Shared + Domain) → Entry -->
+{% for project_name, bucket in grouped_by_project.items()|sort %}
+{% set shared = bucket.shared %}
+{% set domains = bucket.domains %}
+{% set shared_count = namespace(total=0) %}
+{% for _, entries in shared.items() %}{% set shared_count.total = shared_count.total + entries|length %}{% endfor %}
+{% set domain_count = namespace(total=0) %}
+{% for _, entries in domains.items() %}{% set domain_count.total = domain_count.total + entries|length %}{% endfor %}
 <div class="card knowledge-project-group open">
   <button class="knowledge-project-header" onclick="this.parentElement.classList.toggle('open')">
     <div>
       <span class="knowledge-project-name">📦 {{ project_name }}</span>
-      <span class="badge">{{ domains|length }} domains · {{ project_entry_count.total }} entries</span>
+      <span class="badge">{{ domains|length }} domains · {{ shared_count.total + domain_count.total }} entries</span>
     </div>
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </button>
   <div class="knowledge-project-body">
+
+    {# Project-shared resources: domain-map + business-rules #}
+    {% if shared %}
+    <div class="knowledge-shared-group">
+      <div class="knowledge-shared-label">🗂️ Project-shared Resources</div>
+
+      {% if shared['domain-map'] %}
+      <div class="knowledge-domain-group">
+        <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
+          <div>
+            <span class="knowledge-domain-name">🗺️ Domain Map</span>
+            <span class="badge">{{ shared['domain-map']|length }} entries</span>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="knowledge-domain-body">
+          {% for e in shared['domain-map'] %}{{ render_entry(e) }}{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if shared['business-rules'] %}
+      <div class="knowledge-domain-group">
+        <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
+          <div>
+            <span class="knowledge-domain-name">📜 Business Rules</span>
+            <span class="badge">{{ shared['business-rules']|length }} entries</span>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="knowledge-domain-body">
+          {% for e in shared['business-rules'] %}{{ render_entry(e) }}{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# Domain-specific: strategic + tactical grouped by domain #}
+    {% if domains %}
+    <div class="knowledge-shared-label">📚 Domain-specific Knowledge</div>
     {% for domain_name, entries in domains.items()|sort %}
     <div class="knowledge-domain-group">
       <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
@@ -72,28 +138,12 @@
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="knowledge-domain-body">
-        {% for e in entries %}
-        <div class="knowledge-entry">
-          <div class="knowledge-entry-header" onclick="this.parentElement.classList.toggle('open')">
-            <div class="knowledge-entry-meta">
-              <span class="knowledge-type-tag {{ e.file_type or 'other' }}">{{ e.file_type or 'untyped' }}</span>
-              <span class="knowledge-section">{{ e.section or '—' }}</span>
-              {% if e._source == 'node' %}<span class="badge badge-node">node</span>{% endif %}
-            </div>
-            <div class="knowledge-entry-info">
-              <span>v{{ e.version or 1 }}</span>
-              <span>{{ e.updated_at|fdate }}</span>
-              {% if e.updated_by %}<span>by {{ e.updated_by }}</span>{% endif %}
-            </div>
-          </div>
-          <div class="knowledge-entry-content">
-            <pre>{{ e.content }}</pre>
-          </div>
-        </div>
-        {% endfor %}
+        {% for e in entries %}{{ render_entry(e) }}{% endfor %}
       </div>
     </div>
     {% endfor %}
+    {% endif %}
+
   </div>
 </div>
 {% endfor %}
