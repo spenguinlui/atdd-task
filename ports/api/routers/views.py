@@ -219,19 +219,28 @@ def knowledge_browser(request: Request, project: str = "", domain: str = "", fil
     projects = task_service.list_projects(LOCAL_ORG)
 
     type_stats = knowledge_service.get_type_stats(LOCAL_ORG, project, domain, file_type)
-    grouped = knowledge_service.list_entries_grouped(LOCAL_ORG, project, domain, file_type)
+    grouped_by_project = knowledge_service.list_entries_grouped_by_project(
+        LOCAL_ORG, project, domain, file_type,
+    )
     terms = knowledge_service.list_terms(LOCAL_ORG, project, domain)
     all_domains = knowledge_service.list_all_domains(LOCAL_ORG)
 
     total_entries = sum(r["cnt"] for r in type_stats)
     migration_stats = knowledge_service.get_migration_stats(LOCAL_ORG)
 
+    # Group terms by project for consistent display
+    terms_by_project: dict[str, list] = {}
+    for t in terms:
+        proj = t.get("project") or "(no project)"
+        terms_by_project.setdefault(proj, []).append(t)
+
     return templates.TemplateResponse("pages/knowledge.html", _base_ctx(
         request, "knowledge",
         project=project, domain=domain, file_type=file_type,
         projects=projects, all_domains=all_domains,
         type_stats=type_stats, total_entries=total_entries,
-        grouped=grouped, terms=terms,
+        grouped_by_project=grouped_by_project,
+        terms=terms, terms_by_project=terms_by_project,
         migration_stats=migration_stats,
     ))
 

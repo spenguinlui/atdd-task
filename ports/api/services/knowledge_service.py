@@ -446,6 +446,21 @@ def get_type_stats(org_id: str, project: str = "", domain: str = "",
             sorted(local_stats.items(), key=lambda x: -x[1])]
 
 
+def list_entries_grouped_by_project(
+    org_id: str, project: str = "", domain: str = "", file_type: str = "",
+) -> dict[str, dict[str, list]]:
+    """Return entries nested as {project: {domain: [entries]}}."""
+    flat = list_entries_grouped(org_id, project, domain, file_type)
+    by_project: dict[str, dict[str, list]] = {}
+    # flat is {domain: [entries]}; each entry has its own project field
+    for dom_key, entries in flat.items():
+        for e in entries:
+            proj = (e.get("project") if isinstance(e, dict) else e["project"]) or "(no project)"
+            dom = (e.get("domain") if isinstance(e, dict) else e["domain"]) or "(no domain)"
+            by_project.setdefault(proj, {}).setdefault(dom, []).append(e)
+    return by_project
+
+
 def list_entries_grouped(org_id: str, project: str = "", domain: str = "",
                          file_type: str = "") -> dict[str, list]:
     conditions = ["org_id = %s", "COALESCE(migrated, false) = false"]

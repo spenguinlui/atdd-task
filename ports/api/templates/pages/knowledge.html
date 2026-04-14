@@ -48,33 +48,49 @@
   </div>
 </div>
 
-{% if grouped %}
-<!-- Knowledge Entries by Domain -->
-{% for domain_name, entries in grouped.items()|sort %}
-<div class="card knowledge-domain-group">
-  <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
+{% if grouped_by_project %}
+<!-- Knowledge Entries: Project → Domain → Entry -->
+{% for project_name, domains in grouped_by_project.items()|sort %}
+{% set project_entry_count = namespace(total=0) %}
+{% for _, entries in domains.items() %}{% set project_entry_count.total = project_entry_count.total + entries|length %}{% endfor %}
+<div class="card knowledge-project-group open">
+  <button class="knowledge-project-header" onclick="this.parentElement.classList.toggle('open')">
     <div>
-      <span class="knowledge-domain-name">{{ domain_name }}</span>
-      <span class="badge">{{ entries|length }} entries</span>
+      <span class="knowledge-project-name">📦 {{ project_name }}</span>
+      <span class="badge">{{ domains|length }} domains · {{ project_entry_count.total }} entries</span>
     </div>
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </button>
-  <div class="knowledge-domain-body">
-    {% for e in entries %}
-    <div class="knowledge-entry">
-      <div class="knowledge-entry-header" onclick="this.parentElement.classList.toggle('open')">
-        <div class="knowledge-entry-meta">
-          <span class="knowledge-type-tag {{ e.file_type or 'other' }}">{{ e.file_type or 'untyped' }}</span>
-          <span class="knowledge-section">{{ e.section or '—' }}</span>
+  <div class="knowledge-project-body">
+    {% for domain_name, entries in domains.items()|sort %}
+    <div class="knowledge-domain-group">
+      <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <span class="knowledge-domain-name">{{ domain_name }}</span>
+          <span class="badge">{{ entries|length }} entries</span>
         </div>
-        <div class="knowledge-entry-info">
-          <span>v{{ e.version or 1 }}</span>
-          <span>{{ e.updated_at|fdate }}</span>
-          {% if e.updated_by %}<span>by {{ e.updated_by }}</span>{% endif %}
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="knowledge-domain-body">
+        {% for e in entries %}
+        <div class="knowledge-entry">
+          <div class="knowledge-entry-header" onclick="this.parentElement.classList.toggle('open')">
+            <div class="knowledge-entry-meta">
+              <span class="knowledge-type-tag {{ e.file_type or 'other' }}">{{ e.file_type or 'untyped' }}</span>
+              <span class="knowledge-section">{{ e.section or '—' }}</span>
+              {% if e._source == 'node' %}<span class="badge badge-node">node</span>{% endif %}
+            </div>
+            <div class="knowledge-entry-info">
+              <span>v{{ e.version or 1 }}</span>
+              <span>{{ e.updated_at|fdate }}</span>
+              {% if e.updated_by %}<span>by {{ e.updated_by }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="knowledge-entry-content">
+            <pre>{{ e.content }}</pre>
+          </div>
         </div>
-      </div>
-      <div class="knowledge-entry-content">
-        <pre>{{ e.content }}</pre>
+        {% endfor %}
       </div>
     </div>
     {% endfor %}
@@ -88,27 +104,37 @@
 </div>
 {% endif %}
 
-{% if terms %}
-<!-- UL Terms -->
-<div class="card" style="margin-top:1.5rem;">
-  <div class="card-title">Ubiquitous Language Terms</div>
-  <table>
-    <thead>
-      <tr><th>English</th><th>中文</th><th>Domain</th><th>Context</th><th>Source</th></tr>
-    </thead>
-    <tbody>
-      {% for t in terms %}
-      <tr>
-        <td><strong>{{ t.english_term }}</strong></td>
-        <td>{{ t.chinese_term }}</td>
-        <td>{{ t.domain or '—' }}</td>
-        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.context or '—' }}</td>
-        <td><span class="knowledge-source-tag">{{ t.source or '—' }}</span></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% if terms_by_project %}
+<!-- UL Terms: grouped by project -->
+{% for project_name, project_terms in terms_by_project.items()|sort %}
+<div class="card knowledge-project-group open" style="margin-top:1.5rem;">
+  <button class="knowledge-project-header" onclick="this.parentElement.classList.toggle('open')">
+    <div>
+      <span class="knowledge-project-name">📖 {{ project_name }} — Ubiquitous Language</span>
+      <span class="badge">{{ project_terms|length }} terms</span>
+    </div>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+  <div class="knowledge-project-body">
+    <table>
+      <thead>
+        <tr><th>English</th><th>中文</th><th>Domain</th><th>Context</th><th>Source</th></tr>
+      </thead>
+      <tbody>
+        {% for t in project_terms %}
+        <tr>
+          <td><strong>{{ t.english_term }}</strong></td>
+          <td>{{ t.chinese_term }}</td>
+          <td>{{ t.domain or '—' }}</td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.context or '—' }}</td>
+          <td><span class="knowledge-source-tag">{{ t.source or '—' }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
+{% endfor %}
 {% endif %}
 {% endblock %}
 
