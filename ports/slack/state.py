@@ -20,6 +20,11 @@ def _load() -> dict:
 
 
 def _save(data: dict):
+    # Ensure directory exists
+    state_dir = os.path.dirname(STATE_FILE)
+    if state_dir:
+        os.makedirs(state_dir, exist_ok=True)
+
     tmp = STATE_FILE + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

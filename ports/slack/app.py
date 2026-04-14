@@ -433,16 +433,12 @@ def handle_knowledge_submit(ack, body, client):
 @app.command("/report")
 def handle_report_command(ack, body, client):
     """業務用戶問題回報命令。"""
-    # Load projects BEFORE ack() to avoid trigger_id expiration
+    ack()
     projects = _load_projects()
     project_options = [
         {"text": {"type": "plain_text", "text": p}, "value": p}
         for p in projects
     ]
-
-    ack()
-
-    # Open modal immediately after ack
     client.views_open(
         trigger_id=body["trigger_id"],
         view={
