@@ -947,6 +947,32 @@ dialog.task-modal::backdrop {
   border-radius: var(--radius-sm);
 }
 
+.knowledge-shared-group {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px dashed var(--border);
+}
+
+.knowledge-shared-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0.5rem 0 0.4rem;
+  padding: 0 0.25rem;
+}
+
+.knowledge-entry-domain {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-cjk);
+  padding: 0.1rem 0.4rem;
+  background: var(--bg-main);
+  border-radius: var(--radius-sm);
+  margin-left: 0.4rem;
+}
+
 .badge-node {
   background: var(--primary);
   color: white;
