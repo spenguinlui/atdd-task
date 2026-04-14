@@ -15,6 +15,7 @@ import logging
 from mcp.server.fastmcp import FastMCP
 
 import api_client as api
+from identity import get_identity
 
 logger = logging.getLogger("mcp-admin")
 
@@ -168,8 +169,7 @@ def atdd_knowledge_create(
         data["file_type"] = file_type
     if section is not None:
         data["section"] = section
-    if updated_by is not None:
-        data["updated_by"] = updated_by
+    data["updated_by"] = updated_by or get_identity()
     return api.post("/api/v1/knowledge/entries", data)
 
 
@@ -202,8 +202,7 @@ def atdd_knowledge_update(
         data["file_type"] = file_type
     if section is not None:
         data["section"] = section
-    if updated_by is not None:
-        data["updated_by"] = updated_by
+    data["updated_by"] = updated_by or get_identity()
     return api.patch(f"/api/v1/knowledge/entries/{entry_id}", data)
 
 
@@ -345,8 +344,7 @@ def atdd_node_create(
         data["source_task_id"] = source_task_id
     if legacy_entry_id is not None:
         data["legacy_entry_id"] = legacy_entry_id
-    if updated_by is not None:
-        data["updated_by"] = updated_by
+    data["updated_by"] = updated_by or get_identity()
     return api.post("/api/v1/knowledge/nodes", data)
 
 
@@ -387,8 +385,7 @@ def atdd_node_update(
         data["body_md"] = body_md
     if stale is not None:
         data["stale"] = stale
-    if updated_by is not None:
-        data["updated_by"] = updated_by
+    data["updated_by"] = updated_by or get_identity()
     if change_reason is not None:
         data["change_reason"] = change_reason
     if source_task_id is not None:

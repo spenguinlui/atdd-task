@@ -60,7 +60,7 @@
     <div class="knowledge-entry-info">
       <span>v{{ e.version or 1 }}</span>
       <span>{{ e.updated_at|fdate }}</span>
-      {% if e.updated_by %}<span>by {{ e.updated_by }}</span>{% endif %}
+      {% if e.updated_by %}<span>by {{ e.updated_by|fidentity }}</span>{% endif %}
     </div>
   </div>
   <div class="knowledge-entry-content">
@@ -129,10 +129,16 @@
     {% if domains %}
     <div class="knowledge-shared-label">📚 Domain-specific Knowledge</div>
     {% for domain_name, entries in domains.items()|sort %}
+    {% set domain_cn = domain_cn_map.get(domain_name, '') %}
     <div class="knowledge-domain-group">
       <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
         <div>
+          {% if domain_cn %}
+          <span class="knowledge-domain-name">{{ domain_cn }}</span>
+          <span class="knowledge-domain-name-en">{{ domain_name }}</span>
+          {% else %}
           <span class="knowledge-domain-name">{{ domain_name }}</span>
+          {% endif %}
           <span class="badge">{{ entries|length }} entries</span>
         </div>
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>

@@ -35,6 +35,27 @@ def _format_date(value, fmt="%Y-%m-%d"):
     return value.strftime(fmt)
 
 
+def _format_identity(value) -> str:
+    """Jinja2 filter: render updated_by identity for display.
+
+    Format convention:
+        human:<name>    → name
+        slack:<U123>    → Slack: U123
+        bot:<name>      → 🤖 name
+        claude:*        → legacy, show as-is
+        None / empty    → —
+    """
+    if not value:
+        return "—"
+    if value.startswith("human:"):
+        return value[6:]
+    if value.startswith("slack:"):
+        return f"Slack: {value[6:]}"
+    if value.startswith("bot:"):
+        return f"🤖 {value[4:]}"
+    return value
+
+
 def _compute_asset_version() -> str:
     """Compute a cache-busting version string from static file mtimes."""
     import hashlib
@@ -54,6 +75,7 @@ async def lifespan(app: FastAPI):
     # Make templates available via app.state
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     templates.env.filters["fdate"] = _format_date
+    templates.env.filters["fidentity"] = _format_identity
     templates.env.globals["asset_version"] = _compute_asset_version()
     app.state.templates = templates
     yield
