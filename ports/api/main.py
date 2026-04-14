@@ -35,12 +35,26 @@ def _format_date(value, fmt="%Y-%m-%d"):
     return value.strftime(fmt)
 
 
+def _compute_asset_version() -> str:
+    """Compute a cache-busting version string from static file mtimes."""
+    import hashlib
+    static_dir = BASE_DIR / "static"
+    h = hashlib.md5()
+    if static_dir.exists():
+        for p in sorted(static_dir.rglob("*")):
+            if p.is_file():
+                h.update(str(p.relative_to(static_dir)).encode())
+                h.update(str(int(p.stat().st_mtime)).encode())
+    return h.hexdigest()[:8]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_pool()
     # Make templates available via app.state
     templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
     templates.env.filters["fdate"] = _format_date
+    templates.env.globals["asset_version"] = _compute_asset_version()
     app.state.templates = templates
     yield
     close_pool()
