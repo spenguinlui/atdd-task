@@ -234,6 +234,58 @@ def knowledge_browser(request: Request, project: str = "", domain: str = "", fil
         proj = t.get("project") or "(no project)"
         terms_by_project.setdefault(proj, []).append(t)
 
+    # Build English → Chinese lookup for domain name translation
+    #
+    # Resolution priority (D + B fallback):
+    #   1. knowledge_nodes: bounded_context.title (curator-authored, authoritative)
+    #   2. knowledge_terms where source='domain-name' (dedicated domain UL)
+    #   3. knowledge_terms (Entity-level, matched by last namespace segment)
+    #   4. English domain name (fallback)
+    domain_cn_map: dict[str, str] = {}
+
+    # Priority 1: bounded_context nodes (curator-authored Chinese title)
+    try:
+        bc_nodes = knowledge_service.list_nodes(
+            LOCAL_ORG, project=project,
+            layer="strategic", node_type="bounded_context",
+            limit=200,
+        )
+        for n in bc_nodes.get("items", []):
+            dom_key = n.get("domain")
+            title = n.get("title")
+            if dom_key and title and dom_key not in domain_cn_map:
+                domain_cn_map[dom_key] = title
+    except Exception:
+        pass
+
+    # Priority 2 & 3: UL terms
+    term_cn_domain_source: dict[str, str] = {
+        t["english_term"]: t["chinese_term"]
+        for t in terms if t.get("source") == "domain-name"
+    }
+    term_cn_all: dict[str, str] = {
+        t["english_term"]: t["chinese_term"] for t in terms
+    }
+
+    for proj, bucket in grouped_by_project.items():
+        for dom in bucket.get("domains", {}).keys():
+            if dom in domain_cn_map:
+                continue  # already resolved from bounded_context
+            # Priority 2: dedicated domain-name source (full match)
+            if dom in term_cn_domain_source:
+                domain_cn_map[dom] = term_cn_domain_source[dom]
+                continue
+            # Priority 3: Entity-level UL, match by last segment
+            candidates = [dom]
+            if "::" in dom:
+                parts = dom.split("::")
+                for i in range(len(parts) - 1, -1, -1):
+                    candidates.append(parts[i])
+            for c in candidates:
+                if c in term_cn_all:
+                    domain_cn_map[dom] = term_cn_all[c]
+                    break
+
     return templates.TemplateResponse("pages/knowledge.html", _base_ctx(
         request, "knowledge",
         project=project, domain=domain, file_type=file_type,
@@ -241,6 +293,7 @@ def knowledge_browser(request: Request, project: str = "", domain: str = "", fil
         type_stats=type_stats, total_entries=total_entries,
         grouped_by_project=grouped_by_project,
         terms=terms, terms_by_project=terms_by_project,
+        domain_cn_map=domain_cn_map,
         migration_stats=migration_stats,
     ))
 

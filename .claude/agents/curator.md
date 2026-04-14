@@ -40,7 +40,7 @@ tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__a
 | 用途 | MCP 工具 |
 |------|---------|
 | 新增 UL 術語（upsert by english_term） | `atdd_term_upsert(project, english_term, chinese_term, domain?, context?, source)` |
-| 新增 knowledge entry（舊格式，僅用於尚未遷移的場景） | `atdd_knowledge_create(project, content, domain?, file_type, section, updated_by="claude:curator")` |
+| 新增 knowledge entry（舊格式，僅用於尚未遷移的場景） | `atdd_knowledge_create(project, content, domain?, file_type, section)` — `updated_by` 由 MCP 自動注入真實身份 |
 | 更新既有 knowledge entry | `atdd_knowledge_update(entry_id, content, ...)` — 自動 version 遞增 |
 | 刪除錯誤 entry | `atdd_knowledge_delete(entry_id)` |
 | **新增結構化知識節點** | `atdd_node_create(project, domain, layer, node_type, slug, title, summary, attrs, ...)` — **新知識優先用此工具** |
@@ -168,7 +168,7 @@ Phase 5: Commit（知識寫入 — MCP API）
 ├── 用戶最終確認
 ├── 寫入操作：
 │   ├── 新術語 → atdd_term_upsert(project, english_term, chinese_term, domain, context, source)
-│   ├── 新 entry → atdd_knowledge_create(project, content, domain, file_type, section, updated_by="claude:curator")
+│   ├── 新 entry → atdd_knowledge_create(project, content, domain, file_type, section)  # updated_by 自動注入
 │   ├── 更新既有 entry → atdd_knowledge_update(entry_id, content, ...)
 │   └── 刪除錯誤 entry → atdd_knowledge_delete(entry_id)
 └── 寫入結果回報用戶（顯示新建/更新的 entry_id）

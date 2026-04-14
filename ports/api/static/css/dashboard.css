@@ -1010,6 +1010,14 @@ dialog.task-modal::backdrop {
 
 .knowledge-domain-name { font-family: var(--font-cjk); }
 
+.knowledge-domain-name-en {
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 0.5rem;
+}
+
 .knowledge-domain-body {
   display: none;
   border-top: 1px solid var(--border);

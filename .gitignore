@@ -53,3 +53,6 @@ __pycache__/
 
 # Design references (圖片檔，不納入版控)
 design/references/
+
+# Local user identity (per-developer, not shared)
+.atdd/user.json
