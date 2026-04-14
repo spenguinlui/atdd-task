@@ -446,18 +446,34 @@ def get_type_stats(org_id: str, project: str = "", domain: str = "",
             sorted(local_stats.items(), key=lambda x: -x[1])]
 
 
+SHARED_FILE_TYPES = ("domain-map", "business-rules")
+
+
 def list_entries_grouped_by_project(
     org_id: str, project: str = "", domain: str = "", file_type: str = "",
-) -> dict[str, dict[str, list]]:
-    """Return entries nested as {project: {domain: [entries]}}."""
+) -> dict[str, dict]:
+    """Return entries nested as {project: {"shared": {file_type: [entries]}, "domains": {domain: [entries]}}}.
+
+    file_type in SHARED_FILE_TYPES (domain-map, business-rules) are project-level shared
+    and go into the 'shared' bucket regardless of their domain field. Other types
+    (strategic, tactical) are grouped by domain.
+    """
     flat = list_entries_grouped(org_id, project, domain, file_type)
-    by_project: dict[str, dict[str, list]] = {}
-    # flat is {domain: [entries]}; each entry has its own project field
-    for dom_key, entries in flat.items():
+    by_project: dict[str, dict] = {}
+
+    for _, entries in flat.items():
         for e in entries:
             proj = (e.get("project") if isinstance(e, dict) else e["project"]) or "(no project)"
+            ft = (e.get("file_type") if isinstance(e, dict) else e["file_type"]) or ""
             dom = (e.get("domain") if isinstance(e, dict) else e["domain"]) or "(no domain)"
-            by_project.setdefault(proj, {}).setdefault(dom, []).append(e)
+
+            bucket = by_project.setdefault(proj, {"shared": {}, "domains": {}})
+
+            if ft in SHARED_FILE_TYPES:
+                bucket["shared"].setdefault(ft, []).append(e)
+            else:
+                bucket["domains"].setdefault(dom, []).append(e)
+
     return by_project
 
 
