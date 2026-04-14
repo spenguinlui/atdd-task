@@ -902,6 +902,60 @@ dialog.task-modal::backdrop {
 }
 
 /* ── Knowledge Browser ── */
+.knowledge-project-group {
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.knowledge-project-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 1rem 1.25rem;
+  background: var(--bg-main); border: none; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-family);
+  font-size: 1rem; font-weight: 700;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.knowledge-project-header:hover { background: var(--bg-hover, #f5f5f5); }
+
+.knowledge-project-header .chevron {
+  width: 20px; height: 20px; color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.knowledge-project-group.open .knowledge-project-header .chevron {
+  transform: rotate(180deg);
+}
+
+.knowledge-project-name {
+  font-family: var(--font-family);
+  margin-right: 0.5rem;
+}
+
+.knowledge-project-body {
+  display: none;
+  padding: 0.75rem 1rem;
+}
+
+.knowledge-project-group.open .knowledge-project-body { display: block; }
+
+.knowledge-project-body .knowledge-domain-group {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.badge-node {
+  background: var(--primary);
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  margin-left: 0.4rem;
+}
+
 .knowledge-domain-group {
   margin-bottom: 1rem;
   overflow: hidden;
