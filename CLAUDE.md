@@ -129,3 +129,28 @@
 
 用戶可在任何階段轉移時安全地 `/clear` 清理對話。`/continue` 會自動讀取任務 JSON 恢復狀態。
 
+---
+
+# Prompt Engineering（提示詞優化）
+
+> **生成或優化提示詞時，遵循 `.claude/skills/prompt-master/` 定義的工程原則**
+
+## 使用時機
+
+- 需要生成或改進 AI 提示詞（LLM、Cursor、Midjourney、圖像 AI 等）
+- 優化既有提示詞的結構、清晰度、準確度
+- 調整提示詞用於不同 AI 工具或目的
+
+## 正確做法
+
+使用 `/prompt-master` 指令：
+
+```
+/prompt-master [需要生成/優化的提示詞或描述]
+```
+
+或在撰寫提示詞時，參考 `.claude/skills/prompt-master/SKILL.md` 中定義的最佳實踐。
+
+**Why**: 統一的提示詞工程流程確保生成的提示詞品質一致，避免低效或歧義的提示詞。
+
+**How to apply**: 每次處理提示詞相關任務時，透過 skill 工具應用工程原則，而不是手動編寫。
