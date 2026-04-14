@@ -168,7 +168,7 @@ echo "$pull_output" | head -5
 # === Step 3: Docker Compose Rebuild ===
 step "Rebuilding containers..."
 
-build_output=$(ssm_run "cd $APP_DIR/infrastructure && docker compose up -d --build api worker 2>&1" 15)
+build_output=$(ssm_run "cd $APP_DIR/infrastructure && docker compose up -d --build api worker bot 2>&1" 15)
 
 # Restart nginx to pick up new container DNS (api container gets a new IP after rebuild)
 step "Restarting nginx..."
