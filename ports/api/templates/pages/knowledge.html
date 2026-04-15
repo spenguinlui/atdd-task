@@ -69,11 +69,16 @@
 </div>
 {% endmacro %}
 
-{% if grouped_by_project %}
-<!-- Knowledge Entries: Project → (Shared + Domain) → Entry -->
-{% for project_name, bucket in grouped_by_project.items()|sort %}
+{# Build union of project names from both entries and terms #}
+{% set all_project_names = (grouped_by_project.keys()|list + terms_by_project.keys()|list)|unique|sort %}
+
+{% if all_project_names %}
+<!-- Knowledge: Project → (Shared + Domain + UL) -->
+{% for project_name in all_project_names %}
+{% set bucket = grouped_by_project.get(project_name, {'shared': {}, 'domains': {}}) %}
 {% set shared = bucket.shared %}
 {% set domains = bucket.domains %}
+{% set project_terms = terms_by_project.get(project_name, []) %}
 {% set shared_count = namespace(total=0) %}
 {% for _, entries in shared.items() %}{% set shared_count.total = shared_count.total + entries|length %}{% endfor %}
 {% set domain_count = namespace(total=0) %}
@@ -82,7 +87,7 @@
   <button class="knowledge-project-header" onclick="this.parentElement.classList.toggle('open')">
     <div>
       <span class="knowledge-project-name">📦 {{ project_name }}</span>
-      <span class="badge">{{ domains|length }} domains · {{ shared_count.total + domain_count.total }} entries</span>
+      <span class="badge">{{ domains|length }} domains · {{ shared_count.total + domain_count.total }} entries · {{ project_terms|length }} terms</span>
     </div>
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </button>
@@ -125,11 +130,14 @@
     </div>
     {% endif %}
 
-    {# Domain-specific: strategic + tactical grouped by domain #}
+    {# Domain-specific: strategic + tactical grouped by domain, split into sub-sections #}
     {% if domains %}
     <div class="knowledge-shared-label">📚 Domain-specific Knowledge</div>
     {% for domain_name, entries in domains.items()|sort %}
     {% set domain_cn = domain_cn_map.get(domain_name, '') %}
+    {% set strategic_entries = entries|selectattr('file_type', 'equalto', 'strategic')|list %}
+    {% set tactical_entries = entries|selectattr('file_type', 'equalto', 'tactical')|list %}
+    {% set other_entries = entries|rejectattr('file_type', 'in', ['strategic', 'tactical'])|list %}
     <div class="knowledge-domain-group">
       <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
         <div>
@@ -144,10 +152,77 @@
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="knowledge-domain-body">
-        {% for e in entries %}{{ render_entry(e) }}{% endfor %}
+        {% if strategic_entries %}
+        <div class="knowledge-subgroup">
+          <button class="knowledge-subgroup-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="knowledge-subgroup-title">🎯 Strategic</span>
+            <span class="badge">{{ strategic_entries|length }}</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="knowledge-subgroup-body">
+            {% for e in strategic_entries %}{{ render_entry(e) }}{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% if tactical_entries %}
+        <div class="knowledge-subgroup">
+          <button class="knowledge-subgroup-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="knowledge-subgroup-title">⚙️ Tactical</span>
+            <span class="badge">{{ tactical_entries|length }}</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="knowledge-subgroup-body">
+            {% for e in tactical_entries %}{{ render_entry(e) }}{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        {% if other_entries %}
+        <div class="knowledge-subgroup">
+          <button class="knowledge-subgroup-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="knowledge-subgroup-title">📄 Other</span>
+            <span class="badge">{{ other_entries|length }}</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="knowledge-subgroup-body">
+            {% for e in other_entries %}{{ render_entry(e) }}{% endfor %}
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
+    {% endif %}
+
+    {# Ubiquitous Language: 統一語言術語 #}
+    {% if project_terms %}
+    <div class="knowledge-shared-label">📖 Ubiquitous Language</div>
+    <div class="knowledge-domain-group">
+      <button class="knowledge-domain-header" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <span class="knowledge-domain-name">Terms</span>
+          <span class="badge">{{ project_terms|length }} terms</span>
+        </div>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="knowledge-domain-body">
+        <table class="ul-terms-table">
+          <thead>
+            <tr><th>English</th><th>中文</th><th>Domain</th><th>Context</th><th>Source</th></tr>
+          </thead>
+          <tbody>
+            {% for t in project_terms %}
+            <tr>
+              <td><strong>{{ t.english_term }}</strong></td>
+              <td>{{ t.chinese_term }}</td>
+              <td>{{ t.domain or '—' }}</td>
+              <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.context or '—' }}</td>
+              <td><span class="knowledge-source-tag">{{ t.source or '—' }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
     {% endif %}
 
   </div>
@@ -158,39 +233,6 @@
   <p>No knowledge entries found.</p>
   <p><small>Knowledge entries are created through the /knowledge command during ATDD workflows.</small></p>
 </div>
-{% endif %}
-
-{% if terms_by_project %}
-<!-- UL Terms: grouped by project -->
-{% for project_name, project_terms in terms_by_project.items()|sort %}
-<div class="card knowledge-project-group open" style="margin-top:1.5rem;">
-  <button class="knowledge-project-header" onclick="this.parentElement.classList.toggle('open')">
-    <div>
-      <span class="knowledge-project-name">📖 {{ project_name }} — Ubiquitous Language</span>
-      <span class="badge">{{ project_terms|length }} terms</span>
-    </div>
-    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-  </button>
-  <div class="knowledge-project-body">
-    <table>
-      <thead>
-        <tr><th>English</th><th>中文</th><th>Domain</th><th>Context</th><th>Source</th></tr>
-      </thead>
-      <tbody>
-        {% for t in project_terms %}
-        <tr>
-          <td><strong>{{ t.english_term }}</strong></td>
-          <td>{{ t.chinese_term }}</td>
-          <td>{{ t.domain or '—' }}</td>
-          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.context or '—' }}</td>
-          <td><span class="knowledge-source-tag">{{ t.source or '—' }}</span></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endfor %}
 {% endif %}
 {% endblock %}
 
