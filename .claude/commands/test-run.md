@@ -13,7 +13,7 @@ description: 執行測試套件
 - `all`：執行所有套件
 - `group:{name}`：執行指定群組
 
-有效專案：`sf_project`, `core_web`, `core_web_frontend`, `digiwin_erp`, `stock_commentary`, `jv_project`
+有效專案：見 `.claude/config/projects.yml`
 
 ---
 
