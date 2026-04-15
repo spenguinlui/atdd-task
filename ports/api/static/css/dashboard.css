@@ -973,6 +973,51 @@ dialog.task-modal::backdrop {
   margin-left: 0.4rem;
 }
 
+.knowledge-subgroup {
+  margin: 0.4rem 0 0.6rem;
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.knowledge-subgroup-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  width: 100%; padding: 0.4rem 0.5rem;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-family);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: color 0.15s;
+}
+
+.knowledge-subgroup-header:hover { color: var(--text-primary); }
+
+.knowledge-subgroup-title { flex-shrink: 0; }
+
+.knowledge-subgroup-header .chevron {
+  width: 14px; height: 14px;
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+
+.knowledge-subgroup.open .knowledge-subgroup-header .chevron {
+  transform: rotate(180deg);
+}
+
+.knowledge-subgroup-body {
+  display: none;
+  padding: 0.4rem 0 0.4rem 0.4rem;
+}
+
+.knowledge-subgroup.open .knowledge-subgroup-body { display: block; }
+
+/* UL terms table inside domain-body */
+.ul-terms-table {
+  font-size: 0.8125rem;
+}
+
 .badge-node {
   background: var(--primary);
   color: white;
