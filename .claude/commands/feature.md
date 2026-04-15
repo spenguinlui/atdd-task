@@ -8,7 +8,7 @@ description: 啟動新功能開發任務（Guided 模式）
 
 格式：`{project}, {標題}`
 
-有效專案：`sf_project`, `core_web`, `core_web_frontend`, `digiwin_erp`, `stock_commentary`, `jv_project`
+有效專案：以 `.claude/config/projects.yml` 為準（執行時讀取驗證，勿硬編碼清單）
 
 ---
 
