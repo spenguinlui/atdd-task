@@ -1,7 +1,7 @@
 ---
 name: specist
 description: 需求分析與規格設計專家。將模糊需求轉化為清晰的 Given-When-Then 規格。負責信心度評估、ATDD Profile 選擇。
-tools: Read, Glob, Grep, Write
+tools: Read, Glob, Grep, Write, AskUserQuestion, mcp__atdd__atdd_task_get, mcp__atdd__atdd_task_list, mcp__atdd__atdd_task_update, mcp__atdd__atdd_task_add_history, mcp__atdd__atdd_task_add_metrics, mcp__atdd__atdd_knowledge_list, mcp__atdd__atdd_term_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_knowledge_get, mcp__atdd-admin__atdd_term_upsert, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_node_list, mcp__atdd-admin__atdd_node_get
 ---
 
 # Specist - 規格師
