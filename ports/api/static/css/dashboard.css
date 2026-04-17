@@ -1016,7 +1016,80 @@ dialog.task-modal::backdrop {
 /* UL terms table inside domain-body */
 .ul-terms-table {
   font-size: 0.8125rem;
+  width: 100%;
+  border-collapse: collapse;
 }
+
+.ul-terms-table th, .ul-terms-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ul-term-expandable { cursor: pointer; }
+.ul-term-expandable:hover { background: var(--bg-main); }
+
+.ul-term-chevron {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 0.7rem;
+}
+
+.ul-term-expandable.open .ul-term-chevron {
+  transform: rotate(90deg);
+}
+
+.ul-term-detail { display: none; background: var(--bg-main); }
+.ul-term-detail.open { display: table-row; }
+
+.ul-term-dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+  font-size: 0.8125rem;
+}
+.ul-term-dl dt {
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.ul-term-dl dd { margin: 0; }
+.ul-term-dl code {
+  background: var(--bg-subtle, #f3f4f6);
+  padding: 0.05rem 0.25rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+}
+.ul-term-list { margin: 0; padding-left: 1.1rem; }
+.ul-term-list li { margin: 0.1rem 0; }
+
+.ul-rule-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #FEF3C7;
+  color: #B45309;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-right: 0.3rem;
+}
+
+.ul-type-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+}
+.ul-type-entity       { background: #DBEAFE; color: #1D4ED8; }
+.ul-type-valueobject  { background: #E0E7FF; color: #4338CA; }
+.ul-type-aggregate    { background: #FCE7F3; color: #BE185D; }
+.ul-type-service      { background: #D1FAE5; color: #065F46; }
+.ul-type-event        { background: #F3E8FF; color: #7C3AED; }
+.ul-type-concept      { background: var(--bg-main); color: var(--text-secondary); }
 
 .badge-node {
   background: var(--primary);

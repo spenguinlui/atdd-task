@@ -224,7 +224,15 @@ def atdd_term_upsert(
     project: str,
     english_term: str,
     chinese_term: str,
+    type: str = "Concept",
+    definition: str | None = None,
     domain: str | None = None,
+    aggregate_root: str | None = None,
+    related_entities: list[str] | None = None,
+    business_rules: list[str] | None = None,
+    examples: list[str] | None = None,
+    notes: list[str] | None = None,
+    related_terms: list[str] | None = None,
     context: str | None = None,
     source: str | None = None,
 ) -> dict:
@@ -232,20 +240,53 @@ def atdd_term_upsert(
 
     Args:
         project: Project name
-        english_term: English term name
+        english_term: English term (PascalCase for Entity/VO/Aggregate)
         chinese_term: Chinese translation
+        type: DDD classification — Entity, ValueObject, Aggregate, Service, Event, Concept (default: Concept)
+        definition: Clear definition, 20–500 chars, answering "what is this / what is it for"
         domain: Domain this term belongs to
-        context: Usage context or definition
+        aggregate_root: For Entity/ValueObject — which Aggregate Root owns it
+        related_entities: Code components (Model/Service/Controller) backing this term
+        business_rules: Rule IDs, format {VR|CR|ST|CA|AU|TE|CD}-NNN (e.g. ["CR-001", "VR-023"])
+        examples: Concrete usage examples
+        notes: Gotchas, edge cases, common mistakes
+        related_terms: Links to related term names
+        context: DEPRECATED — free-text notes; prefer definition + examples + notes
         source: Where this term came from — ul.md, slack, code
     """
-    data = {"project": project, "english_term": english_term, "chinese_term": chinese_term}
-    if domain is not None:
-        data["domain"] = domain
-    if context is not None:
-        data["context"] = context
-    if source is not None:
-        data["source"] = source
+    data: dict = {
+        "project": project,
+        "english_term": english_term,
+        "chinese_term": chinese_term,
+        "type": type,
+    }
+    for key, value in (
+        ("definition", definition),
+        ("domain", domain),
+        ("aggregate_root", aggregate_root),
+        ("related_entities", related_entities),
+        ("business_rules", business_rules),
+        ("examples", examples),
+        ("notes", notes),
+        ("related_terms", related_terms),
+        ("context", context),
+        ("source", source),
+    ):
+        if value is not None:
+            data[key] = value
     return api.put("/api/v1/knowledge/terms", data)
+
+
+@mcp.tool()
+@safe_api_call
+def atdd_term_delete(term_id: str) -> str:
+    """Delete a UL term by id.
+
+    Args:
+        term_id: Term UUID
+    """
+    api.delete(f"/api/v1/knowledge/terms/{term_id}")
+    return f"Deleted term {term_id}"
 
 
 # ════════════════════════════════════════════════════════════════
