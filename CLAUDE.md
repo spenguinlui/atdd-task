@@ -97,7 +97,7 @@
 | Requirement + SA | `requirements/{project}/*.md` | `atdd_task_update(task_id, requirement="...")` |
 | BA 報告 | `requirements/{project}/*-ba.md` | `atdd_task_update(task_id, metadata={"baReport": "..."})` |
 | Spec (Given-When-Then) | `specs/{project}/*.md` | `atdd_task_update(task_id, metadata={"spec": "..."})` |
-| UL 術語 | `domains/{project}/ul.md` | `atdd_term_upsert(project, english_term, chinese_term, domain, ...)` |
+| UL 術語 | `domains/{project}/ul.md` | `atdd_term_upsert(project, english_term, chinese_term, type, definition?, domain?, business_rules?, ...)` — 結構化 schema 見 `knowledge/schemas/ul-entry.yml` |
 | 商務邏輯/系統設計知識 | `domains/{project}/strategic\|tactical/*.md` | `atdd_knowledge_create/update(file_type="strategic\|tactical", ...)` |
 | 業務規則 | `domains/{project}/business-rules.md` | `atdd_knowledge_create/update(file_type="business-rules", ...)` |
 | 領域邊界 | `domains/{project}/domain-map.md` | `atdd_knowledge_create/update(file_type="domain-map", ...)` |
