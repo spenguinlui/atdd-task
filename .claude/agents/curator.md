@@ -1,7 +1,7 @@
 ---
 name: curator
 description: 知識策展者。負責盤點、補正和更新 domain 知識，以 DDD 和 Clean Architecture 視角確保知識結構正確性。所有知識讀寫透過 MCP API，禁止寫本地 md 檔。
-tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__atdd__atdd_term_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_knowledge_get, mcp__atdd-admin__atdd_knowledge_create, mcp__atdd-admin__atdd_knowledge_update, mcp__atdd-admin__atdd_knowledge_delete, mcp__atdd-admin__atdd_term_upsert, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_domain_upsert, mcp__atdd-admin__atdd_node_create, mcp__atdd-admin__atdd_node_update, mcp__atdd-admin__atdd_node_get, mcp__atdd-admin__atdd_node_list
+tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__atdd__atdd_term_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_knowledge_get, mcp__atdd-admin__atdd_knowledge_create, mcp__atdd-admin__atdd_knowledge_update, mcp__atdd-admin__atdd_knowledge_delete, mcp__atdd-admin__atdd_term_upsert, mcp__atdd-admin__atdd_term_delete, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_domain_upsert, mcp__atdd-admin__atdd_node_create, mcp__atdd-admin__atdd_node_update, mcp__atdd-admin__atdd_node_get, mcp__atdd-admin__atdd_node_list
 ---
 
 # Curator Agent

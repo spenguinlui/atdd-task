@@ -384,20 +384,64 @@ def list_terms(org_id: str, project: str = "", domain: str = "") -> list[dict]:
                        project=project, domain=domain)
 
 
-def upsert_term(org_id: str, project: str, english_term: str, chinese_term: str,
-                domain: str = None, context: str = None, source: str = None) -> dict:
+def upsert_term(
+    org_id: str,
+    project: str,
+    english_term: str,
+    chinese_term: str,
+    type: str = "Concept",
+    definition: str = None,
+    domain: str = None,
+    aggregate_root: str = None,
+    related_entities: list = None,
+    business_rules: list = None,
+    examples: list = None,
+    notes: list = None,
+    related_terms: list = None,
+    context: str = None,
+    source: str = None,
+) -> dict:
     with get_cursor() as cur:
         cur.execute("""
-            INSERT INTO knowledge_terms (org_id, project, domain, english_term, chinese_term, context, source)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO knowledge_terms (
+                org_id, project, domain, english_term, chinese_term,
+                type, definition, aggregate_root,
+                related_entities, business_rules, examples, notes, related_terms,
+                context, source
+            )
+            VALUES (%s, %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s)
             ON CONFLICT (org_id, project, english_term) DO UPDATE SET
-                domain = EXCLUDED.domain,
-                chinese_term = EXCLUDED.chinese_term,
-                context = EXCLUDED.context,
-                source = EXCLUDED.source
+                domain           = EXCLUDED.domain,
+                chinese_term     = EXCLUDED.chinese_term,
+                type             = EXCLUDED.type,
+                definition       = EXCLUDED.definition,
+                aggregate_root   = EXCLUDED.aggregate_root,
+                related_entities = EXCLUDED.related_entities,
+                business_rules   = EXCLUDED.business_rules,
+                examples         = EXCLUDED.examples,
+                notes            = EXCLUDED.notes,
+                related_terms    = EXCLUDED.related_terms,
+                context          = EXCLUDED.context,
+                source           = EXCLUDED.source
             RETURNING *
-        """, (org_id, project, domain, english_term, chinese_term, context, source))
+        """, (
+            org_id, project, domain, english_term, chinese_term,
+            type, definition, aggregate_root,
+            related_entities or [], business_rules or [],
+            examples or [], notes or [], related_terms or [],
+            context, source,
+        ))
         return cur.fetchone()
+
+
+def delete_term(term_id: str) -> bool:
+    """Delete a UL term by id. Returns True if a row was deleted."""
+    with get_cursor() as cur:
+        cur.execute("DELETE FROM knowledge_terms WHERE id = %s", (term_id,))
+        return cur.rowcount > 0
 
 
 # ── Dashboard-specific queries (merged local + remote) ──

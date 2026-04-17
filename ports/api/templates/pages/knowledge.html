@@ -207,17 +207,33 @@
       <div class="knowledge-domain-body">
         <table class="ul-terms-table">
           <thead>
-            <tr><th>English</th><th>中文</th><th>Domain</th><th>Context</th><th>Source</th></tr>
+            <tr><th></th><th>English</th><th>中文</th><th>Type</th><th>Domain</th><th>Source</th></tr>
           </thead>
           <tbody>
             {% for t in project_terms %}
-            <tr>
+            {% set has_detail = t.definition or t.aggregate_root or t.related_entities or t.business_rules or t.examples or t.notes or t.related_terms or t.context %}
+            <tr class="ul-term-row{% if has_detail %} ul-term-expandable{% endif %}"{% if has_detail %} onclick="this.classList.toggle('open'); var next=this.nextElementSibling; if(next) next.classList.toggle('open');"{% endif %}>
+              <td style="width:1.25rem;color:var(--text-muted);">{% if has_detail %}<span class="ul-term-chevron">▸</span>{% endif %}</td>
               <td><strong>{{ t.english_term }}</strong></td>
               <td>{{ t.chinese_term }}</td>
+              <td><span class="ul-type-tag ul-type-{{ (t.type or 'Concept')|lower }}">{{ t.type or 'Concept' }}</span></td>
               <td>{{ t.domain or '—' }}</td>
-              <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.context or '—' }}</td>
               <td><span class="knowledge-source-tag">{{ t.source or '—' }}</span></td>
             </tr>
+            {% if has_detail %}
+            <tr class="ul-term-detail"><td></td><td colspan="5">
+              <dl class="ul-term-dl">
+                {% if t.definition %}<dt>定義</dt><dd>{{ t.definition }}</dd>{% endif %}
+                {% if t.aggregate_root %}<dt>Aggregate Root</dt><dd><code>{{ t.aggregate_root }}</code></dd>{% endif %}
+                {% if t.related_entities %}<dt>相關 Entity / Component</dt><dd>{% for e in t.related_entities %}<code>{{ e }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+                {% if t.business_rules %}<dt>業務規則</dt><dd>{% for r in t.business_rules %}<span class="ul-rule-tag">{{ r }}</span>{% endfor %}</dd>{% endif %}
+                {% if t.examples %}<dt>範例</dt><dd><ul class="ul-term-list">{% for ex in t.examples %}<li>{{ ex }}</li>{% endfor %}</ul></dd>{% endif %}
+                {% if t.notes %}<dt>注意事項</dt><dd><ul class="ul-term-list">{% for n in t.notes %}<li>{{ n }}</li>{% endfor %}</ul></dd>{% endif %}
+                {% if t.related_terms %}<dt>相關詞彙</dt><dd>{% for rt in t.related_terms %}<code>{{ rt }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+                {% if t.context %}<dt style="color:var(--text-muted);">Legacy context</dt><dd style="color:var(--text-muted);font-size:0.75rem;">{{ t.context }}</dd>{% endif %}
+              </dl>
+            </td></tr>
+            {% endif %}
             {% endfor %}
           </tbody>
         </table>
