@@ -39,6 +39,9 @@ class EntryUpdate(BaseModel):
 
 TERM_TYPES = {"Entity", "ValueObject", "Aggregate", "Service", "Event", "Concept"}
 BUSINESS_RULE_RE = re.compile(r"^(VR|CR|ST|CA|AU|TE|CD)-\d{3}$")
+SOURCE_RE = re.compile(
+    r"^(ul\.md(→migration)?|domain-name|code(:.+)?|claude:.+|slack(:.+)?|curator|user)$"
+)
 
 
 class TermUpsert(BaseModel):
@@ -73,6 +76,18 @@ class TermUpsert(BaseModel):
         if bad:
             raise ValueError(
                 f"business_rules must match {{VR|CR|ST|CA|AU|TE|CD}}-NNN, got {bad}"
+            )
+        return v
+
+    @field_validator("source")
+    @classmethod
+    def _check_source(cls, v):
+        if v is None:
+            return v
+        if not SOURCE_RE.match(v):
+            raise ValueError(
+                f"source must match one of ul.md, ul.md→migration, domain-name, "
+                f"code[:path], claude:{{ctx}}, slack[:channel], curator, user; got {v!r}"
             )
         return v
 
