@@ -14,7 +14,8 @@
 | 取單筆知識 | `mcp__atdd-admin__atdd_knowledge_get(entry_id)` |
 | 列出 domain 健康度 | `mcp__atdd__atdd_domain_list(project)` |
 | 取單一 domain | `mcp__atdd-admin__atdd_domain_get(domain_id)` |
-| 寫入術語（curator） | `mcp__atdd-admin__atdd_term_upsert` |
+| 寫入術語（curator） | `mcp__atdd-admin__atdd_term_upsert` — 結構化欄位：type, definition, business_rules, examples, notes, related_terms, aggregate_root, related_entities |
+| 刪除術語（curator） | `mcp__atdd-admin__atdd_term_delete(term_id)` |
 | 寫入知識（curator） | `mcp__atdd-admin__atdd_knowledge_create` / `atdd_knowledge_update` / `atdd_knowledge_delete` |
 | 寫入 domain（curator） | `mcp__atdd-admin__atdd_domain_upsert` |
 
