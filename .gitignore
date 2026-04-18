@@ -37,8 +37,10 @@ github-actions-workflow-audit-report.md
 .claude/config/aws-instances.yml
 acceptance/fixtures/
 
-# Knowledge confirmation (含本機路徑)
+# Runtime flags / locks (hook 執行時產生)
 .claude/.knowledge-confirmed
+.claude/.e2e-manual-authorized
+.claude/scheduled_tasks.lock
 .DS_Store
 .claude/settings.local.json
 poc/.venv/

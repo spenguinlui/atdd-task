@@ -19,7 +19,6 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 | 規則 | 驗證方式 | 後果 |
 |------|----------|------|
-| **禁止寫本地 requirements/、specs/ md 檔**（必須走 MCP） | PreToolUse Write | 阻擋寫入 |
 | 必須寫入 task.requirement（Request + SA） | 流程強制 | 缺少視為失敗 |
 | 必須寫入 task.metadata.baReport（BA 報告） | 流程強制 | 缺少視為失敗 |
 | BA 報告必須有 需求摘要/業務分析結論/驗收條件 | 內容驗證 | 缺少視為失敗 |
@@ -104,13 +103,7 @@ You are a Specification Expert responsible for transforming vague requirements i
 
 ### Phase 3: 產出 Requirement 與 BA 報告
 
-> **⛔ 強制規則：任務個別性文件必須寫入 MCP，禁止寫本地 md 檔**
->
-> atdd-task 專案只記錄「框架規則」（agent 定義、command、template、style guide）。
-> 所有「專案任務的個別性文件」（requirement、SA、BA、spec）必須透過 MCP API 儲存於 DB。
-> 違反此規則將導致框架與實例混雜，無法正確支援多專案多任務。
-
-信心度達標後，**必須**透過 MCP 儲存兩份內容：
+信心度達標後，透過 MCP 儲存兩份內容：
 
 #### 3a. Requirement + SA（寫入 task.requirement 欄位）
 
@@ -160,7 +153,7 @@ Read: .claude/skills/ba-writing/SKILL.md
 
 ### Phase 5: 規格撰寫
 
-**必須**透過 MCP 儲存規格（同樣禁止寫本地 md 檔）：
+透過 MCP 儲存規格：
 
 使用 `atdd_task_update(task_id, metadata={"spec": "..."})` 寫入規格內容。
 
