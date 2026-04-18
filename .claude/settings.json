@@ -7,6 +7,21 @@
     "pr": ""
   },
   "permissions": {
+    "ask": [
+      "Bash(bundle install:*)",
+      "Bash(bundle update:*)",
+      "Bash(gem install:*)",
+      "Bash(npm install:*)",
+      "Bash(npm update:*)",
+      "Bash(yarn add:*)",
+      "Bash(yarn install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(brew install:*)",
+      "Bash(brew upgrade:*)"
+    ],
     "deny": [
       "Write(./domains/**)",
       "Edit(./domains/**)",
@@ -15,7 +30,16 @@
       "Write(./specs/**)",
       "Edit(./specs/**)",
       "Write(./knowledge/access/**)",
-      "Edit(./knowledge/access/**)"
+      "Edit(./knowledge/access/**)",
+      "Edit(**/Gemfile)",
+      "Edit(**/package.json)",
+      "Edit(**/requirements.txt)",
+      "Edit(**/Dockerfile)",
+      "Edit(**/docker-compose.yml)",
+      "Edit(./.github/workflows/**)",
+      "Edit(**/.ruby-version)",
+      "Edit(**/.node-version)",
+      "Edit(**/.python-version)"
     ]
   },
   "hooks": {
