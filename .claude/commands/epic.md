@@ -10,7 +10,7 @@ description: 建立 Epic（大型功能拆分為多個子任務）
 - **專案**：逗號前的內容（去除空白）
 - **標題**：逗號後的內容（去除空白）
 
-有效的專案 ID：`sf_project`, `core_web`, `core_web_frontend`, `digiwin_erp`, `stock_commentary`, `jv_project`
+有效的專案 ID：見 `.claude/config/projects.yml`
 
 如果格式不正確或專案不存在，請提示正確格式：
 ```

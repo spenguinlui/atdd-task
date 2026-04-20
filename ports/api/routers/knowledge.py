@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
+import re
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from services import knowledge_service
 
@@ -36,13 +37,59 @@ class EntryUpdate(BaseModel):
     updated_by: Optional[str] = None
 
 
+TERM_TYPES = {"Entity", "ValueObject", "Aggregate", "Service", "Event", "Concept"}
+BUSINESS_RULE_RE = re.compile(r"^(VR|CR|ST|CA|AU|TE|CD)-\d{3}$")
+SOURCE_RE = re.compile(
+    r"^(ul\.md(→migration)?|domain-name|code(:.+)?|claude:.+|slack(:.+)?|curator|user)$"
+)
+
+
 class TermUpsert(BaseModel):
     project: str
-    domain: Optional[str] = None
     english_term: str
     chinese_term: str
-    context: Optional[str] = None
+    type: str = "Concept"
+    definition: Optional[str] = None
+    domain: Optional[str] = None
+    aggregate_root: Optional[str] = None
+    related_entities: Optional[List[str]] = None
+    business_rules: Optional[List[str]] = None
+    examples: Optional[List[str]] = None
+    notes: Optional[List[str]] = None
+    related_terms: Optional[List[str]] = None
+    context: Optional[str] = None  # DEPRECATED; prefer definition/examples/notes
     source: Optional[str] = None  # ul.md, slack, code
+
+    @field_validator("type")
+    @classmethod
+    def _check_type(cls, v: str) -> str:
+        if v not in TERM_TYPES:
+            raise ValueError(f"type must be one of {sorted(TERM_TYPES)}, got {v!r}")
+        return v
+
+    @field_validator("business_rules")
+    @classmethod
+    def _check_business_rules(cls, v):
+        if v is None:
+            return v
+        bad = [r for r in v if not BUSINESS_RULE_RE.match(r)]
+        if bad:
+            raise ValueError(
+                f"business_rules must match {{VR|CR|ST|CA|AU|TE|CD}}-NNN, got {bad}"
+            )
+        return v
+
+    @field_validator("source")
+    @classmethod
+    def _check_source(cls, v):
+        if v is None:
+            return v
+        if not SOURCE_RE.match(v):
+            raise ValueError(
+                f"source must match one of ul.md, ul.md→migration, domain-name, "
+                f"code[:path], claude:{{ctx}}, slack[:channel], curator, user; got {v!r}"
+            )
+        return v
 
 
 class NodeCreate(BaseModel):
@@ -229,5 +276,22 @@ def upsert_term(body: TermUpsert, org_id: UUID = Query(default=DEFAULT_ORG)):
     """Create or update a UL term (by org_id + project + english_term)."""
     return knowledge_service.upsert_term(
         str(org_id), body.project, body.english_term, body.chinese_term,
-        domain=body.domain, context=body.context, source=body.source,
+        type=body.type,
+        definition=body.definition,
+        domain=body.domain,
+        aggregate_root=body.aggregate_root,
+        related_entities=body.related_entities,
+        business_rules=body.business_rules,
+        examples=body.examples,
+        notes=body.notes,
+        related_terms=body.related_terms,
+        context=body.context,
+        source=body.source,
     )
+
+
+@router.delete("/terms/{term_id}", status_code=204)
+def delete_term(term_id: UUID):
+    """Delete a UL term by id."""
+    if not knowledge_service.delete_term(str(term_id)):
+        raise HTTPException(status_code=404, detail="Term not found")

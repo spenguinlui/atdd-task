@@ -11,7 +11,7 @@
 - 讀取單筆 entry：`mcp__atdd-admin__atdd_knowledge_get(entry_id)`
 - 讀取 domain 健康度列表：`mcp__atdd__atdd_domain_list(project)`
 - 讀取單一 domain：`mcp__atdd-admin__atdd_domain_get(domain_id)`
-- 寫入（僅 curator）：`mcp__atdd-admin__atdd_knowledge_create/update/delete`、`mcp__atdd-admin__atdd_term_upsert`、`mcp__atdd-admin__atdd_domain_upsert`
+- 寫入（僅 curator）：`mcp__atdd-admin__atdd_knowledge_create/update/delete`、`mcp__atdd-admin__atdd_term_upsert/delete`、`mcp__atdd-admin__atdd_domain_upsert`
 
 ### 1.2 知識盤點（MCP 查詢）
 

@@ -1,7 +1,7 @@
 ---
 name: aws-data-migrate
 description: 資料遷移工具，從 Production 安全地遷移資料到 Local/Staging 環境。自動清理敏感資料，硬編碼禁止反向遷移。
-version: 2.0.0
+version: 3.0.0
 ---
 
 # AWS Data Migrate
@@ -38,16 +38,17 @@ version: 2.0.0
 ```markdown
 📦 資料遷移需求確認
 
-1. 遷移模式：{full_sync / selective}
+1. 遷移模式：{full_sync / partial_reset / selective}
 2. 目標環境：{local / staging}
-3. 需要遷移的 Table(s)：{all / 指定 tables}
+3. 需要遷移的 Table(s)：{all / 指定 tables / 全部但排除某些 table 的資料}
 4. 敏感資料處理：{mask / keep}（Staging 同 VPC 可選 keep）
 
 請確認以上資訊是否正確？
 ```
 
 根據遷移模式選擇對應路徑：
-- **全庫同步（full_sync）** → 走 Path A
+- **全庫同步（full_sync）** → 走 Path A（DROP DATABASE 重建，需要 RDS master 權限）
+- **部分重置（partial_reset）** → 走 Path C（保留指定 table 的資料，其他全部從 production 取代；不需要 master 權限）
 - **選擇性遷移（selective）** → 走 Path B
 
 ---
@@ -182,16 +183,29 @@ COMMAND_ID=$(aws ssm send-command \
 4. `psql < dump.sql` — 匯入資料
 5. 查詢 `table_count` — 驗證結果
 
-### A7. 驗證
+### A7. 驗證（使用 real count(*)，不要依賴 pg_stat）
 
 ```bash
-# 檢查 table 數量（從上一步輸出確認）
 # 檢查 stderr 是否有錯誤
 aws ssm get-command-invocation \
   --command-id "$COMMAND_ID" \
   --instance-id "$STAGING_INSTANCE_ID" \
   --query "[Status, StandardErrorContent]" --output text
+
+# 用 real count(*) 對比 prod / staging 的幾個代表性 table
+# （勿用 pg_stat_user_tables.n_live_tup — 統計常失準，production 尤其常見）
+for t in {large_table_1} {large_table_2} {medium_table}; do
+  P=$(PGPASSWORD={prod_pw} psql -h {prod_rds} -U {prod_user} -d {db} -tAc "SELECT count(*) FROM $t;")
+  S=$(PGPASSWORD={stg_pw} psql -h {stg_rds} -U {stg_user} -d {db} -tAc "SELECT count(*) FROM $t;")
+  printf "%-50s prod=%s staging=%s\n" "$t" "$P" "$S"
+done
 ```
+
+**為什麼不用 `pg_stat_user_tables`**
+- `n_live_tup` 是統計值，需要 ANALYZE 才更新
+- Production 經常看到 stale 統計（tens of thousands 的 table 顯示只有幾十筆）
+- 剛 restore 的 staging stats 是「新的」，拿它跟 production 的舊 stats 比會看到誤差
+- 資料正確與否，只有 `SELECT count(*)` 說了算
 
 ### A8. 清理暫存
 
@@ -320,6 +334,86 @@ rm -f /tmp/export_data.rb /tmp/export.csv /tmp/*.sql
 
 ---
 
+## Path C：部分重置（保留指定 table 的資料）
+
+適用場景：Staging 要刷新 Production 最新資料，**但某些 table 的 staging 測試資料要保留**（例如 `admin_staffs`、`users` 只存測試帳號的情境）。
+
+**優點**：不需要 RDS master 權限（不做 DROP DATABASE），app user 即可完成整個流程。
+
+### C1. 備份要保留的 table（data-only）
+
+```bash
+# 在 Staging EC2 上用 pg_dump 備份要保留的 table
+PGPASSWORD={stg_password} pg_dump \
+  -h {stg_rds_host} -U {stg_user} -d {db_name} \
+  -t {keep_table} --data-only --no-owner --no-acl \
+  -f /home/apps/{keep_table}_backup_YYYYMMDD.sql
+
+# 驗證備份筆數
+PGPASSWORD={stg_password} psql -h {stg_rds_host} -U {stg_user} -d {db_name} \
+  -c "SELECT count(*) FROM {keep_table};"
+```
+
+> 💡 多個 table 可重複 `-t table1 -t table2` 一起備份。
+
+### C2. pg_dump production（--clean --if-exists + 排除要保留 table 的資料）
+
+```bash
+PGPASSWORD={prod_password} pg_dump \
+  -h {prod_rds_host} -U {prod_user} -d {db_name} \
+  --no-owner --no-acl \
+  --clean --if-exists \
+  --exclude-table-data={keep_table} \
+  -f /home/apps/{app_name}_prod_YYYYMMDD.sql
+```
+
+**三個關鍵 flag**：
+- `--clean --if-exists` → dump 內含 `DROP TABLE IF EXISTS`，restore 時自動清掉舊 table（不需 DROP DATABASE 權限）
+- `--exclude-table-data={keep_table}` → 保留 schema 但清空資料，restore 後是空表等待 C4 灌入
+- `--no-owner --no-acl` → 跨 user restore 時避免 owner / grant 衝突
+
+### C3. Restore dump 到 staging（不需 DROP DATABASE）
+
+```bash
+export PGPASSWORD={stg_password}
+export PGHOST={stg_rds_host}
+export PGUSER={stg_user}
+
+# 先斷掉既有連線（app user 可以終止自己的 session，如 Rails app）
+psql -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{db_name}' AND pid <> pg_backend_pid();"
+
+# Restore（--clean 會自動 DROP 再 CREATE 每個 table）
+psql -d {db_name} -v ON_ERROR_STOP=0 -f /home/apps/{app_name}_prod_YYYYMMDD.sql \
+  > /tmp/restore.stdout 2> /tmp/restore.stderr
+
+# 檢查錯誤數（0 最理想；extension-related 錯誤通常可忽略，但要人工 review）
+wc -l /tmp/restore.stderr
+head -30 /tmp/restore.stderr
+```
+
+### C4. 灌回保留的 table 資料
+
+```bash
+psql -d {db_name} -v ON_ERROR_STOP=1 -f /home/apps/{keep_table}_backup_YYYYMMDD.sql
+
+# 驗證
+psql -d {db_name} -c "SELECT count(*) FROM {keep_table};"
+```
+
+### C5. 驗證（real count(*)，參照 A7）
+
+比對幾個代表性 table 的 `count(*)`，確認 `{keep_table}` 的筆數等於備份時的筆數，其他 table 等於 production。
+
+### C6. 清理
+
+```bash
+rm -f /home/apps/{app_name}_prod_YYYYMMDD.sql
+rm -f /home/apps/{keep_table}_backup_YYYYMMDD.sql
+# /tmp/*.sh 暫存會被 tmpreaper 清掉，不用手動處理
+```
+
+---
+
 ## SSM 實用技巧
 
 ### 避免引號地獄
@@ -352,6 +446,43 @@ aws ssm send-command --instance-ids "$ID" \
   --document-name "AWS-RunShellScript" \
   --parameters 'commands=["ls -la /home/apps/"]'
 ```
+
+**方法三（推薦，複雜腳本）：base64 encode 把整個 bash 腳本灌進 SSM**
+
+避開所有 quote / escape 地獄：本地把 shell script 寫好、base64 編碼、SSM 在遠端 decode 回檔案後執行。
+
+```bash
+# 1. 本地寫好腳本（想怎麼用 quote 都行，不用 escape）
+cat > /tmp/remote.sh << 'EOF'
+#!/bin/bash
+set -e
+echo "hello from $(hostname)"
+PGPASSWORD=xxx psql -h rds-host -U user -d db -c "SELECT count(*) FROM tablename;"
+EOF
+
+# 2. Base64 編碼
+B64=$(base64 < /tmp/remote.sh | tr -d '\n')
+
+# 3. SSM 透過 JSON 檔傳 3 行命令：decode → chmod → 用指定 user 執行
+cat > /tmp/ssm.json << EOF
+{
+  "commands": [
+    "echo '$B64' | base64 -d > /tmp/s.sh && chmod +x /tmp/s.sh",
+    "sudo -u apps bash /tmp/s.sh 2>&1"
+  ]
+}
+EOF
+
+aws ssm send-command --instance-ids "$ID" \
+  --document-name "AWS-RunShellScript" \
+  --parameters file:///tmp/ssm.json \
+  --timeout-seconds 600
+```
+
+**優點**：
+- 腳本內想怎麼 `'"'` / `EOF` 都不會壞
+- 本地先 `bash /tmp/remote.sh` dry-run 更直覺
+- 長腳本（幾 KB）也塞得進 SSM parameters
 
 ### 等待 SSM 命令完成
 
