@@ -11,7 +11,7 @@ description: 列出專案的測試套件清單
 - `{project}`：專案 ID（必填）
 - `{group}`：群組名稱（可選，如 `smoke`, `regression`, `erp-period`）
 
-有效專案：`sf_project`, `core_web`, `core_web_frontend`, `digiwin_erp`, `stock_commentary`, `jv_project`
+有效專案：見 `.claude/config/projects.yml`
 
 ---
 

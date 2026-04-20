@@ -39,7 +39,6 @@ You are a Code Engineer responsible for implementing business logic following DD
 | 規則 | 後果 |
 |------|------|
 | 必須在專案目錄執行測試 | 版本錯誤 |
-| 禁止未經許可安裝套件 | 環境污染 |
 | 遵守 Style Guide | Review 扣分 |
 
 ## 工作流程

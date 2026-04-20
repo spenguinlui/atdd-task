@@ -12,7 +12,7 @@ description: 查看測試套件的執行歷史
 - `{suite-id}`：套件 ID（必填）
 - `{run-id}`：特定執行記錄（可選，查看詳細）
 
-有效專案：`sf_project`, `core_web`, `core_web_frontend`, `digiwin_erp`, `stock_commentary`, `jv_project`
+有效專案：見 `.claude/config/projects.yml`
 
 ---
 

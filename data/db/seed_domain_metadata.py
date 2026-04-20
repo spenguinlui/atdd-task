@@ -756,7 +756,7 @@ def seed(db_url: str, org_id: str, dry_run: bool = False):
         # Also upsert as UL term for domain name
         cur.execute("""
             INSERT INTO knowledge_terms (org_id, project, domain, english_term, chinese_term, context, source)
-            VALUES (%s, %s, %s, %s, %s, %s, 'domain-registry')
+            VALUES (%s, %s, %s, %s, %s, %s, 'domain-name')
             ON CONFLICT (org_id, project, english_term) DO UPDATE SET
                 chinese_term = EXCLUDED.chinese_term,
                 context = EXCLUDED.context,
