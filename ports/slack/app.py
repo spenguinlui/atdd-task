@@ -5,7 +5,6 @@ import logging
 import os
 import re
 import threading
-import time
 
 import yaml
 from dotenv import load_dotenv
@@ -55,13 +54,6 @@ RD_LEAD_SLACK_USER_ID = os.environ.get("RD_LEAD_SLACK_USER_ID", "")
 # Thread locks (in-memory, only needed during runtime)
 conv_locks = {}
 
-# Projects cache (prevents Slack trigger_id timeout)
-_projects_cache = None
-_cache_time = 0
-_cache_lock = threading.Lock()
-
-CACHE_TTL = 60  # 60 seconds
-
 
 def _get_lock(thread_ts: str) -> threading.Lock:
     if thread_ts not in conv_locks:
@@ -69,54 +61,15 @@ def _get_lock(thread_ts: str) -> threading.Lock:
     return conv_locks[thread_ts]
 
 
-def _load_projects_from_file() -> list[str]:
-    """Load projects from config file (synchronous)."""
+def _load_projects() -> list[str]:
     config_path = os.path.join(ATDD_HUB_PATH, ".claude/config/projects.yml")
     try:
         with open(config_path) as f:
             data = yaml.safe_load(f)
-        projects = list(data.get("projects", {}).keys())
-        logger.debug(f"Loaded projects from config: {projects}")
-        return projects
+        return list(data.get("projects", {}).keys())
     except Exception as e:
-        logger.error(f"Failed to load projects from file: {e}")
+        logger.error(f"Failed to load projects: {e}")
         return ["core_web"]
-
-
-def _refresh_projects_cache():
-    """Background refresh of projects cache."""
-    global _projects_cache, _cache_time
-    with _cache_lock:
-        _projects_cache = _load_projects_from_file()
-        _cache_time = time.time()
-        logger.debug(f"Cache refreshed: {_projects_cache}")
-
-
-def _load_projects(use_cache: bool = True) -> list[str]:
-    """Load projects with smart caching.
-
-    First call: synchronous load (blocks)
-    Subsequent calls within 60s: return cached (fast)
-    After 60s: return cached + background refresh
-    """
-    global _projects_cache, _cache_time
-
-    # First-time initialization: sync load
-    if _projects_cache is None:
-        logger.info("First-time projects load (synchronous)...")
-        _projects_cache = _load_projects_from_file()
-        _cache_time = time.time()
-        return _projects_cache
-
-    # Cache hit: return immediately
-    if use_cache and time.time() - _cache_time < CACHE_TTL:
-        logger.debug(f"Using cached projects: {_projects_cache}")
-        return _projects_cache
-
-    # Cache expired: return cached + refresh in background
-    logger.debug("Cache expired, refreshing in background...")
-    threading.Thread(target=_refresh_projects_cache, daemon=True).start()
-    return _projects_cache
 
 
 def _strip_mention(text: str) -> str:
@@ -393,17 +346,11 @@ def handle_knowledge_submit(ack, body, client):
     project = values["project_block"]["project_select"]["selected_option"]["value"]
     topic = values["topic_block"]["topic_input"]["value"]
 
-    # Channel resolution: env > private_metadata > user
     channel = os.environ.get("SLACK_CHANNEL_ID", "")
     if not channel:
         channel = body.get("view", {}).get("private_metadata", "")
     if not channel:
-        # Fallback to user's DM channel
-        channel = user
-        logger.warning(f"SLACK_CHANNEL_ID not configured, using user DM: {user}")
-
-    if not channel:
-        logger.error("Unable to determine target channel")
+        logger.error("No channel ID configured. Set SLACK_CHANNEL_ID in .env")
         return
 
     msg = client.chat_postMessage(
@@ -536,11 +483,10 @@ def handle_report_submit(ack, body, client):
     project = values["project_block"]["project_select"]["selected_option"]["value"]
     description = values["description_block"]["description_input"]["value"]
 
-    # Channel resolution: TRIAGE_CHANNEL_ID > SLACK_CHANNEL_ID > user DM
-    channel = TRIAGE_CHANNEL_ID or os.environ.get("SLACK_CHANNEL_ID", "")
+    channel = TRIAGE_CHANNEL_ID
     if not channel:
-        channel = user
-        logger.warning(f"No triage channel configured, using user DM: {user}")
+        logger.error("TRIAGE_CHANNEL_ID not configured")
+        return
 
     msg = client.chat_postMessage(
         channel=channel,
@@ -568,9 +514,6 @@ def handle_report_submit(ack, body, client):
     except FileNotFoundError:
         logger.warning(f"Triage agent not found: {agent_path}")
 
-    # Get project codebase path
-    project_path = get_project_path(project) or ""
-
     prompt = f"""{agent_def}
 
 ---
@@ -578,26 +521,11 @@ def handle_report_submit(ack, body, client):
 ## 目前任務
 
 **系統**: {project}
-**代碼路徑**: {project_path}
 
 **業務用戶的初始描述**:
 {description}
 
 ---
-
-## 工作流程
-
-1. 如果項目代碼路徑可用，使用 Glob/Grep/Read 工具調查相關代碼
-2. 理解問題的根本原因（從代碼和需求兩個角度）
-3. 收集必要信息（影響範圍、重現步驟、相關系統）
-4. 分析原因並歸類（Bug、設計問題、缺少功能等）
-5. 提出解決方案建議或問題分析
-
-語言規則：
-- 使用 *粗體* 而不是 # 標題
-- 使用項目符號 • 而不是 markdown 表格
-- 禁止 ASCII 框線（┌──┐）
-- 禁止 --- 分隔符
 
 請開始 **Round 1 訪談** — 提出第一個問題（選項按鈕方式）。
     """
@@ -694,9 +622,6 @@ def _run_triage_and_create(thread_ts: str, channel: str, conv: dict):
     session_id = conv.get("session_id")
     project = conv.get("project", "")
 
-    # Get project codebase path for Phase 2 analysis
-    project_path = get_project_path(project) or ""
-
     # 生成 triage 分析 prompt
     agent_path = os.path.join(ATDD_HUB_PATH, "profiles/business/agents/triage-agent.md")
     agent_def = ""
@@ -710,16 +635,9 @@ def _run_triage_and_create(thread_ts: str, channel: str, conv: dict):
 
 ---
 
-## Phase 2: 代碼分析 + Jira 準備
+## Phase 2: Jira 準備
 
-**代碼路徑**: {project_path}
-
-訪談已完成。現在請：
-
-1. 基於訪談結果，調查相關代碼（如果路徑可用）
-2. 確認問題的根本原因
-3. 評估影響範圍
-4. 整理為結構化結果
+訪談已完成。現在請整理訪談信息，輸出結構化結果。
 
 按照 TRIAGE_RESULT 格式輸出最終結果（app.py 會自動解析建立 Jira 票）。
 
