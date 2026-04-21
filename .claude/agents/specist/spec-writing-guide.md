@@ -47,6 +47,24 @@
 
 **關鍵原則**：如果 tester 無法從 Then 直接寫出 `eq("具體值")` 斷言，就代表 Then 寫得不夠精確。
 
+#### 持久化斷言規則（強制 — Persistence Assertion Rule）
+
+> ⛔ 當 SA 中出現「UPDATE / 修改 / 重算 / 覆寫 既有 DB record」字樣時，Spec 的 Then **必須**明確指定驗證的是 **DB 持久化後的 record**，不是回傳的 entity 物件。
+
+| 情境 | 禁止寫法 | 正確寫法 |
+|------|----------|----------|
+| 更新既有訂單 | Then SalesOrder 的 order_amount = X | Then **reload 同一筆** SalesOrder (id 不變)，order_amount = X |
+| 重算並覆寫 | Then 重算後金額為 X | Then **DB 中既有的** SalesOrder record 的 order_amount **被更新為** X，items **被替換為** N 筆 |
+| 刪除子項目 | Then items 數量為 2 | Then **reload 後** items.count = 2，且舊 items **已從 DB 移除** |
+
+**Why**：GRE-225 教訓——SA 寫「需 UPDATE」，Then 只寫「金額 = X」，tester 用 `.send(:private_method)` 驗算回傳值就通過了，但 DB 完全沒被更新。
+
+**檢查清單**（specist 自我驗證）：
+1. SA 有沒有提到 UPDATE / 修改 / 重算 / 覆寫？
+2. 如果有，對應的 Then 是否包含「reload」「同一筆 record」「DB 中既有的」等語意？
+3. 是否有驗證 record.id 不變（排除「新建一筆」的假象）？
+4. 若有子表（items/details），是否也有 DB-level 驗證？
+
 **格式驗證**：當預期值涉及字串組合時，必須明確寫出：
 - 連接符號（換行 `\n`、逗號、空格、分隔線等）
 - 各部分的順序
