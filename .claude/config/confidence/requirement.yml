@@ -127,7 +127,7 @@ dimensions:
 
   edge_case_coverage:
     name: "邊際情境完整度"
-    weight: 15
+    weight: 10
     description: |
       需求的邊界條件、例外情況是否已釐清。
       例如：金額為零、數量超限、時間衝突、權限不足等情境。
@@ -179,7 +179,7 @@ dimensions:
 
   testability:
     name: "可驗收性"
-    weight: 10
+    weight: 5
     description: |
       需求是否能被轉化為具體的 Given-When-Then 驗收場景。
       如果寫不出驗收條件，代表需求本身不夠具體。
@@ -199,6 +199,35 @@ dimensions:
       - id: TE-3
         points: -5
         cause: "場景可寫但預期結果不確定（需確認具體數值或狀態）"
+
+  persistence_assertion_coverage:
+    name: "持久化驗收完整度"
+    weight: 10
+    description: |
+      當需求涉及「修改/更新/重算 既有 DB 資料」時，Spec 的 Then 是否明確指定
+      驗證點是「從 DB reload 同一筆 record」而非「回傳值或新建 entity」。
+      確保 tester 不會用 .send(:private_method) 繞過 DB 持久化層來驗收「更新」類需求。
+    rationale: |
+      GRE-225 教訓：SA 明確寫「需 UPDATE digiwin_erp_sales_orders」，
+      但 Spec Then 只寫「SalesOrder 的 order_amount = X」，
+      tester 解讀為驗算回傳 entity 而非 DB record，
+      導致 coder 實作未包含 find + update 邏輯，核心功能缺失卻全數綠燈。
+    sources:
+      - "task.requirement 的 SA 區塊（搜尋 UPDATE/INSERT/DELETE/修改/更新/重算/覆寫）"
+      - "task.metadata.spec 的 Then 斷言（是否包含 reload/DB record/同一筆 等語意）"
+    deductions:
+      - id: PA-1
+        points: -10
+        cause: "SA 明確提到需 UPDATE 既有 DB record，但 Spec Then 未指定從 DB reload 驗證"
+      - id: PA-2
+        points: -8
+        cause: "需求涉及「修改既有資料」但 Spec 只驗算新建 entity 的回傳值"
+      - id: PA-3
+        points: -5
+        cause: "有 DB-level Then 但未驗證 record.id 不變（無法排除「新建一筆」的假象）"
+      - id: PA-4
+        points: -3
+        cause: "主表有 DB-level 驗證但子表（items/details）缺少 reload 驗證"
 
   ubiquitous_language_alignment:
     name: "共同語言一致性"
@@ -234,7 +263,8 @@ clarification_template: |
   | 商務邏輯清晰度 | {business_logic_clarity}% | 20% | {weighted_3} | {deduction_3} |
   | 邊際情境完整度 | {edge_case_coverage}% | 15% | {weighted_4} | {deduction_4} |
   | 影響範圍辨識 | {impact_scope}% | 10% | {weighted_5} | {deduction_5} |
-  | 可驗收性 | {testability}% | 10% | {weighted_6} | {deduction_6} |
+  | 可驗收性 | {testability}% | 5% | {weighted_6} | {deduction_6} |
+  | 持久化驗收完整度 | {persistence_assertion_coverage}% | 10% | {weighted_8} | {deduction_8} |
   | 共同語言一致性 | {ubiquitous_language_alignment}% | 5% | {weighted_7} | {deduction_7} |
 
   ❓ 需要澄清：
@@ -255,10 +285,10 @@ example: |
   - testability: 85% (TE-3: 預期折扣金額的計算規則待確認)
   - ubiquitous_language_alignment: 90% (UL-3: 「折扣」vs「折價券」已澄清)
 
-  加權總分：
-  80*0.20 + 90*0.20 + 60*0.20 + 50*0.15 + 70*0.10 + 85*0.10 + 90*0.05
-  = 16 + 18 + 12 + 7.5 + 7 + 8.5 + 4.5
-  = 73.5%
+  加權總分（8 維度）：
+  80*0.20 + 90*0.20 + 60*0.20 + 50*0.10 + 70*0.10 + 85*0.05 + 100*0.10 + 90*0.05
+  = 16 + 18 + 12 + 5 + 7 + 4.25 + 10 + 4.5
+  = 76.75%
 
   需要澄清：
   1. 折價券金額超過商品價值時如何處理？是否允許負數餘額？(edge_case_coverage)
