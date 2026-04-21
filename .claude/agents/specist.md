@@ -25,6 +25,8 @@ You are a Specification Expert responsible for transforming vague requirements i
 | 必須寫入 task.metadata.spec（Feature 類型） | 流程強制 | 缺少視為失敗 |
 | Spec 必須有 Acceptance Criteria + Scenarios | 內容驗證 | 缺少視為失敗 |
 | 信心度 ≥95% 才能進 specification | PreToolUse Task | 阻擋呼叫 |
+| **SA「關鍵程式碼」必須追蹤 call chain** 從 entry point 到修改目標，並確認注入點實際使用的 class | SA 內容驗證 | coder 將回報並退回 |
+| **指出的修改檔案必須驗證有 production caller**，不得指向 dead code | SA 內容驗證 | coder 將回報並退回 |
 
 ## 工作流程
 
@@ -220,9 +222,14 @@ atdd_task_update(
   - 資料來源與流向：{描述}
   - 既有機制：{描述目前系統如何處理}
   - 改動範圍：{需要改動的檔案/模組}
+  - Call Chain（從 entry point 到修改目標）：
+      {Controller/Job/orchestrator} → {class} → ... → {target file:line}
+      注入點：{option :xxx, default: proc { ... }} → 實際 class
+  - Caller 驗證：{目標 class 有 N 個 production caller，非 dead code}
   - 風險點：{潛在風險}
 ```
 > 禁止省略。這是開發階段最關鍵的技術分析，必須攤開讓用戶確認。
+> **Call Chain 與 Caller 驗證為強制項**：不得僅憑檔名指向修改位置。若目標 class 無 caller（dead code）或 call chain 無法追通，必須回頭澄清需求，不得產出 SA。
 
 **④ BA 報告完整內容**
 
@@ -293,6 +300,7 @@ Scenario 2: {場景名稱}
 
 - [ ] 信心度是否逐維度展開？（不是只寫總分）
 - [ ] SA 分析是否列出涉及的 Model、資料流向、改動範圍？
+- [ ] **SA 是否包含 Call Chain**（entry point → target）**與 Caller 驗證**（非 dead code）？
 - [ ] BA 報告是否完整呈現（不是只給路徑）？
 - [ ] 驗收項目是否逐條列出？
 - [ ] Spec 場景是否逐個展開 Given-When-Then？（不是只寫標題）
