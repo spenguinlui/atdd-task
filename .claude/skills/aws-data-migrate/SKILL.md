@@ -210,7 +210,13 @@ docker run --rm -e PGPASSWORD={staging_password} -v /tmp:/dump postgres:16 \
   psql -h host.docker.internal -p 15441 -U {staging_user} -d {db_name} \
   -f /dump/{app_name}_YYYYMMDD.sql
 
-# 4. 驗證
+# 4. 授權 Blazer user（restore 後 table owner 是 {staging_user}，blazer user 無權限）
+PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d {db_name} -c "
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO blazer;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO blazer;
+"
+
+# 5. 驗證
 PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d {db_name} \
   -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';"
 ```
