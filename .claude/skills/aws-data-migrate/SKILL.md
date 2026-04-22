@@ -24,10 +24,48 @@ version: 3.0.0
 
 ## Prerequisites
 
-- AWS CLI 已配置且認證有效（`aws sts get-caller-identity`）
+- AWS CLI 已配置且 MFA 認證有效（`aws sts get-caller-identity`）
 - 目標資料庫已建立（PostgreSQL）
 - 有 Production 資料庫的讀取權限
 - SSM 可連線到相關 EC2 instance
+- **AWS Session Manager Plugin** 已安裝（`session-manager-plugin --version`；macOS: `brew install --cask session-manager-plugin`）
+- **Docker Desktop** 已啟動（用於 pg16 pg_dump/psql）
+
+## pg_dump 版本相容性（重要）
+
+> **RDS 已升級到 PG16，但 EC2 都是 Ubuntu 16.04（glibc 2.23），裝不了 pg16 client。**
+> 所有 pg_dump/psql 操作必須透過 **SSM Port Forwarding + 本地 Docker postgres:16** 進行。
+
+### 標準流程
+
+```
+Mac (localhost)
+  ├── SSM tunnel :15440 → Production EC2 → Production RDS (PG16)
+  ├── SSM tunnel :15441 → Staging EC2 → Staging RDS (PG16)
+  └── Docker postgres:16 container
+        ├── pg_dump → host.docker.internal:15440 (dump)
+        └── psql   → host.docker.internal:15441 (restore)
+```
+
+macOS 的 Docker 不支援 `--network host`，必須用 `host.docker.internal` 連回 Mac 的 localhost。
+
+### 開 SSM Tunnel（通用模板）
+
+```bash
+aws ssm start-session \
+  --target "{INSTANCE_ID}" \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["{RDS_HOST}"],"portNumber":["5432"],"localPortNumber":["{LOCAL_PORT}"]}'
+```
+
+> SSM tunnel 會 idle timeout，長時間操作建議先測試 `psql -h 127.0.0.1 -p {LOCAL_PORT} -c "SELECT 1;"` 確認還活著。
+
+## 預設保留 admin_staffs
+
+> **所有 Production → Staging 遷移預設走 Path C**（保留 `admin_staffs` 的 staging 測試帳號）。
+> 只有明確要求「完全覆蓋」時才走 Path A。
+>
+> **Why**：Staging admin 帳號（密碼、OTP、角色）是手動設定的測試環境狀態，被 production 覆蓋後需要重新設定密碼 + OTP，非常麻煩。
 
 ## Instructions
 
@@ -118,70 +156,64 @@ rm -f /home/apps/{app_name}_YYYYMMDD.sql  # 逐一刪除確認過的舊檔
 
 ### A5. 執行 pg_dump
 
-**情境一：Staging 直連 Production RDS（推薦）**
+**標準方式：SSM Tunnel + 本地 Docker pg16（推薦）**
+
+> EC2 上的 pg_dump 版本太舊（PG12），無法 dump PG16 RDS。必須用本地 Docker。
 
 ```bash
-# 在 Staging EC2 上直接 dump Production RDS
+# 1. 開 Production RDS tunnel（在另一個終端或背景）
+aws ssm start-session --target "{PROD_INSTANCE_ID}" \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["{prod_rds_host}"],"portNumber":["5432"],"localPortNumber":["15440"]}'
+
+# 2. 用 Docker pg16 dump（macOS 用 host.docker.internal）
+docker run --rm -e PGPASSWORD={prod_password} -v /tmp:/dump postgres:16 \
+  pg_dump -h host.docker.internal -p 15440 -U {prod_user} -d {db_name} \
+  --no-owner --no-acl -f /dump/{app_name}_YYYYMMDD.sql
+
+# 3. 驗證
+ls -lh /tmp/{app_name}_YYYYMMDD.sql
+```
+
+**備援方式：EC2 上直接 dump（僅當 EC2 的 pg_dump 版本 >= RDS 版本時可用）**
+
+```bash
+# 在 EC2 上直接 dump（需先確認 pg_dump --version >= server version）
 PGPASSWORD={prod_password} pg_dump \
   -h {prod_rds_host} -U {prod_user} -d {db_name} \
   --no-owner --no-acl \
   -f /home/apps/{app_name}_YYYYMMDD.sql
 ```
-
-**情境二：需要傳輸（Staging 無法直連 Production RDS）**
-
-```bash
-# Step 1: 在 Production EC2 上 dump
-PGPASSWORD={prod_password} pg_dump \
-  -h {prod_rds_host} -U {prod_user} -d {db_name} \
-  --no-owner --no-acl \
-  -f /home/apps/{app_name}_YYYYMMDD.sql
-
-# Step 2: 壓縮 + 上傳 S3
-gzip -c /home/apps/{app_name}_YYYYMMDD.sql > /home/apps/{app_name}_YYYYMMDD.sql.gz
-aws s3 cp /home/apps/{app_name}_YYYYMMDD.sql.gz s3://{bucket}/db-backup/
-
-# Step 3: Staging 下載 + 解壓
-aws s3 cp s3://{bucket}/db-backup/{app_name}_YYYYMMDD.sql.gz /home/apps/
-gunzip -f /home/apps/{app_name}_YYYYMMDD.sql.gz
-```
-
-> **注意**：如果 Staging EC2 沒有 S3 權限（403 Forbidden），需要先設定 IAM Role 或改用 scp。
 
 ### A6. Drop + Recreate + Restore
 
 **重要：這會清掉 Staging 現有資料，執行前必須確認用戶同意。**
 
-SSM 的多層引號 escape 容易出錯，複雜命令建議用 **JSON 檔 + printf 寫腳本** 的方式：
+> ⚠️ **預設應走 Path C 保留 admin_staffs**。只有用戶明確要求「完全覆蓋」時才走 Path A。
+
+**標準方式：SSM Tunnel + 本地 Docker pg16**
 
 ```bash
-# 在本地建立 SSM 參數檔
-cat > /tmp/ssm-restore-commands.json << 'EOF'
-{
-  "commands": [
-    "printf '#!/bin/bash\\nexport PGPASSWORD={staging_password}\\nexport PGHOST={staging_rds_host}\\nexport PGUSER={staging_user}\\npsql -d postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\"'\"'{db_name}'\"'\"' AND pid <> pg_backend_pid();\"\\npsql -d postgres -c \"DROP DATABASE IF EXISTS {db_name};\"\\npsql -d postgres -c \"CREATE DATABASE {db_name};\"\\npsql -d {db_name} < /home/apps/{app_name}_YYYYMMDD.sql\\npsql -d {db_name} -c \"SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema = '\"'\"'public'\"'\"' AND table_type = '\"'\"'BASE TABLE'\"'\"';\"\\n' > /tmp/db_restore.sh",
-    "chmod +x /tmp/db_restore.sh",
-    "sudo su - apps -c 'bash /tmp/db_restore.sh 2>&1'"
-  ]
-}
-EOF
+# 1. 開 Staging RDS tunnel（在另一個終端或背景）
+aws ssm start-session --target "{STAGING_INSTANCE_ID}" \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["{staging_rds_host}"],"portNumber":["5432"],"localPortNumber":["15441"]}'
 
-# 透過 JSON 檔傳參數給 SSM
-COMMAND_ID=$(aws ssm send-command \
-  --instance-ids "$STAGING_INSTANCE_ID" \
-  --document-name "AWS-RunShellScript" \
-  --parameters file:///tmp/ssm-restore-commands.json \
-  --timeout-seconds 600 \
-  --output text \
-  --query "Command.CommandId")
+# 2. Terminate + Drop + Create（本地 psql 即可，psql 向前相容）
+PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d postgres \
+  -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{db_name}' AND pid<>pg_backend_pid();"
+PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d postgres \
+  -c "DROP DATABASE IF EXISTS {db_name}; CREATE DATABASE {db_name};"
+
+# 3. Restore（用 Docker pg16 的 psql）
+docker run --rm -e PGPASSWORD={staging_password} -v /tmp:/dump postgres:16 \
+  psql -h host.docker.internal -p 15441 -U {staging_user} -d {db_name} \
+  -f /dump/{app_name}_YYYYMMDD.sql
+
+# 4. 驗證
+PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d {db_name} \
+  -c "SELECT count(*) as table_count FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';"
 ```
-
-腳本執行的步驟：
-1. `pg_terminate_backend` — 斷開所有連到目標 DB 的 session
-2. `DROP DATABASE IF EXISTS` — 刪除舊 DB
-3. `CREATE DATABASE` — 建立空 DB
-4. `psql < dump.sql` — 匯入資料
-5. 查詢 `table_count` — 驗證結果
 
 ### A7. 驗證（使用 real count(*)，不要依賴 pg_stat）
 
