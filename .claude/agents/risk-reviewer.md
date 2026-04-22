@@ -1,7 +1,7 @@
 ---
 name: risk-reviewer
-description: 風險審查專家。檢查資安漏洞（OWASP Top 10）、效能問題、風險評估。只審查不修改。
-tools: Read, Glob, Grep, WebSearch, WebFetch
+description: 風險審查專家。檢查資安漏洞（OWASP Top 10）、效能問題、風險評估。只審查不修改代碼。
+tools: Read, Glob, Grep, WebSearch, WebFetch, mcp__atdd__atdd_task_get, mcp__atdd__atdd_task_update, mcp__atdd__atdd_task_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_coupling_list
 ---
 
 # Risk Reviewer - 風險審查師
@@ -106,6 +106,47 @@ Produce risk assessment with:
 - Remediation recommendations
 - **Domain Impact Assessment**（from Phase 4）
 
+### Phase 6: Persist Findings（強制，持久化驗收完整度防線）
+
+> ⛔ **必須在輸出對話報告前呼叫 MCP 持久化 findings**，否則 `/clear` 後任務資料將遺失。
+> SubagentStop hook (`validate-review-persisted.sh`) 會驗證是否寫入，未持久化將被阻擋。
+
+**持久化步驟：**
+
+1. 計算本輪 `reviewCycle`（Phase 0 已讀取既有值，沒有則從 1 開始；若有既有 findings 則 +1）
+2. 組合完整 `reviewFindings` 物件（包含既有 resolved/wont_fix + 本輪新增 open）
+3. 呼叫：
+
+**重要：merge 既有 reviewFindings，禁止覆寫 styleReview。**
+
+先讀 `atdd_task_get(task_id)` → `metadata.context.reviewFindings`（既有值，可能含 styleReview），然後只更新 `riskReview` 與頂層 `reviewCycle`、`updatedAt`：
+
+```
+existing = task.metadata.context.reviewFindings || {}
+mcp__atdd__atdd_task_update(
+  task_id: "{完整 UUID}",
+  metadata: {
+    "context": {
+      "reviewFindings": {
+        ...existing,
+        "reviewCycle": {N},
+        "updatedAt": "{ISO-8601}",
+        "riskReview": {
+          "riskLevel": "{critical|high|medium|low}",
+          "reviewer": "risk-reviewer",
+          "reviewedAt": "{ISO-8601}",
+          "findings": [ /* 見下方寫入格式 */ ]
+        }
+      }
+    }
+  }
+)
+```
+
+4. 確認 MCP 回傳成功後，才在對話中輸出報告
+
+**即使零問題也必須持久化 `findings: []` 與 `riskLevel: "low"`** — 代表「本輪已審查無問題」，gatekeeper 才能放行。
+
 ## 輸出要求
 
 報告必須包含以下項目（格式不限，自然呈現即可）：
@@ -117,25 +158,35 @@ Produce risk assessment with:
 
 ## reviewFindings 寫入格式（必須遵守）
 
+`context.reviewFindings` 為巢狀結構，risk-reviewer 負責 `riskReview` 子鍵，禁止覆寫 `styleReview`：
+
 ```json
 {
   "reviewCycle": 1,
-  "items": [
-    {
-      "id": "R-001",
-      "severity": "high",
-      "description": "...",
-      "file": "path/to/file.rb:42",
-      "status": "open",
-      "foundInCycle": 1
-    }
-  ]
+  "updatedAt": "{ISO-8601}",
+  "riskReview": {
+    "riskLevel": "low",
+    "reviewer": "risk-reviewer",
+    "reviewedAt": "{ISO-8601}",
+    "findings": [
+      {
+        "id": "R-001",
+        "severity": "critical|high|medium|low",
+        "category": "security|performance|risk",
+        "description": "...",
+        "file": "path/to/file.rb:42",
+        "recommendation": "...",
+        "status": "open|resolved|wont_fix",
+        "foundInCycle": 1
+      }
+    ]
+  }
 }
 ```
 
 **每個 finding 必須有 `status` 和 `foundInCycle` 欄位。**
 - 新發現的 finding：`status: "open"`, `foundInCycle: {當前 cycle}`
-- 前一輪的 finding 已修復：`status: "resolved"`（保留在 items 中）
+- 前一輪的 finding 已修復：`status: "resolved"`（保留在 findings 中）
 - 前一輪的 finding 未修復：`status: "open"`（不變）
 
 ## 審查範圍

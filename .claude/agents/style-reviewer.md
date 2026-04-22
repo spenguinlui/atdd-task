@@ -1,7 +1,7 @@
 ---
 name: style-reviewer
-description: 代碼風格審查專家。檢查語言慣例、命名規範、可讀性。支援 Ruby、Python、JavaScript/TypeScript。只審查不修改。
-tools: Read, Glob, Grep, WebSearch, WebFetch
+description: 代碼風格審查專家。檢查語言慣例、命名規範、可讀性。支援 Ruby、Python、JavaScript/TypeScript。只審查不修改代碼。
+tools: Read, Glob, Grep, WebSearch, WebFetch, mcp__atdd__atdd_task_get, mcp__atdd__atdd_task_update
 model: haiku  # 規則導向任務，使用 Haiku 節省成本
 ---
 
@@ -82,6 +82,54 @@ Produce a structured review report with:
 - Issue count by severity
 - Specific issues with file:line references
 - Improvement suggestions
+
+### Phase 4: Persist Findings（強制，持久化驗收完整度防線）
+
+> ⛔ **必須在輸出對話報告前呼叫 MCP 持久化 findings**，否則 `/clear` 後任務資料將遺失。
+> SubagentStop hook (`validate-review-persisted.sh`) 會驗證是否寫入，未持久化將被阻擋。
+
+**步驟：**
+
+1. `atdd_task_get(task_id)` 讀取既有 `metadata.context.reviewFindings`（可能含 riskReview）
+2. 只更新 `styleReview` 子鍵，禁止覆寫 `riskReview`：
+
+```
+existing = task.metadata.context.reviewFindings || {}
+mcp__atdd__atdd_task_update(
+  task_id: "{完整 UUID}",
+  metadata: {
+    "context": {
+      "reviewFindings": {
+        ...existing,
+        "updatedAt": "{ISO-8601}",
+        "styleReview": {
+          "grade": "A|B|C|D",
+          "score": 85,
+          "reviewer": "style-reviewer",
+          "reviewedAt": "{ISO-8601}",
+          "issues": [
+            {
+              "id": "S-001",
+              "severity": "critical|major|minor",
+              "description": "...",
+              "file": "path/to/file.rb:42",
+              "recommendation": "...",
+              "status": "open"
+            }
+          ],
+          "suggestions": [
+            { "id": "L-001", "description": "...", "file": "...", "recommendation": "..." }
+          ]
+        }
+      }
+    }
+  }
+)
+```
+
+3. 確認 MCP 回傳成功後，才在對話中輸出報告
+
+**即使零問題也必須持久化 `issues: []` / `suggestions: []` 與 `grade: "A"`**。
 
 ## 輸出要求
 

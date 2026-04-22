@@ -108,6 +108,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/validate-review-persisted.sh"
+          },
+          {
+            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/record-metrics.sh"
           }
         ]
