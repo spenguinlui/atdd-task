@@ -144,14 +144,22 @@ Read: .claude/skills/ba-writing/SKILL.md
 
 由 Hook `validate-spec-format.sh` 自動驗證，技術洩漏（backtick、snake_case、::）將被阻擋。
 
-### Phase 4: ATDD Profile 選擇
+### Phase 4: ATDD Profile 選擇 + E2E 建議
 
 ```
 1. Read: acceptance/registry.yml
 2. 根據決策樹選擇 profile
+3. 產出 E2E 建議（decision: required/skipped + tool: chrome-mcp 預設 + reason）
 ```
 
 詳細選擇指南：`.claude/agents/specist/profile-selection.md`
+
+**E2E 預設原則（強制）**：
+- **預設 `decision: "required"`、`tool: "chrome-mcp"`**
+- 建議 `skipped` 的限定情境：純後端重構、DB migration-only、job/worker 無 UI、framework 內部改動
+- 任何涉及 UI 變更、使用者互動、對外通訊（email/webhook）、金流、資料敏感操作 → 必須 `required`
+- 建議只是 recommendation，最終由 `/continue` 向用戶 AskUserQuestion 確認
+- 禁止在 specist 階段直接寫入 `testLayers.e2e.required = false`
 
 ### Phase 5: 規格撰寫
 
@@ -185,7 +193,12 @@ atdd_task_update(
     },
     "acceptance": {
       "profile": "{e2e/integration/calculation/unit}",
-      "reason": "{選擇原因}"
+      "reason": "{選擇原因}",
+      "e2eRecommendation": {
+        "decision": "{required|skipped}",
+        "tool": "chrome-mcp",
+        "reason": "{建議理由：有無 UI 變更、是否業務敏感流程等}"
+      }
     }
   }
 )

@@ -67,6 +67,15 @@
         ]
       },
       {
+        "matcher": "mcp__atdd__atdd_task_update",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/enforce-e2e-decision.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           {
