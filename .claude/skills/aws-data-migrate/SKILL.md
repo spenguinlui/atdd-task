@@ -1,7 +1,7 @@
 ---
 name: aws-data-migrate
 description: 資料遷移工具，從 Production 安全地遷移資料到 Local/Staging 環境。自動清理敏感資料，硬編碼禁止反向遷移。
-version: 3.0.0
+version: 3.1.0
 ---
 
 # AWS Data Migrate
@@ -34,18 +34,32 @@ version: 3.0.0
 ## pg_dump 版本相容性（重要）
 
 > **RDS 已升級到 PG16，但 EC2 都是 Ubuntu 16.04（glibc 2.23），裝不了 pg16 client。**
-> 所有 pg_dump/psql 操作必須透過 **SSM Port Forwarding + 本地 Docker postgres:16** 進行。
 
-### 標準流程
+### 兩條可用路徑
 
+**路徑 ①（推薦，restore 專用）：S3 + EC2 本地 psql 直連 RDS**
+```
+Local Mac: pg_dump (via SSM tunnel + Docker pg16) → .sql → gzip
+         → aws s3 cp → S3 bucket
+EC2:      aws s3 cp ← S3 bucket
+         → gunzip → psql 9.6（EC2 自帶）直連目標 RDS (VPC 內) → restore
+```
+- **何時用**：restore 大 DB（> 100 MB），或任何預期跑超過 5 分鐘的操作
+- **為何穩**：EC2 ↔ RDS 在同一 VPC，不經過任何 tunnel；SSM `send-command` 只負責 kick off + 輪詢進度
+- **psql 9.6 對 PG16 server**：純 text restore 相容（psql 只是 SQL 發送器），唯一要處理的是 pg_dump 16 會產生 `\restrict` / `\unrestrict` meta-command → 9.x 不認識，dump 後先 `sed -i -e '/^\\restrict /d' -e '/^\\unrestrict /d'` 刪掉
+- **實測**：402 MB DB restore 54 秒 0 錯誤
+
+**路徑 ②（dump 階段不得已才用）：SSM Port Forwarding + 本地 Docker pg16**
 ```
 Mac (localhost)
   ├── SSM tunnel :15440 → Production EC2 → Production RDS (PG16)
-  ├── SSM tunnel :15441 → Staging EC2 → Staging RDS (PG16)
   └── Docker postgres:16 container
-        ├── pg_dump → host.docker.internal:15440 (dump)
-        └── psql   → host.docker.internal:15441 (restore)
+        └── pg_dump → host.docker.internal:15440 (dump)
 ```
+- **何時用**：dump 階段還是需要 pg16 client（EC2 的 pg_dump 9.6 無法 dump PG16 server）
+- **⚠️ 風險**：SSM tunnel 會 idle timeout 靜默斷線，pg client 不會偵測到、整個 process 悄悄 hang、檔案大小停止成長、stderr 乾淨。實際踩雷過 dump 卡 3 hr、restore 卡 30+ min
+- **若非用不可**：加 `--verbose` 觀察進度、設 `PGOPTIONS="--statement-timeout=0"`、每次重要操作前先 `psql -c "SELECT 1;"` 確認 tunnel 還活著、斷了就重開重試
+- **絕對不要**：用 SSM tunnel 做 `psql -f xxx.sql` restore 大檔案 —— 改走路徑 ①
 
 macOS 的 Docker 不支援 `--network host`，必須用 `host.docker.internal` 連回 Mac 的 localhost。
 
@@ -57,8 +71,6 @@ aws ssm start-session \
   --document-name AWS-StartPortForwardingSessionToRemoteHost \
   --parameters '{"host":["{RDS_HOST}"],"portNumber":["5432"],"localPortNumber":["{LOCAL_PORT}"]}'
 ```
-
-> SSM tunnel 會 idle timeout，長時間操作建議先測試 `psql -h 127.0.0.1 -p {LOCAL_PORT} -c "SELECT 1;"` 確認還活著。
 
 ## 預設保留 admin_staffs
 
@@ -191,24 +203,21 @@ PGPASSWORD={prod_password} pg_dump \
 
 > ⚠️ **預設應走 Path C 保留 admin_staffs**。只有用戶明確要求「完全覆蓋」時才走 Path A。
 
-**標準方式：SSM Tunnel + 本地 Docker pg16**
+**推薦流程：DROP/CREATE 用 tunnel（短操作）+ Restore 走 S3 + EC2（長操作不用 tunnel）**
 
 ```bash
-# 1. 開 Staging RDS tunnel（在另一個終端或背景）
+# 1. 開 Staging RDS tunnel（只用來做短指令，長 restore 不依賴它）
 aws ssm start-session --target "{STAGING_INSTANCE_ID}" \
   --document-name AWS-StartPortForwardingSessionToRemoteHost \
   --parameters '{"host":["{staging_rds_host}"],"portNumber":["5432"],"localPortNumber":["15441"]}'
 
-# 2. Terminate + Drop + Create（本地 psql 即可，psql 向前相容）
+# 2. Terminate + Drop + Create（本地 psql via tunnel，秒殺）
 PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d postgres \
   -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{db_name}' AND pid<>pg_backend_pid();"
 PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d postgres \
   -c "DROP DATABASE IF EXISTS {db_name}; CREATE DATABASE {db_name};"
 
-# 3. Restore（用 Docker pg16 的 psql）
-docker run --rm -e PGPASSWORD={staging_password} -v /tmp:/dump postgres:16 \
-  psql -h host.docker.internal -p 15441 -U {staging_user} -d {db_name} \
-  -f /dump/{app_name}_YYYYMMDD.sql
+# 3. Restore —— 走 Path C C3 的 S3 + EC2 nohup 模式，別用 SSM tunnel 做長 restore
 
 # 4. 授權 Blazer user（restore 後 table owner 是 {staging_user}，blazer user 無權限）
 PGPASSWORD={staging_password} psql -h 127.0.0.1 -p 15441 -U {staging_user} -d {db_name} -c "
@@ -394,15 +403,27 @@ PGPASSWORD={stg_password} psql -h {stg_rds_host} -U {stg_user} -d {db_name} \
 
 > 💡 多個 table 可重複 `-t table1 -t table2` 一起備份。
 
-### C2. pg_dump production（--clean --if-exists + 排除要保留 table 的資料）
+### C2. pg_dump production（本地 Docker pg16 via SSM tunnel，--clean --if-exists + 排除要保留 table 的資料）
+
+> ⚠️ dump 必須用 **pg_dump 16**（EC2 上的 9.6 無法 dump PG16 server）。走本地 Docker + SSM tunnel。開始前先 `psql -c "SELECT 1;"` 確認 tunnel 活著。
 
 ```bash
-PGPASSWORD={prod_password} pg_dump \
-  -h {prod_rds_host} -U {prod_user} -d {db_name} \
+# 1. 開 prod tunnel（另一個終端 / 背景）
+aws ssm start-session --target "{PROD_INSTANCE_ID}" \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["{prod_rds_host}"],"portNumber":["5432"],"localPortNumber":["15440"]}'
+
+# 2. Docker pg16 dump
+docker run --rm -e PGPASSWORD={prod_password} -v /tmp:/dump postgres:16 \
+  pg_dump -h host.docker.internal -p 15440 -U {prod_user} -d {db_name} \
   --no-owner --no-acl \
   --clean --if-exists \
   --exclude-table-data={keep_table} \
-  -f /home/apps/{app_name}_prod_YYYYMMDD.sql
+  --verbose \
+  -f /dump/{app_name}_prod_YYYYMMDD.sql
+
+# 3. 移除 psql 16 專用 meta-command（舊 psql 9.x 會在 restore 時報錯）
+sed -i '' -e '/^\\restrict /d' -e '/^\\unrestrict /d' /tmp/{app_name}_prod_YYYYMMDD.sql
 ```
 
 **三個關鍵 flag**：
@@ -410,32 +431,69 @@ PGPASSWORD={prod_password} pg_dump \
 - `--exclude-table-data={keep_table}` → 保留 schema 但清空資料，restore 後是空表等待 C4 灌入
 - `--no-owner --no-acl` → 跨 user restore 時避免 owner / grant 衝突
 
-### C3. Restore dump 到 staging（不需 DROP DATABASE）
+### C3. Restore dump 到 staging（**推薦走 S3 + EC2 本地 psql**，避開 SSM tunnel）
+
+> ⚠️ **不要**用本地 Docker + SSM tunnel 做 restore —— SSM tunnel 會在中途 idle 斷線 hang 住；踩過 30+ min 靜默 stuck 的雷。
+> 改走 S3 → EC2 → psql 直連 RDS（VPC 內，穩定）。psql 9.6 對 PG16 做 text restore 相容，前提是 C2 已把 `\restrict`/`\unrestrict` 刪掉。
 
 ```bash
+# 1. gzip + 上 S3
+gzip -cf /tmp/{app_name}_prod_YYYYMMDD.sql > /tmp/{app_name}_prod_YYYYMMDD.sql.gz
+aws s3 cp /tmp/{app_name}_prod_YYYYMMDD.sql.gz \
+  s3://{bucket}/db-backup/{app_name}_prod_YYYYMMDD.sql.gz
+
+# 2. 寫 restore 腳本，用 base64 灌進 SSM（避免 quote 地獄）
+cat > /tmp/remote_restore.sh << 'EOF'
+#!/bin/bash
+set -e
+cd /home/apps
+aws s3 cp s3://{bucket}/db-backup/{app_name}_prod_YYYYMMDD.sql.gz /home/apps/restore.sql.gz
+gunzip -f /home/apps/restore.sql.gz
+
 export PGPASSWORD={stg_password}
 export PGHOST={stg_rds_host}
 export PGUSER={stg_user}
 
-# 先斷掉既有連線（app user 可以終止自己的 session，如 Rails app）
-psql -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{db_name}' AND pid <> pg_backend_pid();"
+# 斷掉既有連線（app user 可以終止自己的 session）
+psql -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{db_name}' AND pid<>pg_backend_pid();"
 
 # Restore（--clean 會自動 DROP 再 CREATE 每個 table）
-psql -d {db_name} -v ON_ERROR_STOP=0 -f /home/apps/{app_name}_prod_YYYYMMDD.sql \
-  > /tmp/restore.stdout 2> /tmp/restore.stderr
+psql -d {db_name} -v ON_ERROR_STOP=0 -f /home/apps/restore.sql \
+  > /home/apps/restore.stdout 2> /home/apps/restore.stderr
 
+echo "DONE stdout=$(wc -l < /home/apps/restore.stdout) stderr=$(wc -l < /home/apps/restore.stderr)"
+rm -f /home/apps/restore.sql
+EOF
+
+B64=$(base64 < /tmp/remote_restore.sh | tr -d '\n')
+
+# 3. 用 nohup 背景啟動（避免 SSM send-command timeout，大 DB 時必要）
+cat > /tmp/ssm_kick.json <<EOF
+{
+  "commands": [
+    "echo '$B64' | base64 -d > /home/apps/restore.sh && chmod +x /home/apps/restore.sh",
+    "sudo -u apps bash -c 'nohup bash /home/apps/restore.sh > /home/apps/restore.log 2>&1 &' && sleep 2 && ps -ef | grep restore.sh | grep -v grep"
+  ]
+}
+EOF
+aws ssm send-command --instance-ids "{STAGING_INSTANCE_ID}" \
+  --document-name "AWS-RunShellScript" \
+  --parameters file:///tmp/ssm_kick.json --timeout-seconds 600
+
+# 4. 輪詢進度（每 45 秒，直到 restore.sh process 消失 + log 顯示 DONE）
 # 檢查錯誤數（0 最理想；extension-related 錯誤通常可忽略，但要人工 review）
-wc -l /tmp/restore.stderr
-head -30 /tmp/restore.stderr
 ```
 
-### C4. 灌回保留的 table 資料
+### C4. 灌回保留的 table 資料（一樣走 S3 路徑，或資料量小可直接 SSM 灌）
 
 ```bash
-psql -d {db_name} -v ON_ERROR_STOP=1 -f /home/apps/{keep_table}_backup_YYYYMMDD.sql
+# data-only 備份檔同樣要先 sed 掉 \restrict / \unrestrict
+sed -i '' -e '/^\\restrict /d' -e '/^\\unrestrict /d' /tmp/{keep_table}_backup_YYYYMMDD.sql
+gzip -cf /tmp/{keep_table}_backup_YYYYMMDD.sql > /tmp/{keep_table}_backup.sql.gz
+aws s3 cp /tmp/{keep_table}_backup.sql.gz s3://{bucket}/db-backup/{keep_table}_backup_YYYYMMDD.sql.gz
 
-# 驗證
-psql -d {db_name} -c "SELECT count(*) FROM {keep_table};"
+# 在 EC2 上：下載、gunzip、psql -f 灌回，驗證筆數
+# （同 C3 的 base64 + SSM 模式，但操作小，可用單一 send-command 同步跑完）
 ```
 
 ### C5. 驗證（real count(*)，參照 A7）
