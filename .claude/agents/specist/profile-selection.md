@@ -1,5 +1,27 @@
 # ATDD Profile 選擇指南
 
+## ⚠️ E2E 預設原則（2026-04 起強制）
+
+**E2E 預設是 `required`，工具預設 `chrome-mcp`。**
+
+Specist 可建議 `skipped` 的限定情境：
+- 純後端重構（無 UI、無對外可觀察變更）
+- 單純 DB migration / schema 變更
+- 純 job/worker/framework 內部改動
+- 測試工具或 dev-only 配置
+
+涉及以下必須 `required`：
+- UI 變更（form、button、list、表格）
+- 使用者互動流程
+- 對外通訊（email、webhook、外部 API）
+- 金流、資料敏感操作
+- 權限 / 授權邏輯變更
+
+Specist 只產出建議；最終由 `/continue` 向用戶 AskUserQuestion 確認。
+Hook `enforce-e2e-decision.sh` 會阻擋未經決策的 requirement → specification 轉移。
+
+---
+
 ## 測試分類原則
 
 | 分類 | 性質 | 存放位置 | 觸發時機 |

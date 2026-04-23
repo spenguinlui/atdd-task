@@ -50,6 +50,74 @@ description: 確認進入下一個任務階段
 
 ---
 
+## Step 1.6: E2E 決策強制詢問（requirement → specification 轉移時）
+
+> ⛔ **必須在轉移前用 AskUserQuestion 詢問用戶 E2E 決策。**
+> Hook `enforce-e2e-decision.sh` 會阻擋缺失決策的 `atdd_task_update`。
+
+### 觸發條件
+當前 status 屬於 `requirement` / `pending_spec`，且即將轉移到 `specifying` / `specification` / `testing`。
+
+### 跳過條件
+若 `metadata.acceptance.e2eDecision` 已存在（前輪已決定過），跳過此步驟直接進入 Step 2。
+
+### 詢問規則
+
+使用 AskUserQuestion：
+
+```
+question: "此任務是否需要 E2E 測試？預設使用 chrome-mcp 自動化測試。"
+header: "E2E 決策"
+options:
+  - label: "需要 E2E（chrome-mcp 自動化） (Recommended)"
+    description: "有 UI 變更、使用者互動、或業務敏感流程（如對外寄信、金流）"
+  - label: "需要 E2E 但改人工驗證"
+    description: "UI 複雜或 chrome-mcp 難以覆蓋，改由人工依 verificationGuide 驗收"
+  - label: "跳過 E2E（需填理由）"
+    description: "純後端重構、DB migration、無 UI 變更、純 job/worker 改動等"
+multiSelect: false
+```
+
+若用戶選「跳過」，再用一次 AskUserQuestion 或讓用戶自由輸入跳過理由（至少 10 字）。
+
+### 寫入 MCP
+
+根據用戶選擇，`atdd_task_update` 時 metadata 必須包含：
+
+**需要 chrome-mcp 自動化**（預設）：
+```json
+{
+  "acceptance": {
+    "e2eDecision": {"decision": "required", "tool": "chrome-mcp"},
+    "testLayers": {"e2e": {"required": true, "mode": "auto"}}
+  }
+}
+```
+
+**人工 E2E**：
+```json
+{
+  "acceptance": {
+    "e2eDecision": {"decision": "required", "tool": "manual"},
+    "testLayers": {"e2e": {"required": true, "mode": "manual"}}
+  }
+}
+```
+
+**跳過**（必填 reason）：
+```json
+{
+  "acceptance": {
+    "e2eDecision": {"decision": "skipped", "reason": "<用戶輸入的理由>"},
+    "testLayers": {"e2e": {"required": false}}
+  }
+}
+```
+
+**未詢問就嘗試轉移 → hook 阻擋並提示**。
+
+---
+
 ## Step 2: 階段轉移（決定 next_stage 和 next_agent）
 
 > **重要**：此步驟的產出是 `next_stage` 和 `next_agent` 兩個變數。
