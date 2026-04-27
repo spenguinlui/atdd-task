@@ -71,6 +71,14 @@ Metrics: {total_tools} tools / {total_tokens} tokens / {duration}
 
 記錄 commit hash
 
+### Commit 範圍規則
+
+跑 `rails db:migrate`（或等價工具）觸發的 **annotate drift** — model 檔案頂端 `# == Schema Information` 區塊、`schema.rb`、`structure.sql` 等 — **一律納入該任務 commit**，即使 drift 內容反映的是先前 migration 留下的歷史欄位。
+
+**Why**：drift 是本任務執行 db:migrate 觸發產生的，責任歸屬本任務；分散到別的 commit 反而難追溯與 review。
+
+**How to apply**：`git status` 中 model 註解變化、schema.rb、structure.sql 一起 `git add`，不要篩掉「看起來無關」的部分。
+
 ---
 
 ## Step 5: 更新任務狀態
