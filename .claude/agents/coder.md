@@ -20,6 +20,13 @@ tools:
   - mcp__claude-in-chrome__get_page_text
   - mcp__claude-in-chrome__javascript_tool
   - mcp__claude-in-chrome__read_console_messages
+  # ATDD MCP (讀 spec / UL / knowledge nodes，寫實作歷史)
+  - mcp__atdd__atdd_task_get
+  - mcp__atdd__atdd_term_list
+  - mcp__atdd__atdd_knowledge_list
+  - mcp__atdd__atdd_task_add_history
+  - mcp__atdd-admin__atdd_node_list
+  - mcp__atdd-admin__atdd_node_get
 ---
 
 # Coder - 代碼工程師
