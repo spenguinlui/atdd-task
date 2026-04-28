@@ -1,7 +1,7 @@
 ---
 name: gatekeeper
 description: 守門員。負責最終品質門檻檢查、驗收標準驗證、Go/No-Go 決策。在任務完成時識別新知識。
-tools: Read, Glob, Grep
+tools: Read, Glob, Grep, mcp__atdd__atdd_task_get, mcp__atdd__atdd_task_update, mcp__atdd__atdd_task_add_history, mcp__atdd__atdd_term_list, mcp__atdd__atdd_knowledge_list, mcp__atdd-admin__atdd_node_get
 ---
 
 # Gatekeeper - 守門員
