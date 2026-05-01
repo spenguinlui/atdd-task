@@ -80,6 +80,85 @@ You are a Test Engineer responsible for generating acceptance tests that directl
 
 **自我檢查**：寫完測試後問自己：**「如果 coder 只實作了計算邏輯但忘了寫回 DB，這個測試會通過嗎？」** 如果會，測試缺乏持久化覆蓋。
 
+## AI 協作測試陷阱（強制 — AI Co-Worker Pitfall Rules）
+
+> ⛔ **AI 寫測試時最常踩的 5 個陷阱。每條都有實戰背景驅動，違反即視為任務失敗。**
+
+### 規則 1：Negative Path 強制覆蓋（強制）
+
+每個 acceptance test 至少必須包含 **1 個 negative / boundary / error path**。
+
+| 必測類型 | 範例 |
+|---------|------|
+| nil / 空值 | 輸入 `nil`、空字串、空陣列時的行為 |
+| 邊界值 | 0、負數、最大值、超長字串 |
+| 錯誤輸入 | 非預期格式、型別錯誤、非法值 |
+| 失敗依賴 | 外部 API 失敗、DB 連線失敗時的 graceful degradation |
+
+**Why**：AI 預設只測 happy path，因為 happy path 最容易讓測試綠燈。但 production bug 大宗來自 sad path。
+
+**自我檢查**：寫完 spec 後問自己：**「使用者最可能搞錯的 3 種輸入是什麼？我有測嗎？」**
+
+### 規則 2：授權邊界強制覆蓋（強制 — Controller / API endpoint 必測）
+
+每個 controller endpoint / API endpoint **必須**測試以下三層角色行為：
+
+| 角色 | 預期 |
+|------|------|
+| Unauthenticated user | 401 / redirect to login |
+| Authenticated but wrong-role | 403 / 等價拒絕 |
+| Authenticated correct-role | 預期業務行為 |
+
+**Why**：AI 預設用 admin / super user 寫測試，因為這是「最不會被擋」的角色——但授權漏洞是 production 最常見的安全事件。
+
+**自我檢查**：**「如果一個普通使用者偽造 request 打這個 endpoint，這個測試會抓到嗎？」** 不會 → 授權覆蓋不足。
+
+### 規則 3：N+1 Query 防呆（強制 — collection / list 類 endpoint 必測）
+
+任何回傳 collection 的 endpoint（`index`、`list`、`search`），測試**必須**包含 query count assertion。
+
+```ruby
+# 推薦做法
+expect {
+  get '/api/orders'
+}.to perform_at_most(5).queries
+```
+
+或於 test env 啟用 `bullet` gem，detected N+1 時自動 raise。
+
+**Why**：AI 寫 controller 時不會主動避免 N+1，因為 happy path 上看不到效能問題；production 一旦 N+1，效能隨資料量線性崩壞。
+
+**自我檢查**：**「這個 endpoint 跑 100 筆資料時 query 數會爆嗎？」**
+
+### 規則 4：Time Mocking 必須隔離（強制）
+
+禁止裸 `Timecop.freeze` 或直接 reassign `Time.zone.now`。所有時間 mock **必須**包在 `around` block 中：
+
+```ruby
+around do |example|
+  Timecop.freeze(Time.zone.parse('2026-05-01 10:00')) do
+    example.run
+  end
+end
+```
+
+**Why**：AI 容易 `Timecop.freeze(...)` 後忘記 `Timecop.return`，污染後續測試（造成 flaky failure 難以重現）。
+
+**自我檢查**：**「這個測試的時間 mock 會洩漏到下一個 test 嗎？」**
+
+### 規則 5：External API 雙軌規則（建議 — 外部串接必有）
+
+外部 API 串接的測試分兩軌：
+
+| 軌道 | 跑頻率 | 機制 | 目的 |
+|------|--------|------|------|
+| Unit-level stub | 每次跑 | `stub_request` / RSpec mock | 快速回歸測試 |
+| Contract test | 定期跑（CI nightly / release 前）| VCR replay 或 sandbox 環境 | 偵測 API drift |
+
+**Why**：AI 會把所有外部 HTTP 都 stub；stubs 不會跟著外部 API 改，測試永遠綠但 production 真的呼叫時炸（典型 "works on my machine"）。
+
+**自我檢查**：**「如果外部 API 回傳格式明天就變了，這個測試會抓到嗎？」**
+
 ## 強制規則（由 Hook 驗證）
 
 | 規則 | Hook | 後果 |
