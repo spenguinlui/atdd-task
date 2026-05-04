@@ -2,13 +2,52 @@
 
 ## 規格結構
 
-每個規格必須包含：
+每個規格必須包含（順序固定，禁止跳過）：
 
-1. **Business Context**：為什麼、給誰、影響
-2. **Domain 資訊**：主要 Domain、相關 Domains
-3. **ATDD Profile**：驗收類型、選擇原因
-4. **Acceptance Criteria**：驗收標準清單
-5. **Scenarios**：Given-When-Then 場景
+1. **Problem Statement**：解決什麼問題、為什麼非修不可、不修的後果
+2. **Solution Overview**：採用方案一句話 + 為什麼選這個（trade-off）
+3. **Business Context**：為什麼、給誰、影響
+4. **Domain 資訊**：主要 Domain、相關 Domains
+5. **ATDD Profile**：驗收類型、選擇原因
+6. **Acceptance Criteria**：驗收標準清單
+7. **Scenarios**：Given-When-Then 場景（依分類標籤分組）
+
+## 冷讀者測試（強制 — Cold-Reader Test）
+
+> ⛔ **規格必須能被「沒看過 requirement 的讀者」獨立讀懂。**
+>
+> 撰寫完成後，把自己當作下游 tester / coder：你只看 spec 內容（不看 requirement、不看任務歷史），是否能回答這 4 個問題？
+>
+> 1. 這個任務在解決什麼業務問題？
+> 2. 為什麼非做不可？（不做的後果是什麼？）
+> 3. 採用什麼方案？為什麼選這個而非其他？
+> 4. 每個 Scenario 是主流程、邊界、還是回歸保護？
+
+任一答不出來 → 補 Problem Statement / Solution Overview / Scenario 標籤後重寫。
+
+### Problem Statement 範例
+
+```markdown
+## Problem Statement
+
+**現象**：production 716 筆工程款收入單的 tax 欄位是 NULL（空的）。
+**影響**：用戶編輯這些舊單時，程式 nil.to_i 出錯 → 404。
+**為什麼會這樣**：VR-143 規則（price + tax = price_with_tax）2024 年才上線，之前建的單沒有 tax。
+**為什麼非修不可**：主任務 be88a60f 已用 nil-guard 暫貼，但要拆掉貼布、執行 hardening #2 (NOT NULL constraint) 必須先把資料補乾淨。
+```
+
+### Solution Overview 範例
+
+```markdown
+## Solution Overview
+
+**方案**：對每個 project 重算 5 期工程款的 tax（總價 × 5%，尾差落最後一期），同時補 price_with_tax / amount_with_tax。
+
+**為什麼選這個（vs Option A: tax=0 / Option C: price_with_tax - price）**：
+- Option A 違反 VR-143（tax=0 但 price>0 ⇒ price_with_tax 對不上）
+- Option C 多數舊單 price_with_tax 也是 NULL，無法回算
+- 只有本方案同時滿足 VR-143、VR-144 尾差規則、抵抗 SaveSaleElements 重算
+```
 
 ## 撰寫原則
 
@@ -81,12 +120,32 @@
 **And** 頁面顯示訊息 `"發票 ACC-001 已成功作廢"`
 ```
 
-### 場景類型
+### 場景類型與命名規範（強制）
 
-1. **Happy Path**：正常成功流程
-2. **Alternative Path**：其他成功路徑
-3. **Error Path**：錯誤處理
-4. **Edge Case**：邊界情況
+> ⛔ Scenario 必須帶分類標籤，讓讀者一眼看出此場景在驗證主流程、邊界還是回歸。
+>
+> 命名格式：`S{n}-{tag}: {一句話說明}`
+
+| 標籤 | 意義 | 範例 |
+|------|------|------|
+| `happy` | 主成功流程 | `S1-happy: 單 project 5 期回填正確` |
+| `alt` | 其他成功路徑 | `S2-alt: 4 期工程款也能正確分配尾差` |
+| `error` | 錯誤處理 | `S3-error: 真實 update 期間 DB 中斷可回滾` |
+| `edge` | 邊界情況 | `S4-edge: key_name 不符 PROGRESS_INCOME_KEY_NAMES 不被更動` |
+| `regression` | 回歸保護（不破壞既有行為） | `S5-regression: 主任務 nil_tax_spec 仍綠` |
+| `safety` | 安全機制（rollback / dry-run / idempotent） | `S6-safety: rollback 完整還原至 NULL` |
+
+**每個 Scenario 開頭必須有「目的」一句話**，說明此場景驗證什麼，避免讀者只看 Given/When/Then 推測意圖。
+
+```markdown
+### S1-happy: 單 project 5 期回填正確
+
+**目的**：驗證核心算法 — 總稅按 5% 計算、尾差落最後一期、3 個欄位同步寫入。
+
+**Given** project RT080026 v3 有 5 期工程款收入單 ...
+**When** ...
+**Then** ...
+```
 
 ## 規格檔案位置
 

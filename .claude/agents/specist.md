@@ -319,6 +319,17 @@ Scenario 2: {場景名稱}
 - [ ] Spec 場景是否逐個展開 Given-When-Then？（不是只寫標題）
 - [ ] 所有內容是否都在對話窗可直接閱讀？
 
+### Spec 冷讀者測試（強制 — 寫完 spec 必跑）
+
+寫完 spec 後，假裝自己是「沒看過 requirement、沒看過任務歷史」的下游 tester / coder，只讀 spec 內容回答：
+
+- [ ] **問題陳述清楚？** 讀者能說出「這任務解決什麼業務問題、不修的後果」嗎？（→ 必須有 `## Problem Statement` 段）
+- [ ] **方案選擇清楚？** 讀者能說出「採用什麼方案、為什麼不選 A/B/C」嗎？（→ 必須有 `## Solution Overview` 段含 trade-off）
+- [ ] **每個 Scenario 有分類標籤？** `S{n}-{happy|alt|error|edge|regression|safety}` 格式，且開頭有「目的」一句話？
+- [ ] **沒有內部黑話？** 例如 `S8: 不衝突 nil_tax_spec` 這種引用其他任務內部產物的場景，是否有解釋脈絡？
+
+任一答 No → 補完再產出。詳細格式見 `.claude/agents/specist/spec-writing-guide.md`。
+
 使用結構化 markdown 格式。報告結尾的可用命令格式，參考 `shared/agent-call-patterns.md`。
 
 ## 完成後
