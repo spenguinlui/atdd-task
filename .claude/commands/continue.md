@@ -155,6 +155,21 @@ multiSelect: false
 | fix | risk only |
 | refactor | style + risk（平行呼叫） |
 
+### Review 持久化保險絲（review → gate 轉移前強制檢查）
+
+> ⛔ 即使 SubagentStop hook (`validate-review-persisted.sh`) 因 local JSON 不存在而靜默通過，
+> /continue 在 `reviewing/review → gate` 轉移前**必須**透過 `atdd_task_get` 主動驗證以下欄位存在：
+
+```
+metadata.context.reviewFindings.riskReview.findings   # 必為 array（即使空也可）
+# refactor 類型還需：
+metadata.context.reviewFindings.styleReview.issues    # 必為 array
+```
+
+**任一缺失 → 不得轉移，回頭請對應 reviewer 補跑 Phase 6 寫入 MCP**。
+
+平鋪格式（如 `reviewFindings.findings`）一律視為錯誤格式，要求 reviewer 重寫到正確的巢狀位置 `reviewFindings.{riskReview|styleReview}.{findings|issues}`。
+
 ---
 
 ## Step 2.4: 提取驗收指南（條件式）
