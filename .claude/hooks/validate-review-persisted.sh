@@ -1,8 +1,12 @@
 #!/bin/bash
 # Review 持久化驗證
 # Hook: SubagentStop
-# 用途：risk-reviewer / style-reviewer 結束後，驗證 reviewFindings 已寫入 MCP（local task JSON）
+# 用途：risk-reviewer / style-reviewer 結束後，驗證 reviewFindings 已寫入 local task JSON
 #       未持久化 → 阻擋並指示 agent 重跑 Phase 6
+#
+# 注意：本 hook 僅對使用 local task JSON 的舊架構有效。
+#       任務僅存於 MCP DB 時，hook 無法驗證 — 由 /continue 在 review→gate 轉移前
+#       透過 atdd_task_get 補強檢查（保險絲二重防護）。
 #
 # 防線：避免 reviewer 只在對話窗輸出 findings 但沒寫 DB，導致 /clear 後任務無法銜接
 #
@@ -53,10 +57,11 @@ with open(task_path) as f:
     task = json.load(f)
 
 status = task.get('status', '')
-if status != 'review':
+# 接受 reviewing（MCP enum，現行）與 review（向下相容）
+if status not in ('reviewing', 'review'):
     sys.exit(0)
 
-context = task.get('context') or task.get('metadata', {}).get('context', {}) or {}
+context = task.get('metadata', {}).get('context', {}) or task.get('context', {}) or {}
 findings = context.get('reviewFindings')
 
 sub_key = 'riskReview' if agent == 'risk-reviewer' else 'styleReview'
