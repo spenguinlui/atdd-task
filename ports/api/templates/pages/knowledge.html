@@ -64,7 +64,7 @@
     </div>
   </div>
   <div class="knowledge-entry-content">
-    <pre>{{ e.content }}</pre>
+    <div class="markdown-body" data-md>{{ e.content }}</div>
   </div>
 </div>
 {% endmacro %}
@@ -253,11 +253,26 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script>
 function applyFilter(key, value) {
   var params = new URLSearchParams(window.location.search);
   if (value) { params.set(key, value); } else { params.delete(key); }
   window.location = '/dashboard/knowledge?' + params.toString();
 }
+
+function renderMarkdown(root) {
+  if (typeof marked === 'undefined') return;
+  marked.setOptions({ breaks: true, gfm: true });
+  (root || document).querySelectorAll('[data-md]').forEach(function(el) {
+    var src = el.textContent;
+    var html = marked.parse(src);
+    el.innerHTML = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(html) : html;
+    el.removeAttribute('data-md');
+  });
+}
+document.addEventListener('DOMContentLoaded', function() { renderMarkdown(); });
+document.body.addEventListener('htmx:afterSwap', function(e) { renderMarkdown(e.target); });
 </script>
 {% endblock %}
