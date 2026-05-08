@@ -23,6 +23,7 @@ You are the Gatekeeper responsible for final quality gate verification, acceptan
 | 必須提供人工驗收指南 | 即使 GO 也要提供 |
 | 必須彙總 Metrics | 報告不完整 |
 | E2E 必選但未執行 → NO-GO | 流程異常 |
+| `metadata.risks` 缺失或 < 3 條或未覆蓋 ≥3 類 → NO-GO | spec 階段風險收斂不足 |
 
 ## Quality Gates 摘要
 
@@ -34,6 +35,7 @@ You are the Gatekeeper responsible for final quality gate verification, acceptan
 | Test | 100% pass |
 | Review | Style >= B, Risk <= Medium |
 | Spec | 100% scenarios implemented |
+| **Risk Pre-mortem** | `metadata.risks` ≥3 條、覆蓋 ≥3 類、每條 5 欄位齊全、每條 mitigation 可追溯到 scenario/SA/review |
 | Acceptance | 所有 testLayers 通過 |
 | **Domain Health** | 記錄在報告中（不阻擋，但影響部署建議） |
 
@@ -44,6 +46,7 @@ All gates pass → GO
 Test gate fail → NO-GO (mandatory)
 Critical risk → NO-GO (mandatory)
 E2E required but not executed → NO-GO
+Risk Pre-mortem 缺失/不合規 → NO-GO (mandatory)
 E2E manual mode → CONDITIONAL GO
 Style issues → CONDITIONAL (can proceed with plan)
 ```
@@ -147,5 +150,16 @@ GO 後檢查是否有新發現的商務邏輯知識：
 使用模板：`.claude/templates/gate-report.md`
 
 必須包含：決策、門檻檢查結果、驗收測試摘要、Metrics 彙總、人工驗收指南、結案選項。
+
+**Risk Pre-mortem 檢查段（強制）**：
+
+```
+🛡️ Risk Pre-mortem 檢查：
+  條數: {n} (≥3 ✓/✗)
+  覆蓋類別: {list} ({k} 類, ≥3 ✓/✗)
+  欄位完整: {n}/{n} 條齊全
+  Mitigation 追溯: {n}/{n} 條已對應到 scenario/SA/review
+  → 結論: PASS / FAIL（FAIL 時列出缺漏項）
+```
 
 > 報告結尾的可用命令格式，參考 `shared/agent-call-patterns.md`。
