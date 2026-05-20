@@ -184,8 +184,10 @@ end
 
 1. 根據列出的 model 組合，查詢 local DB 確認實際資料結構：
    ```bash
-   # rvm 專案（如 e_trading）需先初始化 rvm
-   source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) && bundle exec rails runner '{查詢語句}'
+   # 預設走 docker（Tilt 環境）— 從 projects.yml 讀該專案 test.rails_runner 模板
+   docker exec -i {test.container} bundle exec rails runner '{查詢語句}'
+   # Fallback（projects.yml 沒有 test block 的舊專案）：host RVM
+   # source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) && bundle exec rails runner '{查詢語句}'
    ```
 2. 確認重點：相關 model 之間的日期粒度、數量關係、值域範圍是否與 spec 假設一致
 3. 用查詢結果設計 fixture，反映真實資料結構（例如：若 Production 中 A 是雙月區間而 B 是單月區間，fixture 必須反映此差異，不可設計為相同粒度）
@@ -205,18 +207,61 @@ end
 
 ### Phase 3: 執行測試
 
-**重要：必須先 cd 到專案目錄！rvm 專案需先初始化 rvm。**
+**重要：先讀 `.claude/config/projects.yml` 取得該專案的 `test` 設定，再決定執行方式。**
+
+判斷流程：
+1. 該專案 `projects.yml` 有 `test.mode: docker` → 直接套用 `test.rspec` 模板（推薦，4 個 Rails 專案皆已設）
+2. 沒有 `test` 區段 → fallback 到 host-side（RVM / rbenv）
 
 ```bash
-# rvm 專案（如 e_trading）
+# 模式 A：docker（Tilt 環境，預設）
+# 直接從 projects.yml 取 test.rspec，替換 {test_file}
+docker exec -i {test.container} bundle exec rspec {test_file} --format documentation
+# 例：docker exec -i sf_project-sf-web-1 bundle exec rspec spec/domains/foo_spec.rb --format documentation
+
+# 模式 B：host RVM（無 test block 的舊專案）
 source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) && bundle exec rspec {test_file} --format documentation
 
-# rbenv 專案
+# 模式 C：host rbenv
 cd {project_path} && bundle exec rspec {test_file} --format documentation
 ```
 
-> 專案路徑定義於 `.claude/config/projects.yml`
-> 判斷方式：`~/.rvm/` 存在且專案有 `.ruby-version` → 使用 rvm 方式
+**前置檢查（docker 模式）**：
+- `docker ps --format '{{.Names}}' | grep <test.container>` 確認 container running
+- 若 Exited (137)：`docker start <test.container>`；若 db-pg16 也掛了見 `~/ai-infra-management/docs/local-dev/tilt-workspace.md` 「最常見故障」
+
+> 專案路徑與 test 慣例皆定義於 `.claude/config/projects.yml`
+
+### Phase 3.5: 測試執行紀律（強制 — 禁止 sleep-poll 空轉）
+
+> ⛔ **零容忍**：禁止「丟背景跑 + 手寫輪詢迴圈等它」這種反模式。
+> 起源盤查：2026-05-20 耗時分析發現 tester 約 26% active 時間燒在 `sleep`/`pgrep` 輪詢，且不斷撞 600 秒 Bash timeout。
+
+**1. 禁止的寫法（出現任一即視為違規）**
+
+```bash
+while pgrep -f rspec; do sleep 30; done      # ❌ 手寫輪詢
+until ! ps -p 46119; do sleep 20; done        # ❌ 等 PID
+echo "Waiting..." && sleep 600                 # ❌ 盲等
+until grep -q "examples," /tmp/out; do ...     # ❌ poll 檔案
+```
+禁用（範圍：等測試 / 等本地長指令）：`sleep`（≥10 秒）、`pgrep`/`ps -p` 等程序輪詢、`while`/`until` 等待迴圈。
+
+**2. 正確的長跑做法**
+
+- 預期 < 5 分鐘的測試：前景跑，必要時把 Bash `timeout` 拉到對應毫秒（上限 600000）。
+- 預期 ≥ 5 分鐘（整套 suite、多 seed、慢專案如 sf_project）：用 **Bash 工具的 `run_in_background: true`** 跑。背景指令完成時 harness 會**自動回叫你**——不要自己寫等待迴圈、不要 `sleep`。回叫後再讀輸出判斷紅綠。
+
+**3. 測試範圍：迭代窄、收斂後才全跑**
+
+| 階段 | 跑什麼 | 為何 |
+|------|--------|------|
+| 紅綠基線 / 迭代 | 只跑**目標單檔 / 單 example**（`rspec path/to/spec.rb:42`） | 每次數秒級回饋，別跑整個 domain suite |
+| 最終回歸驗證 | 完整 suite + 多 seed | 守跨 example 隔離；此長跑用 `run_in_background` |
+
+**4. 單次 hard-cap（防鬼打牆）**
+
+- 累計測試執行 **> 8 次** 仍卡同一處，或在「等測試」上累計 **> 15 分鐘** → **停下回報**，附目前紅綠狀態與卡點，禁止繼續盲目重跑。
 
 ### Phase 4: 分析失敗
 
@@ -236,6 +281,8 @@ cd {project_path} && bundle exec rspec {test_file} --format documentation
 ```bash
 cd {project_path} && git branch --show-current
 ```
+
+> git 操作仍在 host 端 repo（projects.yml 的 `path`），不在 container 內。
 
 比對 `task.git.branch`，不一致則停止並提示切換。
 
