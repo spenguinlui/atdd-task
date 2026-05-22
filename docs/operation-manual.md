@@ -379,6 +379,8 @@ tasks/
 
 ## 6 Agent 架構
 
+> 以下為 6 個主工作流程 Agent。另有兩個輔助 Agent 不在此流程內：**curator**（Domain 知識庫策展）、**web-designer**（UI 設計，目前未被任何命令引用）。
+
 ### specist（規格專家）
 
 **職責**：

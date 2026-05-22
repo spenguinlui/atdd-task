@@ -364,4 +364,4 @@ PreToolUse (Write|Edit) 觸發
          └── 其他 → 放行
 ```
 
-> **備註**：`confidence-gate.sh` 還包含 Gate 2（調查前置檢查），那是一個行為閘門而非信心度機制，詳見 [Debug Tips 工作流程](debug-tips-workflow.md)。
+> **備註**：`confidence-gate.sh` 還包含 Gate 2（調查前置檢查），那是一個行為閘門而非信心度機制，可用 `/debug-tips` 命令查詢經驗庫。

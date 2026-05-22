@@ -60,6 +60,8 @@ AI-driven Acceptance Test-Driven Development 工作流程管理系統。
 | **risk-reviewer** | 安全漏洞、效能問題、風險評估 | review |
 | **gatekeeper** | 品質門檻驗證、Go/No-Go 決策 | gate |
 
+> 另有兩個輔助 Agent，不在主工作流程內：**curator**（Domain 知識庫策展，由知識相關命令呼叫）、**web-designer**（UI 設計，目前未被任何命令引用）。
+
 ## 任務流程
 
 ### Feature 完整流程
@@ -177,6 +179,7 @@ Fix 任務採用 **Discovery Source** 調查流程，根據問題來源選擇對
 |---------|------|--------|----------|
 | **e2e** | 端對端驗收 | Chrome MCP | 結果即時可見（< 60 秒）|
 | **integration** | 整合驗收 | RSpec/Jest | 需要時間操作、Mock、併發模擬 |
+| **calculation** | 計算/邏輯驗收 | RSpec/Jest | 後端計算/業務規則，無 UI，Console/API 驗證 |
 | **unit** | 單元驗收 | RSpec/Jest | 純計算邏輯、規則驗證 |
 
 ### Profile 選擇決策樹
@@ -185,13 +188,16 @@ Fix 任務採用 **Discovery Source** 調查流程，根據問題來源選擇對
 Q1: 結果是否可在畫面即時看到（< 60 秒）？
     YES → e2e
     NO  ↓
-Q2: 是否需要時間操作（週結、月結）？
+Q2: 是否需要時間操作（週結、月結、延遲執行）？
     YES → integration
     NO  ↓
 Q3: 是否依賴外部服務且需要 Mock？
     YES → integration
     NO  ↓
-Q4: 是否為純計算/規則邏輯？
+Q4: 是否為後端邏輯變更，無 UI 互動，需要 Console 驗證？
+    YES → calculation
+    NO  ↓
+Q5: 是否為純計算/規則邏輯？
     YES → unit
     NO  → integration
 ```
@@ -202,11 +208,12 @@ Q4: 是否為純計算/規則邏輯？
 |---------|----------|
 | e2e | 表單送出後頁面更新、搜尋後列表篩選、登入後跳轉 |
 | integration | 週結算排程、外部 API 串接、跨 Domain 資料流、背景 Job |
+| calculation | 稅額計算、Entity 方法邏輯（如 b2b? 判斷）、路由規則、無 UI 的 Service 變更 |
 | unit | 金額計算公式、日期轉換、權限規則、狀態機 |
 
 ### Fix Discovery Sources
 
-Bug 修復的 14 種調查流程（D1-D19）：
+Bug 修復的 14 種調查流程（編號為 D1–D19，實際 14 個、編號不連續）：
 
 | Profile | Discovery Sources |
 |---------|-------------------|
@@ -256,8 +263,8 @@ atdd-hub/
 ├── docs/                    # 操作文檔
 │
 └── .claude/                 # AI Agent 配置
-    ├── agents/              #   6 個 Agent 定義
-    ├── commands/            #   37 個 Slash Commands
+    ├── agents/              #   8 個 Agent 定義（6 工作流程 + curator/web-designer 輔助）
+    ├── commands/            #   40 個 Slash Command（另有 shared/ 共用片段）
     └── config/              #   專案配置
 ```
 
@@ -285,16 +292,20 @@ atdd-hub/
 
 ## Workflow Hooks
 
-工作流程自動檢查點：
+工作流程自動檢查點（由 `.claude/settings.json` 以事件 + matcher 掛載，腳本實體在 `.claude/hooks/`）：
 
-| Hook | 觸發時機 | 檢查內容 |
-|------|----------|----------|
-| pre-specification | requirement → specification | 信心度 ≥ 95% |
-| pre-testing | specification → testing | 規格存在、ATDD Profile 已選擇 |
-| pre-development | testing → development | 驗收測試存在 |
-| pre-review | development → review | 所有測試通過 |
-| pre-gate | review → gate | 驗收測試通過 |
-| post-gate | gate → completed | 知識更新提醒 |
+| Hook 腳本 | 事件 / Matcher | 檢查內容 |
+|-----------|----------------|----------|
+| guard-skill-invoke.sh | PreToolUse / Skill | 擋 subagent 自行呼叫 slash command |
+| validate-agent-call.sh | PreToolUse / Task | 階段是否允許呼叫該 agent + 信心度 ≥ 95% 硬阻擋 |
+| validate-deliverables.sh | PreToolUse / Task | 前一階段交付物是否完整 |
+| enforce-e2e-decision.sh | PreToolUse / atdd_task_update | 轉移出 requirement 前必須有明確 E2E 決策 |
+| confidence-gate.sh | PreToolUse / Write\|Edit | 知識信心度（domains/）+ fix 調查前置檢查 |
+| protect-e2e-mode.sh | PreToolUse / Write\|Edit | 防 agent 自行竄改 E2E 模式 |
+| validate-spec-format.sh | PostToolUse / Write | spec / BA 報告格式 + 技術語言洩漏檢查 |
+| workflow-router.sh | UserPromptSubmit | /continue 自動注入階段轉移指引 |
+| validate-review-persisted.sh | SubagentStop | reviewer findings 是否已持久化 |
+| record-metrics.sh | SubagentStop | 自動記錄 agent metrics |
 
 ## 專案配置
 
