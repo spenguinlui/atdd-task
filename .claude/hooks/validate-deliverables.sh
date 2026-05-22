@@ -70,13 +70,13 @@ if [ ! -f "$TASK_JSON" ]; then
 fi
 
 # ─── Python 驗證 ───
-python3 << PYEOF
+python3 - "$TASK_JSON" "$SUBAGENT_TYPE" "$ATDD_HUB_DIR" "$PROJECTS_YML" << 'PYEOF'
 import json, os, re, sys
 
-task_path = "$TASK_JSON"
-agent = "$SUBAGENT_TYPE"
-hub_dir = "$ATDD_HUB_DIR"
-projects_yml = "$PROJECTS_YML"
+task_path = sys.argv[1]
+agent = sys.argv[2]
+hub_dir = sys.argv[3]
+projects_yml = sys.argv[4]
 
 with open(task_path) as f:
     task = json.load(f)

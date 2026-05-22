@@ -223,19 +223,19 @@ get_agent_role() {
 AGENT_ROLE=$(get_agent_role "$AGENT_TYPE")
 
 # 使用 Python 更新 JSON
-python3 << PYEOF
-import json
+python3 - "$TASK_JSON" "$AGENT_TYPE" "$AGENT_ROLE" "$TOOL_USES" "$TOKENS" "$DURATION" "$TOOL_BREAKDOWN" << 'PYEOF'
+import json, sys
 from datetime import datetime
 from collections import Counter
 
-task_path = "$TASK_JSON"
-agent_name = "$AGENT_TYPE"
-agent_role = "$AGENT_ROLE"
-tool_uses = int("$TOOL_USES" or "0")
-tokens = int("$TOKENS" or "0")
-duration = "$DURATION"
+task_path = sys.argv[1]
+agent_name = sys.argv[2]
+agent_role = sys.argv[3]
+tool_uses = int(sys.argv[4] or "0")
+tokens = int(sys.argv[5] or "0")
+duration = sys.argv[6]
 
-tool_breakdown_raw = """$TOOL_BREAKDOWN"""
+tool_breakdown_raw = sys.argv[7]
 try:
     tool_breakdown = json.loads(tool_breakdown_raw) if tool_breakdown_raw.strip() else {}
 except (json.JSONDecodeError, ValueError):

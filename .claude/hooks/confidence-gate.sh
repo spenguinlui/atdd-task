@@ -96,8 +96,8 @@ fi
 # 檢查是否有 fix 任務在 development 階段
 FIX_TASK_JSON=""
 for task_file in $ACTIVE_TASKS; do
-    TASK_TYPE=$(python3 -c "import json; d=json.load(open('$task_file')); print(d.get('type', ''))" 2>/dev/null || echo "")
-    TASK_STATUS=$(python3 -c "import json; d=json.load(open('$task_file')); print(d.get('status', ''))" 2>/dev/null || echo "")
+    TASK_TYPE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("type",""))' "$task_file" 2>/dev/null || echo "")
+    TASK_STATUS=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",""))' "$task_file" 2>/dev/null || echo "")
     if [ "$TASK_TYPE" = "fix" ] && [ "$TASK_STATUS" = "development" ]; then
         FIX_TASK_JSON="$task_file"
         break
@@ -110,14 +110,14 @@ if [ -z "$FIX_TASK_JSON" ]; then
 fi
 
 # 檢查 task JSON 是否有調查記錄（rootCause 或 reproduction 至少一個有值）
-HAS_INVESTIGATION=$(python3 -c "
-import json
-d = json.load(open('$FIX_TASK_JSON'))
-inv = d.get('investigation', {})
-root_cause = inv.get('rootCause', '')
-reproduction = inv.get('reproduction', '')
-print('yes' if root_cause or reproduction else 'no')
-" 2>/dev/null || echo "no")
+HAS_INVESTIGATION=$(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+inv = d.get("investigation", {})
+root_cause = inv.get("rootCause", "")
+reproduction = inv.get("reproduction", "")
+print("yes" if root_cause or reproduction else "no")
+' "$FIX_TASK_JSON" 2>/dev/null || echo "no")
 
 # 有調查記錄，放行
 if [ "$HAS_INVESTIGATION" = "yes" ]; then
@@ -138,7 +138,7 @@ if [ -f "$INVESTIGATION_CONFIRMATION_FILE" ]; then
 fi
 
 # 未調查就嘗試編輯，阻止
-TASK_DESC=$(python3 -c "import json; d=json.load(open('$FIX_TASK_JSON')); print(d.get('description', '')[:50])" 2>/dev/null || echo "")
+TASK_DESC=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("description","")[:50])' "$FIX_TASK_JSON" 2>/dev/null || echo "")
 
 cat >&2 << EOF
 

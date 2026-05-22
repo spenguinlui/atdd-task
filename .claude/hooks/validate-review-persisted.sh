@@ -47,11 +47,11 @@ if [ ! -f "$TASK_JSON" ]; then
     exit 0
 fi
 
-python3 << PYEOF
+python3 - "$TASK_JSON" "$AGENT_TYPE" << 'PYEOF'
 import json, sys
 
-task_path = "$TASK_JSON"
-agent = "$AGENT_TYPE"
+task_path = sys.argv[1]
+agent = sys.argv[2]
 
 with open(task_path) as f:
     task = json.load(f)

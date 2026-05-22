@@ -57,13 +57,13 @@ if [ "$TASK_COUNT" -gt 1 ]; then
     # 如果還是有多個，嘗試匹配專案名稱
     if [ "$TASK_COUNT" -gt 1 ]; then
         PROJECTS_YML="${ATDD_HUB_DIR}/.claude/config/projects.yml"
-        PROJECT_LIST=$(python3 -c "
-import yaml
-with open('$PROJECTS_YML') as f:
+        PROJECT_LIST=$(python3 -c '
+import yaml, sys
+with open(sys.argv[1]) as f:
     data = yaml.safe_load(f)
-for name in data.get('projects', {}):
+for name in data.get("projects", {}):
     print(name)
-" 2>/dev/null || echo "")
+' "$PROJECTS_YML" 2>/dev/null || echo "")
         for project in $PROJECT_LIST; do
             if echo "$PROMPT" | grep -qi "$project"; then
                 MATCHED_TASKS=$(echo "$ACTIVE_TASKS" | grep "/$project/" || echo "")
@@ -91,12 +91,12 @@ if [ ! -f "$TASK_JSON" ]; then
 fi
 
 # 解析任務狀態
-TASK_STATUS=$(python3 -c "import json; d=json.load(open('$TASK_JSON')); print(d.get('status', ''))" 2>/dev/null || echo "")
-TASK_TYPE=$(python3 -c "import json; d=json.load(open('$TASK_JSON')); print(d.get('type', ''))" 2>/dev/null || echo "")
-CONFIDENCE=$(python3 -c "import json; d=json.load(open('$TASK_JSON')); print(d.get('workflow', {}).get('confidence', 0))" 2>/dev/null || echo "0")
-ACCEPTANCE_PROFILE=$(python3 -c "import json; d=json.load(open('$TASK_JSON')); print(d.get('acceptance', {}).get('profile', ''))" 2>/dev/null || echo "")
-TASK_DESC=$(python3 -c "import json; d=json.load(open('$TASK_JSON')); print(d.get('description', '')[:50])" 2>/dev/null || echo "")
-PROJECT_ID=$(python3 -c "import json; d=json.load(open('$TASK_JSON')); print(d.get('projectId', ''))" 2>/dev/null || echo "")
+TASK_STATUS=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",""))' "$TASK_JSON" 2>/dev/null || echo "")
+TASK_TYPE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("type",""))' "$TASK_JSON" 2>/dev/null || echo "")
+CONFIDENCE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("workflow",{}).get("confidence",0))' "$TASK_JSON" 2>/dev/null || echo "0")
+ACCEPTANCE_PROFILE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("acceptance",{}).get("profile",""))' "$TASK_JSON" 2>/dev/null || echo "")
+TASK_DESC=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("description","")[:50])' "$TASK_JSON" 2>/dev/null || echo "")
+PROJECT_ID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("projectId",""))' "$TASK_JSON" 2>/dev/null || echo "")
 
 # 驗證邏輯
 validate_agent_call() {
