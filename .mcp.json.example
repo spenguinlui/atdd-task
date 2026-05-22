@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "atdd": {
+      "command": "ports/mcp/.venv/bin/python3",
+      "args": ["ports/mcp/server.py"],
+      "env": {
+        "ATDD_API_URL": "http://localhost:8001",
+        "ATDD_ORG": "00000000-0000-0000-0000-000000000001",
+        "ATDD_SERVER_API_URL": "https://atdd.sunnyfounder.com",
+        "ATDD_SERVER_API_KEY": "${ATDD_SERVER_API_KEY}",
+        "ATDD_SERVER_ORG": "00000000-0000-0000-0000-000000000002"
+      }
+    },
+    "atdd-admin": {
+      "command": "ports/mcp/.venv/bin/python3",
+      "args": ["ports/mcp/server_admin.py"],
+      "env": {
+        "ATDD_API_URL": "http://localhost:8001",
+        "ATDD_ORG": "00000000-0000-0000-0000-000000000001",
+        "ATDD_SERVER_API_URL": "https://atdd.sunnyfounder.com",
+        "ATDD_SERVER_API_KEY": "${ATDD_SERVER_API_KEY}",
+        "ATDD_SERVER_ORG": "00000000-0000-0000-0000-000000000002"
+      }
+    }
+  }
+}

@@ -14,6 +14,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# MCP config 含 server API key，本機自管（只追蹤 .mcp.json.example）
+.mcp.json
+
 # Logs
 *.log
 
