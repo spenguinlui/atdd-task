@@ -44,17 +44,6 @@ mcp = FastMCP(
 # ════════════════════════════════════════════════════════════════
 
 
-@mcp.tool()
-@safe_api_call
-def atdd_task_history(task_id: str) -> list:
-    """Get the event history for a task.
-
-    Args:
-        task_id: Task UUID
-    """
-    return api.request("GET", f"/api/v1/tasks/{task_id}/history")
-
-
 # ════════════════════════════════════════════════════════════════
 # Domain Tools (write / diagnostic)
 # ════════════════════════════════════════════════════════════════
@@ -454,39 +443,6 @@ def atdd_report_list(
         limit: Max results (default 20, max 100)
     """
     return api.get("/api/v1/reports", project=project, type=type, limit=str(limit))
-
-
-@mcp.tool()
-@safe_api_call
-def atdd_report_get(report_id: str) -> dict:
-    """Get a single report by UUID.
-
-    Args:
-        report_id: Report UUID
-    """
-    return api.request("GET", f"/api/v1/reports/{report_id}")
-
-
-@mcp.tool()
-@safe_api_call
-def atdd_report_create(
-    project: str,
-    type: str,
-    data: dict,
-    period: str | None = None,
-) -> dict:
-    """Create a report.
-
-    Args:
-        project: Project name
-        type: Report type — weekly, monthly, domain-health, causation
-        data: Report data as a JSON object
-        period: Time period — "2026-W14" for weekly, "2026-03" for monthly
-    """
-    body = {"project": project, "type": type, "data": data}
-    if period is not None:
-        body["period"] = period
-    return api.post("/api/v1/reports", body)
 
 
 # ════════════════════════════════════════════════════════════════

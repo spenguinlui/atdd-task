@@ -60,7 +60,7 @@ AI-driven Acceptance Test-Driven Development 工作流程管理系統。
 | **risk-reviewer** | 安全漏洞、效能問題、風險評估 | review |
 | **gatekeeper** | 品質門檻驗證、Go/No-Go 決策 | gate |
 
-> 另有兩個輔助 Agent，不在主工作流程內：**curator**（Domain 知識庫策展，由知識相關命令呼叫）、**web-designer**（UI 設計，目前未被任何命令引用）。
+> 另有一個輔助 Agent，不在主工作流程內：**curator**（Domain 知識庫策展，由知識相關命令呼叫）。
 
 ## 任務流程
 
@@ -263,7 +263,7 @@ atdd-hub/
 ├── docs/                    # 操作文檔
 │
 └── .claude/                 # AI Agent 配置
-    ├── agents/              #   8 個 Agent 定義（6 工作流程 + curator/web-designer 輔助）
+    ├── agents/              #   7 個 Agent 定義（6 工作流程 + curator 輔助）
     ├── commands/            #   40 個 Slash Command（另有 shared/ 共用片段）
     └── config/              #   專案配置
 ```
