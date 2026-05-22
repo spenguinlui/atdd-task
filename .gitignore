@@ -46,8 +46,8 @@ acceptance/fixtures/
 .claude/scheduled_tasks.lock
 .DS_Store
 .claude/settings.local.json
-poc/.venv/
-poc/**/.venv/
+# Python venv（任何層級，本機產物不納入版控）
+.venv/
 
 # Claude Code work directory (本機 memory，不納入版控)
 .claude-work/
