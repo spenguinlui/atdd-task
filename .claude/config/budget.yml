@@ -1,0 +1,6 @@
+# 執行預算預設（task JSON 的 budget 欄可覆蓋）
+# 主煞車：工具呼叫次數（budget-gate.sh 每次硬擋）
+# 軟上限：token（record-metrics 於 SubagentStop 更新後，agent 邊界檢查）
+maxToolUses: 150
+maxTokens: 2000000
+action: halt   # halt | warn

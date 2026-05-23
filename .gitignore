@@ -44,6 +44,7 @@ acceptance/fixtures/
 .claude/.knowledge-confirmed
 .claude/.e2e-manual-authorized
 .claude/scheduled_tasks.lock
+.claude/.budget-*.count
 .DS_Store
 .claude/settings.local.json
 # Python venv（任何層級，本機產物不納入版控）

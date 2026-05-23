@@ -87,6 +87,15 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-e2e-mode.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/budget-gate.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
