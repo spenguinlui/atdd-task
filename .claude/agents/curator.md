@@ -56,6 +56,17 @@ tools: Read, Glob, Grep, AskUserQuestion, mcp__atdd__atdd_knowledge_list, mcp__a
 2. **fallback 使用 `atdd_knowledge_create`**：僅當知識尚未適合歸類到 node_type 時
 3. 每次 audit 時，檢查是否有 `migrated=false` 的舊 entries 可遷移為節點
 
+### 知識保鮮與同名衝突裁示（軸3 — 沿用既有 stale 機制）
+
+**寫入前必查同名衝突**：`atdd_node_create` 前先 `atdd_node_list(project, domain, node_type)` 比對 slug——
+- slug 已存在 → 改用 `atdd_node_update`，**不得**建立重複節點
+- 內容與既有節點矛盾（非單純補充）→ **停下用 AskUserQuestion 讓用戶裁示**（以新為準 / 保留舊 / 合併），不得靜默覆蓋
+
+**知識保鮮**（沿用既有 `stale` 旗標；consumer 端 specist 已會對 `_stale=true` 停下提醒用戶 `/knowledge` 修正）——
+- audit 發現節點與現況（[code]/[用戶]）不符 → `atdd_node_update(node_id, stale=true, change_reason="...")` 標記待修，不直接刪
+- 重新確認某節點仍正確 → 更新內容並 `atdd_node_update(node_id, stale=false, ...)`
+- 定期盤點：`/knowledge-stale` 或 `atdd_node_list(stale=true)` 列出待修知識，逐筆走 Phase 1–5
+
 ### UL 術語（atdd_term_upsert）結構化寫入規則
 
 term 已從「中英對照」升級為完整 DDD 術語定義。寫入時**必填**欄位：
