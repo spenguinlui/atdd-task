@@ -55,7 +55,8 @@ run_one(){
       cost=$(printf '%s' "$out" | python3 -c "import sys,json;print(round(json.load(sys.stdin).get('total_cost_usd',0),4))" 2>/dev/null || echo "?") ;;
     codex)
       local out; out=$(cd "$wt" && codex exec -s workspace-write --skip-git-repo-check -m "$model" "$instr" </dev/null 2>&1)
-      tokens=$(printf '%s' "$out" | grep -oiE 'tokens used[: ]*[0-9,]+' | grep -oE '[0-9,]+' | tr -d ',' | tail -1); tokens="${tokens:-?}" ;;
+      # codex 把數字放在「tokens used」的下一行 → 抓該行+下一行的數字
+      tokens=$(printf '%s' "$out" | grep -iA1 'tokens used' | grep -oE '[0-9][0-9,]*' | tr -d ',' | tail -1); tokens="${tokens:-?}" ;;
   esac
   local secs=$(( $(date +%s) - t0 ))
   for s in $SPECS; do mkdir -p "$wt/$(dirname "$s")"; git -C "$REPO" show "$FIX:$s" > "$wt/$s"; done
