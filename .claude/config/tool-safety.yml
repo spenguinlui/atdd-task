@@ -1,0 +1,48 @@
+# 工具副作用與安全分級
+# 軸1（副作用標記）的單一來源 + 軸6（destructive 強制確認）的清單來源
+# 等級：read 純查詢 | mutating 改狀態可逆 | destructive 不可逆
+
+read:        # 純查詢，自動放行
+  - atdd_task_list
+  - atdd_task_get
+  - atdd_domain_list
+  - atdd_domain_get
+  - atdd_coupling_list
+  - atdd_knowledge_list
+  - atdd_knowledge_get
+  - atdd_term_list
+  - atdd_node_list
+  - atdd_node_get
+  - atdd_report_list
+  - atdd_health
+
+mutating:    # 改狀態但可逆，放行（由 budget / 其他閘門管）
+  - atdd_task_create
+  - atdd_task_update
+  - atdd_task_add_history
+  - atdd_task_add_metrics
+  - atdd_domain_upsert
+  - atdd_knowledge_create
+  - atdd_knowledge_update
+  - atdd_term_upsert
+  - atdd_node_create
+  - atdd_node_update
+
+idempotent:  # 可安全重試（upsert 類）
+  - atdd_domain_upsert
+  - atdd_term_upsert
+
+# 不可逆 MCP 工具（safety-gate 用 Claude Code 全名比對 → 強制確認）
+destructive_mcp:
+  - mcp__atdd-admin__atdd_knowledge_delete
+  - mcp__atdd-admin__atdd_term_delete
+
+# 不可逆 Bash 樣式（safety-gate 比對命令字串，命中要確認）
+bash_destructive_patterns:
+  - 'rm\s+-[rf]'
+  - 'git\s+push\s+.*(--force|-f\b)'
+  - 'git\s+reset\s+--hard'
+  - 'git\s+clean\s+-[a-z]*f'
+  - 'DROP\s+(TABLE|DATABASE)'
+  - 'TRUNCATE'
+  - '\.(destroy_all|delete_all)\b'

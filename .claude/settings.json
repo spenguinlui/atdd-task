@@ -96,6 +96,15 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/budget-gate.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash|mcp__atdd-admin__atdd_knowledge_delete|mcp__atdd-admin__atdd_term_delete",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/safety-gate.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
