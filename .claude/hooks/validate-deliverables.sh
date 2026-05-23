@@ -8,5 +8,8 @@ set -u
 HUB="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR not set}"
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
 cat > "$TMP"
+source "$HUB/.claude/hooks/lib/hooklog.sh"
 python3 "$HUB/.claude/hooks/lib/validate-deliverables.py" "$TMP" "$HUB"
-exit $?
+rc=$?
+hooklog validate-deliverables "$([ "$rc" = 0 ] && echo allow || echo block)"
+exit $rc

@@ -6,6 +6,7 @@
 # 注意：hook JSON 寫 temp 檔走 argv 傳入（避免 heredoc 佔走 stdin 的 fail-open 陷阱）
 set -u
 HUB="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR not set}"
+source "$HUB/.claude/hooks/lib/hooklog.sh"
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
 cat > "$TMP"
 
@@ -62,3 +63,6 @@ out += ["", "此為不可逆操作。請先用 AskUserQuestion 向用戶確認�
 print("\n".join(out), file=sys.stderr)
 sys.exit(2)
 PY
+rc=$?
+[ "$rc" = 2 ] && hooklog safety-gate block "destructive"
+exit $rc

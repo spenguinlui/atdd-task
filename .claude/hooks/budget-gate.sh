@@ -7,6 +7,7 @@
 # read-only 查詢（Read/Glob/Grep）不掛此 hook → 不計入
 set -u
 HUB="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR not set}"
+source "$HUB/.claude/hooks/lib/hooklog.sh"
 cat >/dev/null 2>&1 || true   # 吞掉 hook stdin（本 hook 不需解析 payload）
 
 # 找最近活躍任務；無則放行
@@ -37,17 +38,20 @@ n=$(( $(cat "$CF" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$CF"
 warn=$(( MAXTOOLS * 80 / 100 ))
 if [ "$n" -gt "$MAXTOOLS" ]; then
+  hooklog budget-gate halt "tools ${n}>${MAXTOOLS}"
   echo "" >&2
   echo "🚫 執行預算超標：工具呼叫 $n > 上限 $MAXTOOLS — halt 交還 human。" >&2
   echo "   續跑：調高 task budget.maxToolUses，或 rm $CF" >&2
   exit 2
 elif [ "$n" -ge "$warn" ]; then
+  hooklog budget-gate warn "tools ${n}/${MAXTOOLS}"
   echo "⚠️ 執行預算：工具呼叫 ${n} / ${MAXTOOLS} （逼近上限）" >&2
 fi
 
 # ── 軟上限：token（邊界檢查）──
 TOK=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("metrics",{}).get("totalTokens",0))' "$TASK" 2>/dev/null || echo 0)
 if [ "${TOK:-0}" -gt "$MAXTOK" ]; then
+  hooklog budget-gate halt "tokens ${TOK}>${MAXTOK}"
   echo "" >&2
   echo "🚫 執行預算超標：token $TOK > 上限 $MAXTOK — halt 交還 human。" >&2
   echo "   續跑：調高 task budget.maxTokens。" >&2

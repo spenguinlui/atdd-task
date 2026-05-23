@@ -14,5 +14,7 @@ if [ "${ATDD_DEBUG:-0}" = "1" ]; then
     cp "$TMP" "$HUB/.claude/hooks/debug/subagent-stop-$(date +%Y%m%d_%H%M%S).json"
 fi
 
+source "$HUB/.claude/hooks/lib/hooklog.sh"
 python3 "$HUB/.claude/hooks/lib/record-metrics.py" "$TMP" "$HUB" || true
+hooklog record-metrics recorded
 exit 0
