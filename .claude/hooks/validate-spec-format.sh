@@ -8,9 +8,10 @@
 
 set -e
 
-# 從環境變數取得檔案路徑
-# PostToolUse 的 TOOL_INPUT 是 JSON，包含 file_path 和 content
-FILE_PATH=$(echo "$TOOL_INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).get('file_path', ''))" 2>/dev/null || echo "")
+# 從 stdin 讀 hook 輸入（PostToolUse JSON：tool_input.file_path / .content）
+# 註：原讀 $TOOL_INPUT env（Claude Code 不存在此 env）→ 本 hook 過去是 no-op，此處修復
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).get('tool_input',{}).get('file_path', ''))" 2>/dev/null || echo "")
 
 # 只檢查 .md 檔案
 if [[ "$FILE_PATH" != *.md ]]; then
@@ -18,7 +19,7 @@ if [[ "$FILE_PATH" != *.md ]]; then
 fi
 
 # 取得檔案內容
-CONTENT=$(echo "$TOOL_INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).get('content', ''))" 2>/dev/null || echo "")
+CONTENT=$(echo "$INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).get('tool_input',{}).get('content', ''))" 2>/dev/null || echo "")
 
 # ─── BA 報告驗證（requirements/ 目錄的 -ba.md 檔案）───
 if [[ "$FILE_PATH" == *"/requirements/"* && "$FILE_PATH" == *-ba.md ]]; then
