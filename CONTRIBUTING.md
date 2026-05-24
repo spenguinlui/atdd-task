@@ -1,0 +1,185 @@
+> 🌐 **繁體中文** | [English](CONTRIBUTING.en.md)
+
+# ATDD Hub — 維護者指南
+
+本文件面向需要擴充或維護 ATDD Hub 框架本身的工程師。  
+如果你是使用框架跑任務的 PM / RD / 業務，請看 [README.md](README.md)。
+
+---
+
+## 架構概覽
+
+ATDD Hub 由三個平面構成：
+
+```
+Orchestrator 平面（User 下 slash command）
+    ↓
+Commands 平面（.claude/commands/*.md）
+    ↓  Task() 或 run-agent-codex.sh（依 agent-engines.yml）
+Agent 平面（.claude/agents/*.md）
+    ↓  atdd_* MCP tools
+MCP 狀態平面（tasks / specs / domains / knowledge）
+```
+
+**核心設計**：Agent 間 context 不靠對話傳遞，全部落到 MCP state。這讓 `/continue` 可以從任意 session、任意引擎恢復，也讓同一份 agent prompt 可以委派給不同引擎（Claude、GPT-via-codex 等）。
+
+### 主要模組
+
+| 模組 | 路徑 | 說明 |
+|------|------|------|
+| Slash commands | `.claude/commands/` | 40 個指令的 markdown orchestrator |
+| Shared 片段 | `.claude/commands/shared/` | 多個 command 共用邏輯 |
+| Agents | `.claude/agents/` | 7 個 agent prompt（specist / tester / coder / style-reviewer / risk-reviewer / gatekeeper / curator）|
+| Hooks | `.claude/hooks/` | Shell 主體（≤100 行）+ `lib/`（Python 重邏輯）|
+| Config | `.claude/config/` | 引擎登記、預算、工具安全、信心度、專案清單 |
+| Scripts | `.claude/scripts/` | Agent 委派腳本（`run-agent-codex.sh`）|
+| Experiments | `experiments/` | 外層評估集（跨版本框架品質比對）|
+
+---
+
+## 目錄結構
+
+```
+atdd-task/
+├── requirements/{project}/  # 需求文件（BA 分析產出）
+├── specs/{project}/         # 驗收規格（Given-When-Then）
+├── tasks/{project}/         # 任務追蹤
+│   ├── active/              #   進行中任務 JSON
+│   ├── completed/           #   已完成任務
+│   └── failed/              #   失敗任務
+├── epics/{project}/         # Epic 管理
+├── tests/{project}/         # E2E 測試套件
+│   └── suites/{suite-id}/   #   場景定義 + 執行記錄
+├── domains/{project}/       # 領域知識庫（本地快取）
+├── knowledge/               # 知識 schema 定義
+├── debug-knowledge/         # Debug 經驗庫
+├── acceptance/              # 驗收框架配置（profile / template）
+├── style-guides/            # 程式碼風格指南（Ruby / JS / Python）
+├── docs/                    # 操作文件
+├── experiments/             # 外層 eval 實驗集
+└── .claude/
+    ├── agents/              # 7 個 agent prompt
+    ├── commands/            # 40 個 slash command + shared/
+    ├── config/              # 專案配置
+    ├── hooks/               # hook 腳本 + lib/
+    └── scripts/             # run-agent-codex.sh 等
+```
+
+---
+
+## Wiring 怎麼運作
+
+### settings.json — 事件綁定
+
+Hook 以「事件 + matcher」掛載在 `.claude/settings.json`。
+
+| Hook 腳本 | 事件 / Matcher | 檢查內容 |
+|-----------|----------------|----------|
+| `guard-skill-invoke.sh` | PreToolUse / Skill | 擋 subagent 自行呼叫 slash command |
+| `validate-agent-call.sh` | PreToolUse / Task | 階段允許呼叫該 agent + 信心度 ≥95% 硬阻擋 |
+| `validate-deliverables.sh` | PreToolUse / Task | 前一階段交付物是否完整 |
+| `enforce-e2e-decision.sh` | PreToolUse / atdd_task_update | 轉移出 requirement 前必須有明確 E2E 決策 |
+| `confidence-gate.sh` | PreToolUse / Write\|Edit | 知識信心度（domains/）+ fix 調查前置檢查 |
+| `protect-e2e-mode.sh` | PreToolUse / Write\|Edit | 防 agent 自行竄改 E2E 模式 |
+| `validate-spec-format.sh` | PostToolUse / Write | spec / BA 報告格式 + 技術語言洩漏檢查 |
+| `workflow-router.sh` | UserPromptSubmit | `/continue` 自動注入階段轉移指引 |
+| `validate-review-persisted.sh` | SubagentStop | reviewer findings 是否已持久化 |
+| `record-metrics.sh` | SubagentStop | 自動記錄 agent metrics |
+
+### hooks/
+
+- **主體腳本**：目標 ≤100 行，讀 stdin、做基本判斷、呼叫 lib。
+- **`lib/`**：Python 重邏輯，可獨立測試。
+- **`lib/hooklog.sh`**：寫 `.hook-log.jsonl`，記錄每次觸發/通過/阻擋，供觀測。
+
+### config/
+
+| 檔案 | 作用 |
+|------|------|
+| `agent-engines.yml` | 每個 agent 的引擎登記（claude / codex + model）|
+| `budget.yml` | 預設 `maxToolUses`（150）/ `maxTokens`（2M）上限；任務 JSON 的 `budget` 欄可覆寫 |
+| `tool-safety.yml` | 每個 MCP tool / 危險命令的副作用標記（read / mutating / destructive）|
+| `projects.yml` | 支援的專案 ID 與本地路徑（照 `projects.yml.example` 格式）|
+| `confidence/` | 需求信心度 / 知識信心度的維度 + 權重定義 |
+
+### Agent 委派（Claude vs GPT）
+
+`shared/agent-dispatch.md` 在每次 agent 呼叫前查 `agent-engines.yml`：
+- `engine: claude`（預設）→ 原生 `Task(subagent_type=X)`，hook 正常觸發。
+- `engine: codex` → `run-agent-codex.sh X ...`，GPT-via-codex 執行；**in-agent hook 不觸發** → orchestrator 返回後補等效的 plane-1 檢查（見 `shared/agent-dispatch.md` 補洞表）。
+
+---
+
+## 怎麼擴充
+
+### 加一個新 Slash Command
+1. 在 `.claude/commands/<name>.md` 新增 markdown。
+2. 跨 command 共用邏輯抽到 `shared/<name>.md`。
+3. 在 `README.md` 指令清單補一列。
+
+### 加或改一個 Agent
+1. 編輯（或新增）`.claude/agents/<name>.md`。
+2. 在 `agent-engines.yml` 補一列（預設 `engine: claude`）。
+3. 新交付物若需驗收，在 `hooks/lib/validate_deliverables.py` 補規則。
+
+### 把 Agent 改用 GPT 跑
+1. 編輯 `.claude/config/agent-engines.yml`，把目標 agent 改為 `engine: codex`（可加 `model: gpt-5.5`）。
+2. **前置**：`codex login` 完成；`~/.codex/config.toml` 加 `[mcp_servers.atdd]` / `[mcp_servers.atdd-admin]`（照 `.mcp.json` 的 command/args/env）。
+3. **確認 plane-1 補洞**：`shared/agent-dispatch.md` 補洞表必須涵蓋此 agent（委派後 in-agent hook 失效，orchestrator 須補等效檢查）。
+4. 先用一張低風險任務做監督式 live 端到端測試，確認後再正式啟用。
+5. **代價**：codex 0.133 exec 需要 `--dangerously-bypass-approvals-and-sandbox`（full-access）。
+
+> `specist` / `curator` 有人在環內互動（AskUserQuestion），不適合委派 headless 引擎。
+
+### 加一個新 Hook
+1. 在 `.claude/hooks/<name>.sh` 新增主體（≤100 行；重邏輯進 `lib/<name>.py`）。
+2. 在 `settings.json` 加事件 + matcher 綁定。
+3. 末段呼叫 `lib/hooklog.sh` 記錄觸發結果。
+
+### 加一個新 Project
+照 `.claude/config/projects.yml.example` 格式在 `projects.yml` 加 project id + 路徑。
+
+### 調整預算上限
+- 全局：`.claude/config/budget.yml` 的 `maxToolUses` / `maxTokens`。
+- 單任務：任務 JSON 的 `budget` 欄覆寫，不影響預設值。
+
+---
+
+## 設計考量
+
+### 為什麼用 MCP 狀態而不是對話記憶
+對話記憶隨 session 消失、不能跨引擎共用。MCP state 讓 `/continue` 從任意 session 恢復，也是可插拔引擎的基礎。副作用：reviewer 等 agent 必須 read-merge-write（不能假設 state 在記憶裡）。
+
+### 為什麼信心度是硬阻擋而不是軟提醒
+軟提醒容易被 AI 忽略。硬阻擋（hook exit 2）保證 specist 在需求不清時無法進入規格階段，防止後續所有 agent 做錯方向的工作。
+
+### 為什麼 hook 主體要 ≤100 行
+主體過長代表業務邏輯滲入 hook 層。拆到 `lib/` 後：主體可讀、lib 可獨立測試。
+
+### 為什麼外層 eval 獨立於 inner gatekeeper
+Inner gatekeeper 回答「這張任務好不好」；outer eval（`experiments/atdd-harness-quality/`）回答「改了 agent prompt 或換了 model，框架整體品質升還是降」。兩者不能互替。
+
+### 引擎委派的安全模型（Plane-1 / Plane-2）
+- **Plane-2（in-agent hook）**：Claude subagent 執行中觸發，budget-gate / safety-gate 等在此層。
+- **Plane-1（orchestrator）**：`/continue` / `/feature` 等 command 層，任何委派都倖存。
+- **委派 = Plane-2 靜默失效**：每委派一個 agent，其 Plane-2 保證必須在 Plane-1 補等效，否則是靜默漏洞。補洞記錄在 `shared/agent-dispatch.md`。
+
+---
+
+## 怎麼驗證改動
+
+| 驗收項目 | 觸發方式 | 預期結果 |
+|----------|----------|----------|
+| 預算天花板 | 造超出 `maxToolUses` 的任務 JSON | 下一次工具呼叫前硬 halt；逼近 80% 先警告 |
+| 外層 eval | `experiments/atdd-harness-quality/run.sh` ≥3 次 | 輸出可比分數，升降可見 |
+| Destructive 確認 | 觸發 `tool-safety.yml` 標 destructive 的工具 | 帶後果說明的確認提示 |
+| Hook 大小 | `wc -l .claude/hooks/*.sh` | 主體皆 ≤100 行 |
+| Hook 日誌 | 觸發任一 hook 後 `cat .claude/hooks/.hook-log.jsonl` | 有觸發/阻擋記錄 |
+| 過期知識 | `/knowledge-stale` 盤點 + 造 stale 節點 | 正確標示 stale；同名 slug 衝突被攔 |
+| 引擎委派 | `risk-reviewer` 設 `engine: codex`，跑一張 review | findings 落 MCP 正確巢狀位置；`/continue` 後續無感；plane-1 保險絲生效 |
+
+---
+
+## 回報問題
+
+框架問題或擴充討論：`spenguin100@gmail.com`

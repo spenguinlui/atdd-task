@@ -1,344 +1,247 @@
+> 🌐 **繁體中文** | [English](README.en.md)
+
 # ATDD Hub
 
-AI-driven Acceptance Test-Driven Development 工作流程管理系統。
+把一個需求交給 AI，它會幫你完成需求釐清、驗收規格、測試、實作、程式碼審查，直到守門員說「可以上線」——你只需要在關鍵點確認。
 
-## 概述
+## 能做什麼
 
-**ATDD Hub** 是一個基於 Claude Code 的 AI 驅動開發框架，採用 **Command-Driven** 工作流程與 **6-Agent 專職架構**，實現從需求到交付的完整自動化開發流程。
-
-## 核心特點
-
-- **Command-Driven** - 所有任務透過 Slash Command 啟動
-- **6-Agent 專職架構** - 各 Agent 各司其職，確保品質
-- **信心度機制** - 需求不明確時主動澄清，不盲目實作
-- **TDD 驅動** - 測試先行，代碼跟隨
-- **品質門檻** - 多層審查確保交付品質
+- 把模糊需求變成清晰的驗收規格（Given / When / Then）
+- 自動生成並執行驗收測試（瀏覽器自動化 or 程式測試）
+- 照規格實作程式碼，讓測試通過
+- 進行程式碼品質與資安審查
+- 守門員做最終 GO / NO-GO 裁決，並給你一份人工驗收指南
+- 管理多個專案的任務進度
 
 ## 快速開始
 
-### 啟動任務
+### 1. 設定環境
 
 ```bash
-/feature {project}, {標題}   # 新功能開發
-/fix {project}, {標題}       # Bug 修復
-/refactor {project}, {標題}  # 程式碼重構
-/test {project}, {標題}      # 補充測試
-/epic {project}, {標題}      # 大型功能（拆分為多個子任務）
+cp .env.example .env
+# 編輯 .env，填入以下值（見下方「環境設定」章節）
 ```
 
-**範例**：
+### 2. 啟動第一個任務
+
 ```bash
 /feature sf_project, 專案審核流程
-/fix core_web, 登入頁面無法顯示
+```
+
+AI（需求分析師）會馬上開始問你問題，直到它對需求有 95% 的把握。  
+你只需要用自己的話回答，不需要懂技術細節。
+
+### 3. 逐階段推進
+
+每個階段完成後：
+
+```bash
+/continue    # 進入下一階段
+/status      # 隨時查看進度
+```
+
+### 4. 審查與收尾
+
+Review 完成後：
+
+```bash
+/fix-critical    # 修復嚴重問題（如有）
+/continue        # 進入最終審核
+/done            # 守門員 GO 後：commit 並結案
+```
+
+## 環境設定
+
+複製 `.env.example` 為 `.env` 並填入：
+
+| 變數 | 說明 | 怎麼取得 |
+|------|------|----------|
+| `ATDD_SERVER_API_KEY` | ATDD 系統 API 金鑰 | 向管理者索取 |
+| `TEST_USER_EMAIL` | E2E 測試用帳號 Email | 使用 staging 測試帳號 |
+| `TEST_USER_PASSWORD` | E2E 測試用帳號密碼 | 使用 staging 測試帳號 |
+| `CORE_WEB_PATH` | 目標專案在本機的路徑 | 填你自己機器上的絕對路徑 |
+| `AWS_SF_INSTANCE_ID` | AWS 主機 ID（部署用）| 向管理者確認 |
+
+支援的專案 ID 清單由管理者維護，首次使用請確認你的專案已在系統中登記。
+
+## 怎麼用：常見任務
+
+### 開發新功能
+
+```bash
+/feature sf_project, 用戶申請退款功能
+```
+
+AI 會依序：詢問需求細節 → 寫驗收規格（你確認）→ 生成測試 → 實作程式 → 審查 → 守門員裁決。  
+你在每個 `/continue` 前都可以查看上一階段的產出，確認後再推進。
+
+### 修復 Bug
+
+```bash
+/fix sf_project, 訂單頁面金額顯示錯誤
+```
+
+流程比 Feature 簡化（跳過規格階段），AI 會先釐清錯誤現象和預期行為，再修復。
+
+### 大型功能（跨多個模組）
+
+```bash
 /epic sf_project, 發票折讓體系
 ```
 
-### 控制任務
+AI 會先提出拆分方案（幾個子任務、執行順序），你確認後再逐一執行。
+
+### 程式碼重構
 
 ```bash
-/continue   # 繼續到下一階段
-/status     # 查看當前進度
-/abort      # 放棄當前任務
+/refactor sf_project, 整理訂單結算邏輯
 ```
+
+流程同 Feature，但審查特別強調「行為沒有改變」。
+
+### 查看目前進度
+
+```bash
+/status
+```
+
+列出所有進行中的任務與當前階段，並提供快速操作選項。
 
 ### Review 後修復
 
-```bash
-/fix-critical   # 修復 Critical 問題
-/fix-high       # 修復 Critical + High 問題
-/fix-all        # 修復所有問題
-```
-
-## 6-Agent 架構
-
-| Agent | 職責 | 階段 |
-|-------|------|------|
-| **specist** | 需求分析、信心度評估、規格撰寫 | requirement, specification |
-| **tester** | 測試生成、執行、失敗分析 | testing |
-| **coder** | DDD 元件實作、修復測試 | development |
-| **style-reviewer** | 代碼風格審查、命名規範 | review |
-| **risk-reviewer** | 安全漏洞、效能問題、風險評估 | review |
-| **gatekeeper** | 品質門檻驗證、Go/No-Go 決策 | gate |
-
-> 另有一個輔助 Agent，不在主工作流程內：**curator**（Domain 知識庫策展，由知識相關命令呼叫）。
-
-## 任務流程
-
-### Feature 完整流程
-
-```
-requirement → specification → testing → development → review → gate
-    ↓             ↓              ↓           ↓           ↓       ↓
- specist      specist        tester      coder    reviewers  gatekeeper
-```
-
-**階段說明**：
-
-| 階段 | 說明 | 人類介入 |
-|------|------|----------|
-| requirement | 需求釐清、信心度評估 | ✅ 必須確認 |
-| specification | Given-When-Then 規格 | ✅ 審核 |
-| testing | 生成並執行測試 | ⚠️ 可能 |
-| development | DDD 元件實作 | ❌ AI 執行 |
-| review | 風格 + 風險審查 | ✅ 審核 |
-| gate | 最終品質門檻 | ✅ 簽核 |
-
-### Fix 簡化流程
-
-```
-requirement → testing → development → review → gate
-    ↓           ↓           ↓           ↓       ↓
- specist     tester      coder   risk-reviewer gatekeeper
-```
-
-Fix 任務採用 **Discovery Source** 調查流程，根據問題來源選擇對應的調查工具鏈。
-
-### 其他流程
-
-| 類型 | 流程 | 特點 |
-|------|------|------|
-| Refactor | 完整 6 階段 | 強調行為不變性 |
-| Test | requirement → testing → gate | 最簡流程 |
-| Epic | planning → 子任務執行 | 大型功能拆分 |
-
-## Epic 管理
-
-### 什麼時候使用 Epic？
-
-當 Feature 範圍過大時（信心度達 95% 後判斷）：
-
-| 條件 | 閾值 |
-|------|------|
-| 跨 Domain 數量 | ≥ 3 個 |
-| 需要前置調查/清理 | 有 |
-| 預估驗收場景數 | > 15 個 |
-
-### Epic 流程
-
-```
-/epic {project}, {標題}
-         │
-         ▼
-    specist: Epic Planning（提案）
-         │
-         ▼
-    用戶確認後建立 Epic + 子任務
-         │
-         ▼
-    執行子任務：/feature {project}, T1.1
-```
-
-### Feature → Epic 上升
-
-在 `/feature` 執行時，若 specist 判斷範圍過大：
-
-```
-信心度評估 → 信心度 ≥ 95% → 範圍評估 → 建議上升 Epic
-                                    ↓
-                              用戶選擇
-                             ├─ 同意 → /epic
-                             └─ 維持 → 繼續 Feature
-```
-
-**重要**：範圍評估在信心度達標**之後**執行，確保理解正確再判斷。
-
-### 查看 Epic 進度
+Review 完成後，AI 會列出所有問題的嚴重等級。你可以選擇修復的範圍：
 
 ```bash
-/status   # 整合顯示 Epic 與獨立任務進度
+/fix-critical         # 只修 Critical（必修）
+/fix-high             # 修 Critical + High
+/fix-all              # 修所有等級
 ```
 
-## 信心度機制
+修復完成後執行 `/continue` 進入守門員最終審核。
 
-> 詳細說明請見 [信心度機制文檔](docs/confidence-mechanism.md)
+### 結案與部署
 
-系統使用**兩套信心度評估**，確保 AI 在關鍵決策點不會盲目前進：
-
-| 信心度 | Agent | 保護對象 | 門檻 |
-|--------|-------|----------|------|
-| 需求信心度 | specist | 需求 → 規格的品質 | ≥ 95% 才可進入 specification |
-| 知識信心度 | curator | Domain 知識庫寫入 | ≥ 95% 才可寫入（結構 ≥ 70% 可提案） |
-
-兩套閘門皆為**硬阻擋**（不是軟提醒），維度與權重定義於 `.claude/config/confidence/`。
-
-## ATDD 驗收框架
-
-### 核心理念
-
-> 每個功能/修復必須有至少一個驗收測試，直接反映「問題/需求是否被解決」。
->
-> 詳細說明請見 [驗收 Profile 指南](docs/acceptance-profiles.md)
-
-驗收測試關注**業務結果**，不關注技術實作細節。
-
-### Feature Profiles（ATDD 導向）
-
-根據「**如何才能有效驗收**」選擇 Profile，而非功能類型：
-
-| Profile | 說明 | 執行器 | 適用場景 |
-|---------|------|--------|----------|
-| **e2e** | 端對端驗收 | Chrome MCP | 結果即時可見（< 60 秒）|
-| **integration** | 整合驗收 | RSpec/Jest | 需要時間操作、Mock、併發模擬 |
-| **calculation** | 計算/邏輯驗收 | RSpec/Jest | 後端計算/業務規則，無 UI，Console/API 驗證 |
-| **unit** | 單元驗收 | RSpec/Jest | 純計算邏輯、規則驗證 |
-
-### Profile 選擇決策樹
-
-```
-Q1: 結果是否可在畫面即時看到（< 60 秒）？
-    YES → e2e
-    NO  ↓
-Q2: 是否需要時間操作（週結、月結、延遲執行）？
-    YES → integration
-    NO  ↓
-Q3: 是否依賴外部服務且需要 Mock？
-    YES → integration
-    NO  ↓
-Q4: 是否為後端邏輯變更，無 UI 互動，需要 Console 驗證？
-    YES → calculation
-    NO  ↓
-Q5: 是否為純計算/規則邏輯？
-    YES → unit
-    NO  → integration
+```bash
+/done      # 守門員 GO 後：commit 程式碼 + 更新任務狀態
+/deploy    # 部署到遠端 Server
+/verify    # 確認部署後功能在 production 正常運作
 ```
 
-### 快速參考
+## 可用指令清單
 
-| Profile | 範例場景 |
-|---------|----------|
-| e2e | 表單送出後頁面更新、搜尋後列表篩選、登入後跳轉 |
-| integration | 週結算排程、外部 API 串接、跨 Domain 資料流、背景 Job |
-| calculation | 稅額計算、Entity 方法邏輯（如 b2b? 判斷）、路由規則、無 UI 的 Service 變更 |
-| unit | 金額計算公式、日期轉換、權限規則、狀態機 |
+### 任務生命週期
 
-### Fix Discovery Sources
-
-Bug 修復的 14 種調查流程（編號為 D1–D19，實際 14 個、編號不連續）：
-
-| Profile | Discovery Sources |
-|---------|-------------------|
-| UI | D1, D2, D3, D19 |
-| Data | D4, D14 |
-| Worker | D5, D6 |
-| Performance | D8, D9 |
-| Integration | D10 |
-| Alert | D7 |
-| Security | D12, D13 |
-
-每個 Discovery Source 定義了調查工具的執行順序，確保系統性地定位問題。
-
-## 目錄結構
-
-> 詳細說明請見 [domains/README.md](domains/README.md)
-
-```
-atdd-hub/
-│
-│── requirements/{project}/  # 需求文件（BA 分析產出）
-│── specs/{project}/         # 規格文件（Given-When-Then 驗收條件）
-│── tasks/{project}/         # 任務追蹤
-│   ├── active/              #   進行中任務 JSON
-│   ├── completed/           #   已完成任務
-│   └── failed/              #   失敗任務
-├── epics/{project}/         # Epic 管理（大型功能拆分）
-├── tests/{project}/         # E2E 測試套件（Chrome 自動化）
-│   └── suites/{suite-id}/   #   場景定義 + 執行記錄
-│
-├── domains/{project}/       # 領域知識庫
-│   ├── domain-map.md        #   領域邊界與關係圖
-│   ├── ul.md                #   專有名詞表
-│   ├── business-rules.md    #   跨域商務規則
-│   ├── strategic/           #   商務邏輯（PM 可讀）
-│   └── tactical/            #   系統設計（工程師用）
-├── knowledge/               # 知識存取規範與 Schema
-├── debug-knowledge/         # Debug 經驗庫（踩坑紀錄）
-│
-├── acceptance/              # 驗收框架配置
-│   ├── registry.yml         #   ATDD Profile 配置
-│   ├── fix-profiles.yml     #   Fix 問題分類
-│   ├── fix-discovery-flows.yml  # Bug 調查流程
-│   ├── templates/           #   測試模板
-│   └── tips/                #   E2E 測試技巧
-├── style-guides/            # 程式碼風格指南（Ruby / JS / Python）
-├── docs/                    # 操作文檔
-│
-└── .claude/                 # AI Agent 配置
-    ├── agents/              #   7 個 Agent 定義（6 工作流程 + curator 輔助）
-    ├── commands/            #   40 個 Slash Command（另有 shared/ 共用片段）
-    └── config/              #   專案配置
-```
-
-## 核心原則
-
-### AI 決策原則
-
-- **澄清 > 猜測** - 不確定時主動詢問
-- **信心度 < 95%** → 必須澄清
-- **涉及業務邏輯假設** → 立即停止詢問
-
-### Fix 調查原則
-
-- **Production 資料不可變** - 所有 Command 操作僅限 Local/Staging
-- **Rails Runner 必須在 Read Code 之後** - 沒看過 code 怎麼知道要 run 什麼
-- **Git History 放到最後一站** - 用盡所有 debug 方式才質疑 git 版本
-- **信心度 ≥95% 才可修復** - 不確定時返回人類確認
-
-### 系統環境保護
-
-禁止未經許可修改系統環境：
-- 套件安裝（bundle install, npm install, pip install）
-- 版本切換（rbenv, nvm, pyenv）
-- 設定檔修改（Gemfile, package.json）
-
-## Workflow Hooks
-
-工作流程自動檢查點（由 `.claude/settings.json` 以事件 + matcher 掛載，腳本實體在 `.claude/hooks/`）：
-
-| Hook 腳本 | 事件 / Matcher | 檢查內容 |
-|-----------|----------------|----------|
-| guard-skill-invoke.sh | PreToolUse / Skill | 擋 subagent 自行呼叫 slash command |
-| validate-agent-call.sh | PreToolUse / Task | 階段是否允許呼叫該 agent + 信心度 ≥ 95% 硬阻擋 |
-| validate-deliverables.sh | PreToolUse / Task | 前一階段交付物是否完整 |
-| enforce-e2e-decision.sh | PreToolUse / atdd_task_update | 轉移出 requirement 前必須有明確 E2E 決策 |
-| confidence-gate.sh | PreToolUse / Write\|Edit | 知識信心度（domains/）+ fix 調查前置檢查 |
-| protect-e2e-mode.sh | PreToolUse / Write\|Edit | 防 agent 自行竄改 E2E 模式 |
-| validate-spec-format.sh | PostToolUse / Write | spec / BA 報告格式 + 技術語言洩漏檢查 |
-| workflow-router.sh | UserPromptSubmit | /continue 自動注入階段轉移指引 |
-| validate-review-persisted.sh | SubagentStop | reviewer findings 是否已持久化 |
-| record-metrics.sh | SubagentStop | 自動記錄 agent metrics |
-
-## 專案配置
-
-### 支援的專案
-
-專案 ID 與路徑定義於 `.claude/config/projects.yml`。
-
-### 測試框架
-
-| 語言 | 框架 |
+| 指令 | 說明 |
 |------|------|
-| Ruby | RSpec |
-| JavaScript | Jest |
-| Python | Pytest |
+| `/feature {project}, {標題}` | 啟動新功能開發 |
+| `/fix {project}, {標題}` | 啟動 Bug 修復 |
+| `/refactor {project}, {標題}` | 啟動程式碼重構 |
+| `/test {project}, {標題}` | 建立獨立 E2E 測試套件 |
+| `/epic {project}, {標題}` | 建立大型功能（拆分子任務）|
+| `/continue [task_id]` | 推進到下一階段 |
+| `/status` | 查看所有任務進度 |
+| `/abort [task_id]` | 放棄當前任務 |
+| `/done [task_id]` | 守門員 GO 後結案（commit）|
+| `/close [task_id]` | 結案但不部署 |
+| `/deploy` | 部署框架到遠端 Server |
+| `/verify [task_id]` | 確認部署後 production 正常 |
 
-## 文檔索引
+### Review 後修復
 
-| 文檔 | 說明 |
+| 指令 | 說明 |
 |------|------|
-| [操作手冊](docs/operation-manual.md) | 完整操作指南 |
-| [Fix 工作流程](docs/fix-workflow.md) | Fix 任務詳細流程 |
-| [信心度機制](docs/confidence-mechanism.md) | 需求/知識信心度維度與閘門詳解 |
-| [Review 修復流程](docs/review-fix-workflow.md) | Review 後修復機制 |
-| [Agent 定義](.claude/agents/) | 6 個 Agent 的職責定義 |
-| [驗收 Profile 指南](docs/acceptance-profiles.md) | 驗收 Profile 索引頁 |
-| [Feature 驗收 Profile](docs/feature-profiles.md) | 4 個 Feature Profile、選擇決策樹 |
-| [Fix 驗收 Profile](docs/fix-profiles.md) | 7 個 Fix Profile、調查流程、Affected Layer 對照 |
-| [Style Guides](style-guides/) | 代碼風格指南 |
+| `/fix-critical [task_id]` | 修復 Critical 問題 |
+| `/fix-high [task_id]` | 修復 Critical + High 問題 |
+| `/fix-all [task_id]` | 修復所有問題 |
 
-## 授權
+### 知識與診斷
 
-UNLICENSED (Private)
+| 指令 | 說明 |
+|------|------|
+| `/knowledge {project}, {主題}` | 與 AI 討論業務領域知識，補充或修正知識庫 |
+| `/knowledge-stale [project]` | 列出待重新確認的過期知識 |
+| `/domain-diagnose {project}` | 對指定專案執行領域健康診斷 |
+| `/debug-tips` | 取得除錯建議 |
+
+### E2E 測試管理
+
+| 指令 | 說明 |
+|------|------|
+| `/test-run {project}, {suite-id}` | 執行 E2E 測試套件 |
+| `/test-list [project]` | 列出測試套件 |
+| `/test-edit {project}, {suite-id}` | 修改現有測試套件 |
+| `/test-history {project}, {suite-id}` | 查看測試執行歷史 |
+| `/e2e-manual` | E2E 測試操作手冊 |
+
+## 產出與怎麼確認做對了
+
+每個任務走完完整流程後，你會拿到：
+
+| 產出 | 說明 |
+|------|------|
+| 驗收規格 | Given / When / Then 格式的驗收條件，確認 AI 理解你的需求 |
+| 自動化測試 | 程式自動執行的測試，直接驗證功能是否正確 |
+| 程式碼變更 | 實作後的 commit，已通過測試和 review |
+| 人工驗收指南 | 守門員給的逐步操作步驟，讓你在 staging / production 手動確認 |
+
+**怎麼確認做對了：**
+
+1. **守門員說 GO**：通過所有品質門檻，可以上線
+2. **照人工驗收指南操作**：守門員輸出的「驗收場景」逐項打勾
+3. **`/verify` 完成**：production 確認無誤後任務才算真正結束
+
+如果守門員說 NO-GO，會說明原因——依指示調整後再 `/continue`。
+
+## 不做什麼 / 已知限制
+
+**不做：**
+- 直接操作 production 資料（所有指令限 local / staging）
+- 在你還沒確認需求的情況下繼續實作（信心度未達 95% 會停下來問）
+- 自行安裝套件或更改系統設定（bundle install、版本切換等）
+- 修改你沒要求改的部分（specist / curator 有業務確認步驟，不會自行擴展範圍）
+
+**已知限制：**
+- 需求越模糊，釐清問題越多——建議啟動前想清楚主要業務規則
+- E2E 測試依賴 Chrome 瀏覽器開著且可連到 staging；staging 帳號需有對應的測試資料
+- 某些安全性問題（外部來源注入防護）需要 Server 端支援，框架層僅部分覆蓋
+
+## 出錯怎麼辦
+
+| 症狀 | 常見原因 | 處理方式 |
+|------|----------|----------|
+| `/continue` 後沒有動作 | 上一階段產出不完整 | 看 AI 的提示訊息，依指示補完後重試 |
+| AI 一直問問題，信心度卡著不到 95% | 需求仍有模糊點 | 補充具體的業務規則或範例數據 |
+| E2E 測試一直失敗 | staging 帳號 / 測試資料問題 | 確認 `.env` 帳號可登入 staging；確認測試資料存在 |
+| Hook 阻擋並顯示錯誤 | 品質閘門擋下（交付物缺漏等）| AI 訊息中有具體原因，依指示補齊後再試 |
+| 任務卡住、AI 沒在動 | AI 陷入迴圈或達到執行上限 | 執行 `/abort` 放棄，重新開任務；或參考 [完整操作手冊](docs/operation-manual.md) |
+| 守門員 NO-GO，不知道怎麼辦 | Review 有嚴重問題或測試未全過 | 依守門員報告的原因：執行 `/fix-critical` 或回到 specist 重新釐清需求 |
+
+完整操作指南：[操作手冊](docs/operation-manual.md)
+
+## 誰維護 / 怎麼回報
+
+框架維護者：`spenguin100@gmail.com`  
+使用問題、功能回饋、發現 Bug 都可以直接聯繫。  
+框架本身的擴充與修改請參閱 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 詞彙表
+
+| 術語 | 白話說明 |
+|------|----------|
+| **信心度** | AI 對需求的理解程度（0–100%）。未達 95% 時 AI 會繼續問問題，不會開始實作 |
+| **specist**（需求分析師）| 負責跟你釐清需求、撰寫驗收規格的 AI 角色 |
+| **tester**（測試工程師）| 根據驗收規格生成並執行測試的 AI 角色 |
+| **coder**（開發工程師）| 讓測試通過、撰寫程式碼的 AI 角色 |
+| **reviewer**（審查員）| 檢查程式碼品質和資安的 AI 角色（分風格審查與風險審查）|
+| **gatekeeper**（守門員）| 做最終 GO / NO-GO 裁決的 AI 角色，並給出人工驗收指南 |
+| **curator**（知識策展者）| 管理業務知識庫（Domains / UL 術語）的 AI 角色 |
+| **spec / 驗收規格** | 用「Given（前提）/ When（動作）/ Then（預期結果）」格式描述的驗收條件 |
+| **E2E 測試** | 模擬真實使用者在瀏覽器操作的自動化測試 |
+| **Domain / 業務領域** | 系統內的功能模組（例：發票、專案管理、使用者權限）|
+| **Epic** | 範圍太大的功能，拆分成多個子任務（Feature / Fix）分批完成 |
+| **GO / NO-GO** | 守門員的最終裁決：GO = 可上線；NO-GO = 需修正 |
+| **信心度閘門** | 硬性阻擋機制：信心度未達門檻時 AI 無法繼續往下走 |
 
 ---
 
-**ATDD Hub** - AI-Driven Development, Human-Quality Results
+如需進一步了解工作流程細節，請參閱 [完整操作手冊](docs/operation-manual.md)。
