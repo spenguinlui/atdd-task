@@ -127,6 +127,22 @@ Then run `/continue` to enter the final gate.
 /verify    # Confirm feature works correctly in production
 ```
 
+## Workflow Loop: What AI Does, What You Do
+
+Every task runs through the full loop. AI executes automatically for most stages — you only need to act at a few fixed handoff points.
+
+| Stage | AI does automatically | Your turn |
+|-------|-----------------------|-----------|
+| **Requirement clarification** | Analyzes requirements, asks questions one by one, evaluates confidence | Answer questions, add business rules, until AI says "confidence reached 95%" |
+| **E2E decision** | — | When asked "Do you need E2E tests?" → choose (automated / manual / skip) |
+| **Spec writing** | Converts requirements into Given / When / Then acceptance criteria | Read the spec to confirm AI understood correctly → `/continue` |
+| **Test generation** | Generates and runs acceptance tests based on the spec | If tests need environment setup, follow the prompts → `/continue` |
+| **Implementation** | Writes code to make tests pass | No action needed → `/continue` |
+| **Quality review** | Performs code style + security review, outputs a graded issue list | Read the list → decide fix scope (`/fix-critical` / `/fix-high` / `/fix-all`) → `/continue` |
+| **Gate decision** | Verifies all quality gates, makes GO / NO-GO decision, provides manual verification guide | GO → `/done` to close; NO-GO → address the issues and `/continue` again |
+
+**There are only six human touchpoints**: start the task → answer requirement questions → E2E decision → confirm spec → choose fix scope after review → close after gatekeeper GO. AI runs all other stages automatically.
+
 ## Available Commands
 
 ### Task lifecycle
