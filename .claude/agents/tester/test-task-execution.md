@@ -111,6 +111,29 @@ Phase 4: 彙總結果
 
 ---
 
+## 後台登入前置（強制 — 別再被登入卡住）
+
+> 4 個 Rails 專案的 E2E 多半要先登入 admin 後台。local dev DB 常是 production dump，admin
+> 密碼是 production hash（沒人知道）、可能開 OTP，**每次都卡這**。E2E 前一律先跑：
+
+```bash
+.claude/scripts/ensure-admin-login.sh <sf_project|jv_project|core_web|e_trading>
+```
+
+把 admin 密碼正規化成 seed 版本 + 關 OTP + 解鎖（admin 不存在時自動 `db:seed` 建）。登入帳密：
+
+| 專案 | email | 密碼 |
+|------|-------|------|
+| sf_project | admin@sunnyfounder.com | `admin123456` |
+| jv_project | admin@sunnyfounder.com | `admin123456` |
+| core_web | admin@sunnyfounder.com | `admin12345` |
+| e_trading | admin@sunnyfounder.com | `test123456` |
+
+> ⚠️ **安全界線**：把密碼打進登入表單由「人」做（原廠安全規範禁止 agent 代填密碼）。
+> agent 跑腳本確保帳密可用 → 請業主登入（帳密已知）→ agent 接手 E2E 斷言。不要卡在「不知道密碼」空轉。
+
+---
+
 ## Chrome MCP 連線檢查（E2E 執行前必須進行）
 
 在使用任何 Chrome MCP 工具之前，先呼叫 `tabs_context_mcp`。若收到 `"Browser extension is not connected"` 錯誤：
@@ -319,14 +342,24 @@ tester 執行時若遇到 `opensPopup: true`，應主動暫停並提示人工介
 
 當場景的 executor 為 `capybara` 時，tester 不使用 Chrome MCP，而是透過 RSpec 執行。
 
+> **為何 capybara 走 host、不走 docker exec（與其他 rspec 不同）**：feature spec 需要
+> host 端的 chromedriver / 瀏覽器（容器內沒有），且 driver 沒設 `app_host` 會自己 boot
+> in-process server。這是唯一刻意保留 host-native 的執行路徑。
+> 其餘 rspec / rails runner / migrate 一律走 `docker exec`（見 tester.md Phase 3）。
+
 ### 執行指令
 
 ```bash
+# host-native（capybara 例外）。本機 .env 的 DATABASE_PORT 已對齊 Tilt PG16 host port，
+# 連的是與 docker exec 同一份 PG16（test DB = <db>_test）。
 cd {project_path} && bundle exec rspec {spec_file} --format documentation --format json --out {run_dir}/capybara_results.json
 ```
 
 - `spec_file`：從 `suite.yml` 的 `executors.capybara.specFile` 取得
 - Capybara spec 存放在各專案的 `spec/features/` 目錄
+- 若 `.env` 仍是舊 PG12 port（新環境 / 從 .env.example）→ inline 覆寫
+  `DATABASE_HOST=localhost DATABASE_PORT={pg16_host_port} DATABASE_PASSWORD=1111`
+  （PG16 host port：sf=15433 / jv=15435 / core=15437 / et=15439）
 
 ### 結果解析
 

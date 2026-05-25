@@ -42,6 +42,29 @@ version: 1.0.0
 > 例外：Capybara feature spec 因需要 host 端 chromedriver，走法不同，見
 > `.claude/guides/capybara-setup.md`。
 
+## 後台登入：admin 帳密（= seed）+ 一鍵正規化
+
+local dev DB 常是 production dump，admin 密碼是 production hash（沒人知道）、可能開 OTP，
+**E2E / 手動看後台每次都卡在登入**。一鍵把指定 admin 密碼設回「seed 版本」+ 關 OTP + 解鎖
+（admin 不存在時自動 `db:seed` 建）：
+
+```bash
+.claude/scripts/ensure-admin-login.sh <sf_project|jv_project|core_web|e_trading>
+```
+
+帳密一律對齊各 repo `db/seeds`（`default_staff.rb` / `default_admin.rb`）：
+
+| 專案 | model | email | 密碼 |
+|------|-------|-------|------|
+| sf_project | `Admin::Models::Staff` | admin@sunnyfounder.com | `admin123456` |
+| jv_project | `Admin::Models::Staff` | admin@sunnyfounder.com | `admin123456` |
+| core_web | `Admin::Models::AdminUser` | admin@sunnyfounder.com | `admin12345` |
+| e_trading | `Admin::Models::Staff` | admin@sunnyfounder.com | `test123456` |
+
+> 腳本操作 dev DB（`RAILS_ENV=development`，rails runner / db:seed 不觸發 DatabaseCleaner，安全）。
+> email 是加密欄位，`find_by(email:)` 比對密文會失敗 → 腳本用 detect 逐筆解密比對。
+> 安全界線：密碼**打進登入表單**那一步由人做（原廠規範禁止 agent 代填密碼）；腳本只負責讓帳密可用。
+
 ## 前置條件：Tilt 要在跑
 
 ```bash

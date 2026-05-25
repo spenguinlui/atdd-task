@@ -11,9 +11,35 @@
 | null/undefined | 提供選擇，等待用戶決定 |
 ```
 
+## 後台登入前置（強制 — 別再被登入卡住）
+
+> 4 個 Rails 專案的 E2E 幾乎都要先登入 admin 後台。local dev DB 常是 production dump，
+> admin 密碼是 production hash（沒人知道）、可能開 OTP，**每次都卡在這**。
+> **E2E 開始前一律先跑這支，把 admin 密碼正規化成 seed 版本 + 關 OTP + 解鎖**：
+
+```bash
+.claude/scripts/ensure-admin-login.sh <sf_project|jv_project|core_web|e_trading>
+```
+
+各專案登入帳密（= 該 repo `db/seeds`，腳本已對齊）：
+
+| 專案 | email | 密碼 |
+|------|-------|------|
+| sf_project | admin@sunnyfounder.com | `admin123456` |
+| jv_project | admin@sunnyfounder.com | `admin123456` |
+| core_web | admin@sunnyfounder.com | `admin12345` |
+| e_trading | admin@sunnyfounder.com | `test123456` |
+
+> ⚠️ **安全界線**：把密碼打進登入表單這一步由「人」做（原廠安全規範禁止 agent 代填密碼）。
+> agent 能做的是：跑上面腳本確保帳密可用 → 請業主在瀏覽器登入（帳密已知、5 秒）→ agent 接手後續 E2E 斷言。
+> 跑完腳本後若 session 已登入則直接續跑；未登入就提示業主用上表帳密登入，不要卡在「不知道密碼」上空轉。
+
 ## 自動化 E2E 執行流程
 
 ```
+0. 確保 admin 可登入（見上方「後台登入前置」）
+   .claude/scripts/ensure-admin-login.sh {project}
+
 1. Setup（資料準備）
    rails runner db/seeds/acceptance/{task}_setup.rb
 
