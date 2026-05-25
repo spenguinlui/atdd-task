@@ -214,10 +214,10 @@ end
 2. 沒有 `test` 區段 → fallback 到 host-side（RVM / rbenv）
 
 ```bash
-# 模式 A：docker（Tilt 環境，預設）
-# 直接從 projects.yml 取 test.rspec，替換 {test_file}
-docker exec -i {test.container} bundle exec rspec {test_file} --format documentation
-# 例：docker exec -i sf_project-sf-web-1 bundle exec rspec spec/domains/foo_spec.rb --format documentation
+# 模式 A：docker（Tilt 環境，預設）── ⚠️ docker 模式 rspec 一律帶 -e RAILS_ENV=test
+# 直接從 projects.yml 取 test.rspec（已內含 -e RAILS_ENV=test），替換 {test_file}
+docker exec -i -e RAILS_ENV=test {test.container} bundle exec rspec {test_file} --format documentation
+# 例：docker exec -i -e RAILS_ENV=test sf_project-sf-web-1 bundle exec rspec spec/domains/foo_spec.rb --format documentation
 
 # 模式 B：host RVM（無 test block 的舊專案）
 source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) && bundle exec rspec {test_file} --format documentation
@@ -225,6 +225,8 @@ source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) &
 # 模式 C：host rbenv
 cd {project_path} && bundle exec rspec {test_file} --format documentation
 ```
+
+> ⛔ **docker 模式跑 rspec 必帶 `-e RAILS_ENV=test`**。Tilt web container 預設 `RAILS_ENV=development`，且 `ENV['RAILS_ENV'] ||= 'test'` 無法覆寫已設定的 development → 少了它會在 **dev DB** 跑 DatabaseCleaner truncation，**清空 dev 全表（含 production dump）**。詳見 `skills/rails-local-dev/SKILL.md`「資料庫安全」。手寫 `docker exec` 跑 rspec 時尤其要記得帶。
 
 **前置檢查（docker 模式）**：
 - `docker ps --format '{{.Names}}' | grep <test.container>` 確認 container running

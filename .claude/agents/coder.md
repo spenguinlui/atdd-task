@@ -143,9 +143,9 @@ You are a Code Engineer responsible for implementing business logic following DD
 2. 沒有 `test` 區段 → fallback host-side
 
 ```bash
-# 模式 A：docker（Tilt 環境，預設）
-docker exec -i {test.container} bundle exec rspec {test_file}
-# 例：docker exec -i sf_project-sf-web-1 bundle exec rspec spec/domains/foo_spec.rb
+# 模式 A：docker（Tilt 環境，預設）── ⚠️ docker 模式 rspec 一律帶 -e RAILS_ENV=test
+docker exec -i -e RAILS_ENV=test {test.container} bundle exec rspec {test_file}
+# 例：docker exec -i -e RAILS_ENV=test sf_project-sf-web-1 bundle exec rspec spec/domains/foo_spec.rb
 
 # 模式 B：host RVM
 source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) && bundle exec rspec {test_file}
@@ -153,6 +153,9 @@ source ~/.rvm/scripts/rvm && cd {project_path} && rvm use $(cat .ruby-version) &
 # 模式 C：host rbenv
 cd {project_path} && bundle exec rspec {test_file}
 ```
+
+> ⛔ **docker 模式跑 rspec 必帶 `-e RAILS_ENV=test`**（直接套用 `test.rspec` 模板即已內含）。
+> Tilt web container 預設 `RAILS_ENV=development`，且 `ENV['RAILS_ENV'] ||= 'test'` 無法覆寫已設定的 development → 少了 `-e RAILS_ENV=test` 會在 **dev DB** 跑 DatabaseCleaner truncation，**清空 dev 全表（含 production dump）**。詳見 `skills/rails-local-dev/SKILL.md`「資料庫安全」。自行手寫 `docker exec` 跑 rspec 時尤其要記得帶。
 
 **前置檢查（docker 模式）**：container running（`docker ps | grep <test.container>`），否則 `docker start <test.container>`。
 故障細節見 `~/ai-infra-management/docs/local-dev/tilt-workspace.md`。
