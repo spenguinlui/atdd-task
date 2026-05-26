@@ -1,0 +1,34 @@
+# Agent 引擎登記表 — 同一份 agent prompt 可委派給不同引擎
+# 設計依據：meta-harness prescriptions/2026-05-22-atdd-task.md Part G
+#
+# engine:
+#   claude → 原生 Task subagent（in-agent hook 正常觸發，預設）
+#   codex  → 走 .claude/scripts/run-agent-codex.sh 用 codex 跑 GPT（Path 1：GPT 自走 atdd MCP）
+#            前置：codex login 完成 + ~/.codex/config.toml 註冊 [mcp_servers.atdd]/[mcp_servers.atdd-admin]
+#            代價：codex 0.133 exec 必須 --dangerously-bypass-approvals-and-sandbox（full-access）
+#            注意：codex 路徑下 Claude Code hook 不觸發 → 持久化等保證改由 orchestrator plane-1 補（見 shared/agent-dispatch.md）
+#
+# 要把某 agent 委派給 GPT：把該 agent 的 engine 改成 codex（可加 model:），例如：
+#   risk-reviewer:
+#     engine: codex
+#     model: gpt-5.5
+
+defaults:
+  engine: claude
+
+agents:
+  risk-reviewer:
+    engine: claude          # ← 改 codex 即委派給 GPT（讀為主，最適合首發）
+  style-reviewer:
+    engine: claude
+  coder:
+    engine: codex           # eval 2026-05-24：gpt-5.5 多修對（39/48 vs Claude 32/48）；bypass 風險已知
+    model: gpt-5.5
+  tester:
+    engine: claude
+  specist:
+    engine: claude          # 人在環內（信心度對話）→ headless 不適用，留 claude
+  gatekeeper:
+    engine: claude          # GO/NO-GO 信任錨，委派為政策決定
+  curator:
+    engine: claude          # 人在環內（衝突裁示）→ 留 claude

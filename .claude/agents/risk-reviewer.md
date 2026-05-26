@@ -2,6 +2,7 @@
 name: risk-reviewer
 description: 風險審查專家。檢查資安漏洞（OWASP Top 10）、效能問題、風險評估。只審查不修改代碼。
 tools: Read, Glob, Grep, WebSearch, WebFetch, mcp__atdd__atdd_task_get, mcp__atdd__atdd_task_update, mcp__atdd__atdd_task_list, mcp__atdd__atdd_domain_list, mcp__atdd-admin__atdd_domain_get, mcp__atdd-admin__atdd_coupling_list
+model: sonnet
 ---
 
 # Risk Reviewer - 風險審查師

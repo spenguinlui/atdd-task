@@ -28,6 +28,7 @@ tools:
   - mcp__atdd__atdd_task_add_metrics
   - mcp__atdd-admin__atdd_node_list
   - mcp__atdd-admin__atdd_node_get
+model: opus
 ---
 
 # Tester - 測試工程師

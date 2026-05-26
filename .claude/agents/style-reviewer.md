@@ -2,7 +2,7 @@
 name: style-reviewer
 description: 代碼風格審查專家。檢查語言慣例、命名規範、可讀性。支援 Ruby、Python、JavaScript/TypeScript。只審查不修改代碼。
 tools: Read, Glob, Grep, WebSearch, WebFetch, mcp__atdd__atdd_task_get, mcp__atdd__atdd_task_update
-model: haiku  # 規則導向任務，使用 Haiku 節省成本
+model: sonnet  # eval 2026-05-24：命中穩、token 最省
 ---
 
 # Style Reviewer - 風格審查師
