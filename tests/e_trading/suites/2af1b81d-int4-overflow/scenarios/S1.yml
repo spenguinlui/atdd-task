@@ -1,0 +1,150 @@
+---
+scenario:
+  id: S1
+  title: "RU11403031 modification approve 不噴 RangeError，order_amount 精確 3_940_868_750"
+  description: |
+    Given staging 上 RU11403031 對應的 ApplicationForm（type=order_modification，
+          status=approval_in_progress），其 contract 之 PC 加總 × rate = 3_940_868_750；
+    When 管理員於 ERP 申請單審核頁按下「核准」；
+    Then 流程不噴 ActiveModel::RangeError；
+         digiwin_erp_sales_orders.order_amount 精確等於 3_940_868_750；
+         子表第一筆 item.amount 也等於 3_940_868_750；
+         非 in-scope 欄位（so_type_no/customer_no/created_at/status 等）保持不變；
+         SalesOrder.id 不變（update 而非 delete+recreate）。
+
+  acceptanceCriteria:
+    - "AC1: approve 流程完成不拋 RangeError（HTTP 不為 500）"
+    - "AC2: digiwin_erp_sales_orders.order_amount == 3_940_868_750（精確）"
+    - "AC3: digiwin_erp_sales_orders.order_tax 為 round(order_amount * 0.05) 之具體值"
+    - "AC4: digiwin_erp_sales_order_items 各 item.amount 精確等於 PC qty * rate"
+    - "AC5: Regression guard — SalesOrder.id 不變；so_type_no/customer_no/created_at/company_id 不變"
+
+  preconditions:
+    - "已登入 staging admin"
+    - "RU11403031 ApplicationForm 存在且 status=approval_in_progress"
+    - "Migration 已執行（order_amount/order_tax/tot_pqty/contract_total_price/order_qty/amount/delivered_qty 均為 bigint）"
+    - "PC 加總 × rate 預期值 = 3_940_868_750"
+
+  seed:
+    description: |
+      於 staging rails console 執行，記錄基準值。若 RU11403031 已被處理過，
+      可用 staging fixture 重新建立等價案例（contract serial 自訂，PC 設為 qty=1_576_347_500、rate=2.5）。
+    sql_or_console: |
+      # === Pre-approve snapshot ===
+      af = Erp::Models::ApplicationForm.find_by(serial_no: 'RU11403031')  # 或對應 ID
+      raise "AF not found / not pending" unless af && af.status == 'approval_in_progress'
+
+      contract_serial = af.source_id
+      doc_link = DigiwinErp::Models::DocumentLink.find_by(
+        source_type: 'Contract', source_id: contract_serial,
+        document_type: 'DigiwinErp::Models::Documents::SalesOrder'
+      )
+      so = DigiwinErp::Models::Documents::SalesOrder.find(doc_link.document_id)
+      $SO_ID = so.id
+      $PRE_SNAPSHOT = so.attributes.slice(
+        'so_type_no', 'customer_no', 'customer_name', 'company_id',
+        'created_at', 'project_code'
+      )
+      # 預期值（依 staging 真實 PC 計算，下列為 RU11403031 已知值）
+      $EXPECTED_ORDER_AMOUNT = 3_940_868_750
+      $EXPECTED_ORDER_TAX = (3_940_868_750 * 0.05).round  # = 197_043_438
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/erp/application_forms/$AF_ID"
+      description: "進入 RU11403031 申請單審核頁"
+      expected: "頁面 200 OK，顯示「核准」按鈕，狀態為「審核中」"
+
+    - id: step-2
+      action: snapshot
+      target: "DB 預先記錄 SalesOrder regression baseline"
+      description: |
+        於 console 執行 seed 區塊取得 $PRE_SNAPSHOT，後續 step-6 用於比對。
+      expected: "$PRE_SNAPSHOT 含 6 個欄位，皆有值"
+
+    - id: step-3
+      action: click
+      target: "核准按鈕"
+      description: |
+        點擊「核准」。修復前此處會因為 order_amount = 3_940_868_750 > int4 max
+        觸發 ActiveModel::RangeError，畫面進入 500 / 錯誤頁。
+      expected: "Form submit 觸發，瀏覽器導向"
+
+    - id: step-4
+      action: verify
+      target: "HTTP 回應與 UI"
+      description: "驗證 approve 流程未拋 RangeError"
+      expected:
+        httpStatus: 302
+        responseBehavior: "redirect 回審核列表 / show 頁，無 500/422"
+        pageNotContains: "RangeError"
+        pageNotContains2: "is out of range for ActiveRecord"
+
+    - id: step-5
+      action: db_assert
+      target: "digiwin_erp_sales_orders（header）"
+      description: "驗 order_amount/order_tax/tot_pqty 精確值"
+      expected:
+        query: |
+          so = DigiwinErp::Models::Documents::SalesOrder.find($SO_ID).tap(&:reload)
+          {
+            order_amount: so.order_amount,
+            order_tax: so.order_tax
+          }
+        assertions:
+          - "so.order_amount == 3_940_868_750  # eq, not include"
+          - "so.order_tax == 197_043_438       # round(amount * 0.05)"
+          - "so.id == $SO_ID                   # update, not delete+recreate"
+
+    - id: step-6
+      action: db_assert
+      target: "digiwin_erp_sales_order_items（子表）"
+      description: "子表 item.amount 精確值，且 item.id 不變"
+      expected:
+        query: |
+          so.items.order(:cycle).pluck(:cycle, :order_qty, :price, :amount)
+        assertions:
+          - "items.first.amount == 3_940_868_750   # 不溢位寫入"
+          - "items.sum(:amount) == so.order_amount # header/items 一致"
+
+    - id: step-7
+      action: db_assert
+      target: "Regression guard — 非 in-scope 欄位未被誤改"
+      description: |
+        比對 step-2 $PRE_SNAPSHOT 與 reload 後 SalesOrder：
+        so_type_no / customer_no / customer_name / company_id / created_at / project_code
+        必須完全相等（eq，不是 include）。
+      expected:
+        assertions:
+          - "so.so_type_no == $PRE_SNAPSHOT['so_type_no']"
+          - "so.customer_no == $PRE_SNAPSHOT['customer_no']"
+          - "so.customer_name == $PRE_SNAPSHOT['customer_name']"
+          - "so.company_id == $PRE_SNAPSHOT['company_id']"
+          - "so.created_at == $PRE_SNAPSHOT['created_at']"
+          - "so.project_code == $PRE_SNAPSHOT['project_code']"
+
+    - id: step-8
+      action: db_assert
+      target: "DB schema 驗證（migration 已執行）"
+      description: "確認欄位型別已升級為 bigint"
+      expected:
+        query: |
+          ActiveRecord::Base.connection.columns('digiwin_erp_sales_orders')
+            .select { |c| %w[order_amount order_tax tot_pqty contract_total_price].include?(c.name) }
+            .map { |c| [c.name, c.sql_type] }
+        assertions:
+          - "全部欄位 sql_type == 'bigint'"
+
+  result:
+    pass: |
+      - approve 不噴 RangeError，HTTP 302
+      - SalesOrder.order_amount == 3_940_868_750（精確）
+      - SalesOrderItem.amount 各筆精確
+      - SalesOrder.id 不變、created_at 不變、so_type_no/customer_no 不變
+      - schema 顯示 bigint
+    fail: |
+      - 仍噴 RangeError / 500（未修復或 migration 未執行）
+      - order_amount 寫入錯誤值（如 -354_098_546 wrap-around）
+      - SalesOrder.id 變動（暗示 delete+recreate 而非 update）
+      - 非 in-scope 欄位被誤改（regression）

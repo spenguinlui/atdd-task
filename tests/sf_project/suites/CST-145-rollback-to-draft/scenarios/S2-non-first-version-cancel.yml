@@ -1,0 +1,69 @@
+---
+scenario:
+  id: S2
+  title: "RT070016：非首版取消異動 → status=canceled + ApprovalProcess 保留"
+
+  given: |
+    Project RT070016 在 DB 中存在，
+    其 v1 status=approved（已完成簽核），v2 status=pending_approval。
+    first_approval? == false（因為已有 v1 approved）。
+
+  when: |
+    Admin 進入 /admin/project_management/projects/RT070016 show 頁，
+    點擊「取消異動」按鈕（DELETE /admin/project_management/approvals/RT070016）。
+
+  then: |
+    1. UI 跳轉回 show 頁且 flash notice 顯示「異動成功」（非「已退回草稿」）。
+    2. DB 層：v2 status 變為 'canceled'（而非 draft）。
+    3. DB 層：v2 對應的 ApprovalProcess 仍存在（未被刪除），canceled_at 欄位被設置。
+    4. v1 status 保持 approved 不變。
+
+  acceptanceCriteria:
+    - AC1: "flash[:notice] 顯示 '異動成功'（不得為『已退回草稿』）"
+    - AC2: "v2.status == 'canceled'（不得為 draft）"
+    - AC3: "v2 對應的 ApprovalProcess 仍存在（count > 0）"
+    - AC4: "v2 對應的 ApprovalProcess 至少一筆 canceled_at IS NOT NULL"
+    - AC5: "v1.status 保持 'approved'"
+
+  preconditions:
+    - "admin 已登入 localhost:3001"
+    - "Project RT070016 v1 approved，v2 pending_approval"
+
+  steps:
+    - id: step-1
+      action: preflight_db_check
+      description: "DB 確認 RT070016 v1=approved, v2=pending_approval，v2 有 ApprovalProcess"
+      expected:
+        v1_status: "approved"
+        v2_status: "pending_approval"
+        v2_approval_process_count_gt: 0
+
+    - id: step-2
+      action: navigate
+      target: "/admin/project_management/projects/RT070016"
+      expected: "show 頁載入，看得到『取消異動』按鈕"
+
+    - id: step-3
+      action: click
+      target: "『取消異動』按鈕"
+      description: "透過 JS fetch DELETE /admin/project_management/approvals/RT070016"
+      expected: "HTTP 302 導回 show 頁"
+
+    - id: step-4
+      action: verify_flash
+      expected:
+        flashText: "異動成功"
+        flashMustNotContain: "已退回草稿"
+
+    - id: step-5
+      action: verify_db
+      description: "reload DB，驗證 v2.status=canceled + ApprovalProcess 保留 + canceled_at 設置；v1 不變"
+      expected:
+        v2_status: "canceled"
+        v2_approval_process_count_gt: 0
+        v2_any_canceled_at_set: true
+        v1_status: "approved"
+
+  result:
+    pass: "v2 變 canceled，ApprovalProcess 保留並記 canceled_at；v1 保持 approved；flash 為『異動成功』"
+    fail: "v2 錯誤變 draft，或 ApprovalProcess 被刪除，或 v1 狀態被動到，或 flash 錯誤"

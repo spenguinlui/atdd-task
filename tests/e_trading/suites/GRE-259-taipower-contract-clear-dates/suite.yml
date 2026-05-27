@@ -1,0 +1,48 @@
+---
+suite:
+  id: GRE-259-taipower-contract-clear-dates
+  title: "TaipowerContract 編輯頁清空轉供日期欄位後 DB 應更新為 nil"
+  taskId: 1394b3bd-ed57-458e-908e-fa7d7d62e02b
+  project: e_trading
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 GRE-259 修復 — 台電契約 (TaipowerContract / 台電轉供契約) 編輯頁：
+      S1-E2E: 清空 start_wheeling_date 後 DB 為 nil（end / application 保留）
+      S4-E2E: 同時清空 application_date / start_wheeling_date / end_wheeling_date
+              三欄位後 DB 全為 nil；in-scope 外欄位（dispatch_serial / dispatch_name /
+              tp_service_serial）+ producers 子表未動
+      S5-E2E: 從具體日期改為另一個具體日期仍可成功持久化（正向 regression）
+
+  baseUrl: "http://et.local"
+
+  prerequisites:
+    - e_trading docker app container 已啟動（e_trading-et-app-1 via traefik http://et.local）
+    - local admin 帳號已登入（需 power_wheeling::composition_management 權限），帳密由使用者手動輸入
+    - GRE-259 修復碼已在 local（domains/power_wheeling/composition_management/repositories/taipower_contract.rb
+      Mapper 已加 nullable_fields: [:application_date, :start_wheeling_date, :end_wheeling_date]）
+    - Local DB 已 seed TaipowerContract id=393, dispatch_serial='GRE259-LOCAL', 三日期非 nil + 2 producers
+      (12345678901/0.6, 12345678902/0.4)
+
+  scenarios:
+    - file: scenarios/S1.yml
+      id: S1
+      title: "清空 start_wheeling_date → DB nil；其餘欄位不動"
+      dependencies: []
+    - file: scenarios/S4.yml
+      id: S4
+      title: "同時清空三日期 → DB 全 nil；非 in-scope 欄位 + producers regression guard"
+      dependencies: []
+    - file: scenarios/S5.yml
+      id: S5
+      title: "改寫 start_wheeling_date 為新日期 → DB 持久化新值"
+      dependencies: []
+
+  popupWarning: |
+    本 suite 不應觸發 popup window。如遇 datepicker 以新分頁/popup 開啟，呼叫 /test-pause 轉人工。
+
+  manualFallback: |
+    若 staging 無可用 TaipowerContract row，請使用者於 staging admin 後台先建立一筆
+    符合 prerequisites 的契約後再執行。

@@ -1,0 +1,82 @@
+---
+scenario:
+  id: S4
+  title: "finalized_projects Edit 頁無金額不符警告"
+  description: |
+    驗證進入 finalized_projects 潤特新竹41 Edit 頁後，頁面上方 / 提交後
+    都不再出現「本次案件計入項目合計與結算金額不符」警告。
+
+    此警告是 CST-143 的最顯性症狀：舊計算公式將含稅金額以
+    round(price * quantity * 1.05) 計算，導致計入項目合計與結算金額各自四捨五入
+    後產生 +1 / -1 差異，會觸發前端驗證提示。
+
+  given: |
+    - 潤特新竹41 的設備登記款 SaleElement 已被 Coder Backfill rake 修正（S1 的 pre-state）
+    - SaveSaleElements 新公式（price + tax）已實裝
+
+  when: |
+    admin 進入 /admin/project_management/finalized_projects/<id>/edit 頁面，
+    不修改任何欄位，直接觀察頁面；再提交 form（或觸發合計檢查）。
+
+  then: |
+    頁面不顯示「計入項目合計與結算金額不符」的警告文字；
+    SaleElement 合計欄位與結算金額欄位數值相等。
+
+  acceptanceCriteria:
+    - AC1: "Edit 頁面載入後，不顯示金額不符警告"
+    - AC2: "提交 form 後，不顯示金額不符警告"
+    - AC3: "計入項目合計欄位與結算金額欄位數值相等"
+
+  preconditions:
+    - "admin 帳號已登入，具備 project_management 權限"
+    - "潤特新竹41 RT090041 finalized_project 存在"
+    - "S1 seed 條件成立：price=75263, tax=3764, amount_with_tax=79027（Backfill 後）"
+    - "Coder 已完成 SaveSaleElements 修正 + Backfill rake 已執行"
+
+  seed:
+    model: SaleElement
+    conditions:
+      project_serial_number: "RT090041"
+      key_name: "construction_contract_equipment_registration_income"
+    expectedState:
+      price: 75263
+      tax: 3764
+      quantity: 1
+      amount_with_tax_after_backfill: 79027
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/project_management/finalized_projects/RT090041/edit"
+      description: "直接進入潤特新竹41 finalized_project edit 頁（route param 為 serial_number）"
+      expected: "進入 edit 頁，看得到工程合約期程款表格"
+      waitAfter: "document.readyState==='complete' && typeof updateIncomeTotals==='function'"
+
+    - id: step-2
+      action: verify
+      target: "收入面警告元素 #income-total-warning（JS updateIncomeTotals 跑完後）"
+      description: |
+        確認 JS 執行完後警告不顯示。#income-total-warning template 預設 display:none，
+        JS 若計算不符才 .show()；驗證方式：JS 讀 $('#income-total-warning').is(':visible') === false。
+      expected:
+        jsExpression: "(function(){ if(typeof jQuery==='undefined') return 'no-jquery'; return jQuery('#income-total-warning').is(':visible'); })()"
+        returnValue: false
+
+    - id: step-3
+      action: verify
+      target: "equipment_registration 列含稅欄位 + 合計 #income-total-with-tax"
+      description: |
+        讀取 equipment_registration 列的 .progress-fee-with-tax 與合計 #income-total-with-tax（JS 跑完後的文字）。
+      expected:
+        jsExpression: "({ equipRow: document.querySelector(\".progress-fee-with-tax[data-progress-key='equipment_registration']\").textContent.trim(), totalWithTax: document.querySelector('#income-total-with-tax').textContent.trim() })"
+        equipmentRegistrationAmount: "79,027"
+        totalWithTaxContains: "含稅"
+        totalWithTaxMustNotEqual: ""
+
+  expected:
+    warning_shown: false
+    equipment_registration_amount: "79,027"
+
+  result:
+    pass: "Edit 頁 JS 跑完後 #income-total-warning 不可見，且 equipment_registration 列顯示 79,027"
+    fail: "警告可見（JS 認為金額不符）或 equipment_registration 顯示 79,026/79,028 錯值"

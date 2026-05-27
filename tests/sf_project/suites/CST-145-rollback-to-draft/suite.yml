@@ -1,0 +1,56 @@
+---
+suite:
+  id: CST-145-rollback-to-draft
+  title: "首次版本異動紀錄「取消異動」需退回草稿模式 E2E 測試套件"
+  taskId: a04297ff-000a-4ff1-90e3-0ff7aa7274d8
+  jira: CST-145
+  project: sf_project
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 sf_project admin UI「取消異動」按鈕的行為：
+      - 首次簽核版本（project 從未有任何 approved version）→ 版本退回 draft，
+        ApprovalProcess 記錄被完全刪除，flash 顯示「已退回草稿」。
+      - 非首次簽核版本（project 已有 approved version）→ 版本變 canceled，
+        ApprovalProcess canceled_at 設置，flash 顯示「異動成功」。
+
+    Code 層修復已在 domains/project_management/project/repositories/project/factory.rb
+    (project_approved 改用 old_versions.any? { |v| v.status == 'approved' })，
+    37 examples integration spec 全綠。本 E2E 驗證 UI 端到端流程。
+
+  baseUrl: "http://localhost:3001"
+
+  prerequisites:
+    - admin 帳號已登入 localhost:3001
+    - DB 已 migrate 至最新（AddIndexesForCst143Backfill）
+    - 測試目標 project 存在且狀態符合：
+        * GC040002（scenario 1）：v1 status=pending_approval，無任何 approved version
+        * RT070016（scenario 2）：v1 status=approved，v2 status=pending_approval
+
+  scenarios:
+    - file: scenarios/S1-first-version-rollback-to-draft.yml
+      id: S1
+      title: "GC040002：首版取消異動 → status=draft + ApprovalProcess 刪除"
+      dependencies: []
+
+    - file: scenarios/S2-non-first-version-cancel.yml
+      id: S2
+      title: "RT070016：非首版取消異動 → status=canceled + ApprovalProcess 保留"
+      dependencies: []
+
+  popupWarning: |
+    取消異動按鈕為 method=delete，可能觸發 confirm 對話框。
+    Chrome MCP 需用 JS 事先 stub window.confirm=()=>true，或直接 form.submit()。
+
+stats:
+  latestRunId: "run_20260422_154015_a04297"
+  latestRunAt: "2026-04-22T15:42:00+08:00"
+  totalScenarios: 2
+  passed: 2
+  failed: 0
+  note: |
+    Both scenarios PASSED.
+    S1 (GC040002) first approval rollback → draft + ApprovalProcess deleted + flash '已退回草稿'.
+    S2 (RT070016) non-first approval rollback → canceled + ApprovalProcess preserved + canceled_at set + flash '異動成功'.

@@ -1,0 +1,110 @@
+---
+scenario:
+  id: S4
+  title: "同時清空三日期 → DB 全 nil；非 in-scope 欄位 + producers regression guard"
+  description: |
+    同時清空 application_date / start_wheeling_date / end_wheeling_date 三個欄位送出後，
+    DB 中三欄位皆為 nil；dispatch_serial / dispatch_name / tp_service_serial 不變；
+    producers 子表筆數與 wheeling_percentage 完全相同。
+
+  acceptanceCriteria:
+    - AC1, AC2, AC3: 三日期欄位皆能清空為 nil
+    - AC5: producers / consumers 子表不受影響
+    - regression: 非 in-scope 欄位完全未變
+
+  preconditions:
+    - admin 已登入 staging
+    - 存在 TaipowerContract row（$TARGET_ID）三日期非 nil，且至少 2 個 producers
+
+  steps:
+    - id: step-0
+      action: snapshot
+      target: "DB baseline (contract + producers)"
+      description: |
+        SELECT id, dispatch_serial, dispatch_name, tp_service_serial,
+               application_date, start_wheeling_date, end_wheeling_date
+        FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID;
+
+        SELECT electric_number, wheeling_percentage
+        FROM power_wheeling_taipower_contract_producers
+        WHERE contract_id = $TARGET_ID
+        ORDER BY electric_number;
+      expected:
+        capture:
+          targetId: "$TARGET_ID"
+          dispatchSerial: "$DISPATCH_SERIAL"
+          dispatchName: "$DISPATCH_NAME"
+          tpServiceSerial: "$TP_SERIAL"
+          producersBaseline: "$PRODUCERS_JSON"
+
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/composition_management/taipower_contracts/$TARGET_ID/edit"
+      expected: "頁面 200 OK"
+
+    - id: step-2
+      action: clear_input
+      target: "input[name='form[application_date]']"
+      expected: "input value 為空字串"
+
+    - id: step-3
+      action: clear_input
+      target: "input[name='form[start_wheeling_date]']"
+      expected: "input value 為空字串"
+
+    - id: step-4
+      action: clear_input
+      target: "input[name='form[end_wheeling_date]']"
+      expected: "input value 為空字串"
+
+    - id: step-5
+      action: click
+      target: "submit button"
+      expected:
+        flashNotice:
+          eq: "變更成功"
+
+    - id: step-6
+      action: db_assert
+      target: "三日期全為 nil"
+      description: |
+        SELECT application_date, start_wheeling_date, end_wheeling_date
+        FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID
+      expected:
+        fieldsEq:
+          application_date: null
+          start_wheeling_date: null
+          end_wheeling_date: null
+
+    - id: step-7
+      action: db_assert
+      target: "in-scope 外欄位 regression guard"
+      description: |
+        SELECT dispatch_serial, dispatch_name, tp_service_serial
+        FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID
+      expected:
+        fieldsEq:
+          dispatch_serial: "$DISPATCH_SERIAL"
+          dispatch_name: "$DISPATCH_NAME"
+          tp_service_serial: "$TP_SERIAL"
+
+    - id: step-8
+      action: db_assert
+      target: "producers 子表未動"
+      description: |
+        SELECT electric_number, wheeling_percentage
+        FROM power_wheeling_taipower_contract_producers
+        WHERE contract_id = $TARGET_ID
+        ORDER BY electric_number
+      expected:
+        rowsEq: "$PRODUCERS_JSON"
+
+  result:
+    pass: |
+      - DB application_date / start_wheeling_date / end_wheeling_date 三欄全為 nil
+      - dispatch_serial / dispatch_name / tp_service_serial 不變
+      - producers 子表筆數與 wheeling_percentage 完全相同
+    fail: |
+      - 任一日期 DB 未更新（修復未涵蓋該欄位）
+      - 非 in-scope 欄位被改動
+      - producers 筆數或數值被誤改（修復過度，誤把 nullable_fields 加到子表）

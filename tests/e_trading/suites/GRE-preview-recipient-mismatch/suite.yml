@@ -1,0 +1,43 @@
+---
+suite:
+  id: GRE-preview-recipient-mismatch
+  title: "Preview 寄件人與實寄寄件人邏輯對齊 E2E"
+  taskId: dee3936a-5ebd-4bc6-ba04-0b1f10db33d2
+  project: e_trading
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 /admin/power_wheeling/external_communication/preview_communication_emails/:id 預覽頁
+    顯示的「寄件對象」與實際 SendCommunicationEmail 寄出對象一致 (Production email 1556 案例)。
+
+      S1: 有 task_association + AccountContact 綁定 → 預覽 to 顯示 AccountContact 綁定且
+          receive_emails=true 的 email 字串，不出現公司其他 contact
+      S2: preview 為唯讀 (sent_at 不變、DB row count 不變)
+
+  baseUrl: "http://localhost:3000"
+
+  prerequisites:
+    - admin 帳號已登入，具備 power_wheeling 權限
+    - local DB 有測試 fixture：
+        Email id=$EMAIL_ID, company_vat_number=$VAT
+        EmailTaskAssociation(email_id=$EMAIL_ID, task_id=$TASK_ID)
+        Task(id=$TASK_ID, account_id 指向 Account.account_serial=$ACCOUNT_SERIAL)
+        Account(account_serial=$ACCOUNT_SERIAL, owner_vat_number=$VAT)
+        3 個 AccountContact (account_serial=$ACCOUNT_SERIAL) 綁定 receive_emails=true 的 contacts
+        公司 vat=$VAT 另有 >=5 個 receive_emails=true 但未被 AccountContact 綁定的 contacts
+    - RetailerSettings[:enable_external_communication] = 'true'
+
+  scenarios:
+    - file: scenarios/S1.yml
+      id: S1
+      title: "Preview 寄件對象 == AccountContact 綁定，不含未綁定公司 contact"
+      dependencies: []
+    - file: scenarios/S2.yml
+      id: S2
+      title: "Preview 為唯讀：sent_at + 三表 row count 不變"
+      dependencies: []
+
+  popupWarning: |
+    Preview 頁無 popup；若有 modal 確認則改走 /test-pause。

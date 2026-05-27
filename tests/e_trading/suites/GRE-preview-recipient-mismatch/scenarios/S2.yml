@@ -1,0 +1,53 @@
+---
+scenario:
+  id: S2
+  title: "Preview 為唯讀：sent_at + 三表 row count 不變"
+  description: |
+    對應 Spec S5-safety。GET preview 不可有任何 side effect，
+    防止 coder 抽 build_contact_retriever 時意外引入 update_mail / sent_at。
+
+  acceptanceCriteria:
+    - AC5: Preview 為唯讀
+
+  preconditions:
+    - "S1 的 fixture 已存在"
+    - "Email.sent_at 為 nil"
+
+  steps:
+    - id: step-1
+      action: db_assert
+      target: "三表 baseline row count"
+      description: "記錄 GET 前的 row count"
+      expected:
+        record:
+          email_count_before: "PowerWheeling::ExternalCommunication::Models::Email.count"
+          assoc_count_before: "PowerWheeling::ExternalCommunication::Models::EmailTaskAssociation.count"
+          ac_count_before: "PowerWheeling::Account::Models::AccountContact.count"
+          contact_count_before: "PowerWheeling::ActorsManagement::Models::Contact.count"
+          email_sent_at_before: "PowerWheeling::ExternalCommunication::Models::Email.find($EMAIL_ID).sent_at"
+
+    - id: step-2
+      action: navigate
+      target: "/admin/power_wheeling/external_communication/preview_communication_emails/$EMAIL_ID"
+      description: "GET 預覽頁"
+      expected: "200 OK"
+
+    - id: step-3
+      action: db_assert
+      target: "三表 row count + sent_at 不變"
+      description: "GET 後比對"
+      expected:
+        equality:
+          email_count_after == email_count_before
+          assoc_count_after == assoc_count_before
+          ac_count_after == ac_count_before
+          contact_count_after == contact_count_before
+          email_sent_at_after == nil
+
+  result:
+    pass: |
+      - 三表 row count 完全相等
+      - Email.sent_at 仍為 nil
+    fail: |
+      - 任一表 row count 變化（新增/刪除）
+      - Email.sent_at 被寫入時間

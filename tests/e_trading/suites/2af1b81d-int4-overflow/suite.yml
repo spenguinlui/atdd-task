@@ -1,0 +1,39 @@
+---
+suite:
+  id: 2af1b81d-int4-overflow
+  title: "SalesOrder/PurchaseOrder 單頭金額/數量欄位 int4 溢位修復 E2E"
+  taskId: 2af1b81d-0e25-404f-82ed-debdc440c2fd
+  project: e_trading
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    Staging 重現案例 RU11403031：合約 PC 加總 × rate = 3_940_868_750（39.4 億），
+    寫入 digiwin_erp_sales_orders.order_amount（int4，max 21.4 億）觸發
+    ActiveModel::RangeError。本套件驗收：
+    (1) 修復後 modification approve 流程不噴 RangeError
+    (2) digiwin_erp_sales_orders.order_amount 精確寫入 3_940_868_750
+    (3) 子表 amount 等其他 int4-changed 欄位也精確等於預期值
+    (4) Regression guard：非 in-scope 欄位（created_at、status、so_type_no、
+        customer_no 等）保持不變，且 record.id 不變（非 delete+recreate）
+
+  baseUrl: "https://staging.e-trading.example"  # 實際 staging URL
+
+  prerequisites:
+    - admin 帳號已登入 staging，具備 ERP 申請單審核權限
+    - Staging DB 中存在 RU11403031 對應的 application_form 與 contract
+    - migration 已 deploy 至 staging（int4 → bigint 欄位皆已升級）
+    - 該 application_form 仍為「approval_in_progress」可重跑 approve；
+      若已被處理過，需先以 console rollback 或建立等價測試案例
+    - 已記錄 approve 前 SalesOrder.attributes（用於 regression diff）
+
+  scenarios:
+    - file: scenarios/S1.yml
+      id: S1
+      title: "RU11403031 modification approve 不溢位且 order_amount 精確 3_940_868_750"
+      dependencies: []
+
+  popupWarning: |
+    Approve 流程若觸發二次確認 popup（chrome MCP 無法跨 tab group 操控），
+    請呼叫 /test-pause 改人工確認。

@@ -1,0 +1,68 @@
+---
+scenario:
+  id: S6
+  title: "S6-error: 指定不存在的版本不可 fallback 到 draft (R-003)"
+
+  given: |
+    測試專案 (serial_number = E2E_CST154_S6) 有版本 1 status=approved，
+    版本 2 status=draft（VersionRecord#last_updated 有資料）。
+    URL 帶 version_serial_number=99 — 此版本不存在。
+
+  when: |
+    Admin 開啟
+    /admin/project_management/version_differences/E2E_CST154_S6?version_serial_number=99
+
+  then: |
+    1. 頁面不可回 HTTP 500 / 不可 raise unhandled exception。
+    2. UI 顯示錯誤提示（flash[:alert] / 錯誤訊息）或空狀態，
+       絕對不可顯示 v2 (draft) 的內容當作「當前版本」。
+    3. 「當前版本」欄位文字不得包含 v2 / 'draft' 字樣。
+    4. DB regression guard：v1 status 仍為 approved、v2 status 仍為 draft
+       (use case 不應動到任何 ProjectVersion)。
+
+  acceptanceCriteria:
+    - AC1: "HTTP status 不為 500（200 with error message 或 4xx redirect 皆可）"
+    - AC2: "頁面任何「當前版本」欄位都不顯示 v2 / draft 的內容"
+    - AC3: "頁面有錯誤提示文字（如 '版本不存在' / '查無資料' / flash error），或顯示明顯空狀態"
+    - AC4: "DB 回讀 v1 status='approved'、v2 status='draft' 不變"
+
+  preconditions:
+    - "admin 已登入 localhost:3001"
+    - "測試 project E2E_CST154_S6 已建立並有 v1 (approved) v2 (draft)"
+
+  steps:
+    - id: step-1
+      action: preflight_db_check
+      description: "確認 fixture 資料"
+      expected:
+        v1_status: "approved"
+        v2_status: "draft"
+
+    - id: step-2
+      action: navigate
+      target: "/admin/project_management/version_differences/E2E_CST154_S6?version_serial_number=99"
+      expected: "頁面回應（不可為 500）"
+
+    - id: step-3
+      action: verify_http_status
+      description: "HTTP status code 不可為 500"
+      expected:
+        status_not: 500
+
+    - id: step-4
+      action: verify_ui
+      description: "頁面不可顯示 v2 (draft) 內容當作 current_version；應有錯誤/空狀態"
+      expected:
+        current_version_text_must_not_contain: ["v2", "v02", "draft", "草稿"]
+        page_must_show_error_or_empty: true
+
+    - id: step-5
+      action: verify_db
+      description: "regression guard：use case 不應動到任何 ProjectVersion.status"
+      expected:
+        v1_status: "approved"
+        v2_status: "draft"
+
+  result:
+    pass: "頁面非 500 且不顯示 draft 當作 current；DB 無副作用"
+    fail: "頁面 500、或將 v2 draft 內容顯示為當前版本、或 DB status 被改寫"

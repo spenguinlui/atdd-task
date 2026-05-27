@@ -1,0 +1,98 @@
+---
+scenario:
+  id: S2
+  title: "缺檔時顯示中文 flash，且 Mailer 未被呼叫"
+  description: |
+    Scenario 2 (AC3) — 寄送信件遇到 S3 缺檔時，UI 顯示中文錯誤訊息，
+    response 非 5xx，後端 ExternalCommunicationMailer 未被呼叫，
+    且不再顯示英文系統訊息「The specified key does not exist.」。
+
+  acceptanceCriteria:
+    - AC3: 寄送信件遇缺檔顯示「附件檔案缺失，請聯絡系統管理員」中文 flash
+
+  preconditions:
+    - "admin 帳號已登入（具 power_wheeling 權限）"
+    - "存在 task_communication 對應 task_id=$TASK_ID（建議 5525）"
+    - "對應 Email 存在 EmailAttachment id=$ATT_B，但 staging S3 key 不存在"
+    - "ExternalCommunicationMailer.deliver* spy/log 可監聽（透過 sidekiq inline 或測試 hook）"
+
+  seed:
+    description: |
+      於 local DB 確保有 EmailAttachment id=$ATT_B 對應的 Email + TaskCommunication，
+      並使 S3 key 不存在（可透過：本地 fakes3 刪除該 key / 重命名 / 寫入 stub flag）。
+    sql_or_console: |
+      # 範例（rails console）：
+      # task_id = 5525
+      # tc = PowerWheeling::ExternalCommunication::Models::TaskCommunication.find_by(task_id: task_id)
+      # email = tc.email
+      # att = email.attachments.first
+      # # 在本地 S3（fakes3 / minio / dev bucket）刪除：
+      # # uploads/power_wheeling/external_communication/models/email_attachment/file/#{att.id}/#{att.file_identifier}
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/external_communication/task_communications/search?form%5Btask_id%5D=$TASK_ID"
+      description: "進入 task_communications 搜尋頁，找到 task_id=5525 對應通訊紀錄"
+      expected: "頁面 200 OK 載入，列出該筆 task_communication"
+
+    - id: step-2
+      action: click
+      target: "「寄送信件」按鈕（對應 email_id=$EMAIL_ID）"
+      description: "點擊寄送信件，觸發 PATCH /admin/power_wheeling/external_communication/send_communication_emails/$EMAIL_ID"
+      expected: "form submit，瀏覽器導頁"
+
+    - id: step-3
+      action: verify
+      target: "HTTP 回應"
+      description: "驗證回應為 302 redirect，非 5xx"
+      expected:
+        httpStatus: 302
+        responseBehavior: "redirect 回原頁 (task_communications search/index)"
+
+    - id: step-4
+      action: verify
+      target: "頁面 flash 區塊（alert）"
+      description: "驗證頁面顯示中文錯誤訊息，精確比對"
+      expected:
+        element: ".flash.alert, .alert-danger, [data-flash='alert']"
+        textEquals: "附件檔案缺失，請聯絡系統管理員"
+
+    - id: step-5
+      action: verify
+      target: "頁面內容不含英文系統訊息"
+      description: "regression guard：不再出現 'The specified key does not exist.'"
+      expected:
+        pageContains: false
+        text: "The specified key does not exist"
+
+    - id: step-6
+      action: log_assert
+      target: "ExternalCommunicationMailer / Postmark::Mailer 呼叫紀錄"
+      description: |
+        驗證 Mailer 未被呼叫（無 send_email log、無 Postmark API call）。
+        可透過 Rails.logger / sidekiq job log / Postmark API recorder 確認。
+      expected:
+        mailerCalled: false
+
+    - id: step-7
+      action: db_assert
+      target: "PowerWheeling::ExternalCommunication::Models::Email"
+      description: |
+        驗證對應 Email 的 sent_at 仍為 nil（未被誤標為已寄送）。
+      expected:
+        query: "PowerWheeling::ExternalCommunication::Models::Email.find($EMAIL_ID).reload.sent_at"
+        equals: null
+
+  result:
+    pass: |
+      - HTTP 302 redirect
+      - flash[:alert] 文字精確等於「附件檔案缺失，請聯絡系統管理員」
+      - 頁面不含「The specified key does not exist」
+      - Mailer 未被呼叫
+      - Email.sent_at 仍為 nil
+    fail: |
+      - 回應為 5xx
+      - flash 仍顯示英文系統訊息
+      - Mailer 被呼叫（卻收不到附件）
+      - Email.sent_at 被誤更新

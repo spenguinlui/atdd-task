@@ -1,0 +1,52 @@
+---
+suite:
+  id: GRE-262-wheeling-results-message-disclosure
+  title: "wheeling_results 一致性檢核訊息可讀性 + 雙向揭露 + deep link + 上傳時間 + 重觸發指引 E2E"
+  taskId: 437c3975-953d-483a-ac81-5c54552276fb
+  project: e_trading
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 GRE-262 D2 改動 — admin/power_wheeling/progress_management/wheeling_results 頁面：
+      E2E-1: 1-11304-08-01607 / 2026/04 觸發後 error_message 呈現新訊息結構
+              （4 方向差集分段、「最後上傳時間：」label、重觸發指引）
+      E2E-2: 點擊「《 開啟「轉供契約電廠管理」批次上傳 》」deep link →
+              taipower_contract_producers 頁面 + 搜尋條件預填 dispatch_serial
+      E2E-3: XSS guard — error_message 含 <script> / <img onerror> / href="javascript:"
+              經 _entity.slim sanitize 後 DOM 中應消失或變純文字
+
+  baseUrl: "https://staging.e-trading.sunnyfounder.com"
+
+  prerequisites:
+    - staging admin 帳號已登入（需 power_wheeling 權限）
+    - staging 帳密由使用者手動輸入（prohibited by Claude security rules — Claude 不得代輸）
+    - D2 code 已部署到 staging：validate_system_info.rb + _entity.slim
+    - E2E-1/E2E-2 fixture：1-11304-08-01607 / 2026/04 期 FileHistory 處於 halt 狀態
+      且兩端電號集合仍有差集（可手動 revert 一筆 TaipowerContractProducer 製造差集）
+    - E2E-3 fixture：staging DB 構造一筆 FileHistory.error_message 含
+      `<script>alert(1)</script>` / `<img src=x onerror=alert(1)>` /
+      `<a href="javascript:alert(1)">XSS</a>` payload
+
+  scenarios:
+    - file: scenarios/E2E-1.yml
+      id: E2E-1
+      title: "新訊息結構：4 方向差集分段 + 最後上傳時間 + 重觸發指引"
+      dependencies: []
+    - file: scenarios/E2E-2.yml
+      id: E2E-2
+      title: "deep link 點擊跳轉 + dispatch_serial 預填搜尋條件"
+      dependencies: [E2E-1]
+    - file: scenarios/E2E-3.yml
+      id: E2E-3
+      title: "XSS guard — sanitize 攔截 <script> / onerror / javascript: payload"
+      dependencies: []
+
+  popupWarning: |
+    本 suite 不應觸發 popup window；若 deep link 點擊以新分頁開啟（target="_blank"），
+    chrome-mcp 必須能切換到新分頁；若新分頁不在同一 tab group 內，請依 /test-pause 協議轉人工。
+
+  manualFallback: |
+    若 E2E-3 無法在 staging 構造 XSS payload（資料無法直接注入 error_message），
+    可降級為「unit + integration 已覆蓋 sanitize 行為，E2E-3 略過」並在報告中說明。

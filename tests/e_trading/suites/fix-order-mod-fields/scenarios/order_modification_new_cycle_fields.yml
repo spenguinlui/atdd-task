@@ -1,0 +1,69 @@
+id: order_modification_new_cycle_fields
+title: "approve order_modification — 新 cycle 應含完整欄位（item_name/unit/warehouse_no/so_type_no/so_no/remarks/source_*）"
+task_id: e3f5ab5c-75bb-434a-8bd9-6356fcbe3693
+branch: master
+suggested_execution: manual  # 原因見下方 notes
+
+context:
+  base_url: https://staging.e-trading.sunnyfounder.com
+  verifier_tool: blazer
+  verifier_query: "167-erp"   # digiwin_erp_sales_order_items 全欄位
+  db_table: digiwin_erp_sales_order_items
+
+preconditions:
+  - staging AM 帳密（需由使用者提供，Claude 不得代為輸入）
+  - 一張既有 consumer 合約且已 approve，已寫入 SalesOrder（cycle=1,2）
+  - Digiwin ERP Item 主檔對應 DEFAULT_ITEM_NO（C10001）有完整 item_name/unit，品項分類決定 warehouse_no
+
+scenario:
+  - step: login_AM
+    action: 在 base_url 登入 AM 帳號
+    automation: blocked_by_credentials
+
+  - step: open_contract_modification
+    action: 找到 preconditions 合約，進入 contract modification 流程
+    automation: manual
+
+  - step: add_new_cycle_PC
+    action: 在 PC 區新增 cycle=3（rate=7, lower_wheeling_limit=100 等）
+    automation: manual
+
+  - step: submit_and_approve
+    action: 送審 → 主管 approve
+    automation: manual
+
+  - step: verify_db_new_item
+    action: |
+      於 blazer 查詢 query `167-erp` 或 SQL：
+        SELECT cycle, item_no, item_name, unit, warehouse_no,
+               so_type_no, so_no, remarks, source_type_no, source_doc_no
+        FROM digiwin_erp_sales_order_items
+        WHERE document_id = <the SO id>
+        ORDER BY cycle;
+    automation: manual
+    expect:
+      - cycle: 3
+        item_no: C10001              # DEFAULT_ITEM_NO
+        item_name: not_blank         # 主檔資料（例：TREC 電能），不得為 NULL 或空字串
+        unit: not_blank              # 主檔資料（例：kWh）
+        warehouse_no: not_blank      # 主檔資料（例：WH-STD 或依品項分類）
+        so_type_no: "2230"
+        so_no: ""                    # 空字串（entity 設為 ''）
+        remarks: ""                  # 空字串
+        source_type_no: ""
+        source_doc_no: ""
+      - cycle: 1                     # regression：原 cycle 欄位必須保留
+        warehouse_no: unchanged
+        so_no: unchanged
+        remarks: unchanged
+
+notes: |
+  自動化困難點：
+    - 需要 staging 帳密（prohibited by Claude security rules 要由使用者手動登入）
+    - ERP 主檔資料在 staging 的實際值未知，無法預先斷言 item_name / unit 的精確字串
+    - 審批流程跨多個角色，chrome-mcp 驅動複雜度高
+
+  建議執行方式：
+    - **手動 E2E**：使用者按本 YAML 步驟操作 staging 並用 blazer 驗證 DB
+    - integration spec 已精確覆蓋欄位邏輯（10 tests, RED 2 expected on item_name），
+      fix 完成後 integration 全綠 + 手動 E2E spot check 即可視為驗收通過。

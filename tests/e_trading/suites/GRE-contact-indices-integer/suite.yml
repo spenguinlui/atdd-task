@@ -1,0 +1,33 @@
+---
+suite:
+  id: GRE-contact-indices-integer
+  title: "契約編輯頁 contact_indices 須為整數錯誤 E2E"
+  taskId: 4c1c8c0f-871f-4841-b564-0286348b8827
+  project: e_trading
+  branch: master
+  executor: chrome-mcp
+  mode: manual
+
+  description: |
+    驗證 power_wheeling/account 契約編輯頁在使用者「不動任何欄位、直接儲存」時，
+    不會因為 multi-select 產生的 contact_indices: [""] 導致「須為整數」錯誤，
+    且資料庫中既有的 contact_indices 值必須保留不變（regression guard）。
+
+  baseUrl: "http://localhost:3000"
+
+  prerequisites:
+    - admin 帳號已登入，具備 power_wheeling 權限
+    - 至少一個既有 consumer 契約 C，關聯至少一個單據帳戶 A
+    - 該單據帳戶 A 的 contact_indices 為 [3]（精確值）
+    - 對應 vat_number 下存在 index=3 的 Contact，且 receive_emails=true（這樣 multi-select 才會顯示該 option 並保持選中）
+    - 其他在 C 下的必填欄位皆已合法填妥（避免被別的驗證打斷）
+
+  scenarios:
+    - file: scenarios/S5.yml
+      id: S5
+      title: "不動欄位直接儲存，不報「須為整數」，DB 中 contact_indices 保留 [3]"
+      dependencies: []
+
+  popupWarning: |
+    契約編輯頁目前沒有 popup-window，但若後續改版加入 popup（如新增聯絡人的 modal），
+    請依 /test-pause 協議轉人工處理。

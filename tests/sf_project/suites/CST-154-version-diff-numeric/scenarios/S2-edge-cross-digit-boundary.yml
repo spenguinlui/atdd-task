@@ -1,0 +1,59 @@
+---
+scenario:
+  id: S2
+  title: "S2-edge: 1..10 全 approved，URL=10 → previous=9（RT020040 重現）"
+
+  given: |
+    測試專案 (serial_number = E2E_CST154_S2) 有版本 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    全部 status=approved。
+
+    這個 fixture 直接重現 production RT020040 的觸發條件：版本累積跨越
+    9 → 10 數位邊界，舊實作 `where('version_serial_number < ?', '10')`
+    字串比較雖然恰好包含 '1'..'9'，但會以 created_at 倒序取最後一筆，
+    可能不是「序號上一個」；而當測 target='2' 時，'10','11' 等字串會錯誤
+    地被視為小於 '2'（字典序），抓錯版本。
+
+  when: |
+    Admin 開啟
+    /admin/project_management/version_differences/E2E_CST154_S2?version_serial_number=10
+
+  then: |
+    1. 「當前版本」以 "v10 (" 開頭
+    2. 「比對版本」以 "v09 (" 開頭（不可為 'v08' 或字串字典序最大者）
+    3. DB regression guard：1..10 status 全維持 approved。
+
+  acceptanceCriteria:
+    - AC1: "current_version 顯示以 'v10 (' 開頭"
+    - AC2: "previous_version 顯示以 'v09 (' 開頭"
+    - AC3: "DB 中版本 1..10 status 仍為 approved（無副作用）"
+
+  preconditions:
+    - "admin 已登入 localhost:3001"
+    - "測試 project E2E_CST154_S2 已建立並有 v1..v10 全 approved"
+
+  steps:
+    - id: step-1
+      action: preflight_db_check
+      expected:
+        approved_count_1_to_10: 10
+
+    - id: step-2
+      action: navigate
+      target: "/admin/project_management/version_differences/E2E_CST154_S2?version_serial_number=10"
+      expected: "差異頁載入"
+
+    - id: step-3
+      action: verify_ui
+      expected:
+        current_version_text_prefix: "v10 ("
+        previous_version_text_prefix: "v09 ("
+
+    - id: step-4
+      action: verify_db
+      description: "regression guard：approved 版本未被改寫"
+      expected:
+        approved_count_1_to_10: 10
+
+  result:
+    pass: "current=10, previous=9，跨 9→10 邊界正確"
+    fail: "previous 不為 '9'（例如為 '8'、'1' 或其他），或 DB 被副作用改寫"

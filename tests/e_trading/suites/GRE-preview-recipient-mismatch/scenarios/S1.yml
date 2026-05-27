@@ -1,0 +1,108 @@
+---
+scenario:
+  id: S1
+  title: "Preview 寄件對象 == AccountContact 綁定，不含未綁定公司 contact"
+  description: |
+    對應 Spec S1-happy。覆蓋 Production email 1556 真實 bug 情境：
+    Preview 頁顯示的「寄件對象」必須等於 AccountContact 綁定 (3 位) 串接字串，
+    且公司其他 5+ 個 receive_emails=true 的 contact 不得出現。
+
+  acceptanceCriteria:
+    - AC1: Preview.to == SendCommunicationEmail dto_hash[:to] (同 email_id 同源)
+    - AC2: 有 task_association + AccountContact 綁定 → 顯示綁定 + receive_emails=true 的 email
+    - AC4: 不 fallback 至公司全體
+
+  preconditions:
+    - "admin 已登入"
+    - "存在 Email id=$EMAIL_ID, company_vat_number=$VAT"
+    - "Email 有 EmailTaskAssociation(task_id=$TASK_ID)"
+    - "Task.account_id 對應 Account(account_serial=$ACCOUNT_SERIAL, owner_vat_number=$VAT)"
+    - "AccountContact 綁定 3 個 contacts (kchong, ylchenbv, ykcho @tsmc.com) 全部 receive_emails=true"
+    - "公司 vat=$VAT 另有 5 個 receive_emails=true 未綁定 contact (不該出現)"
+
+  seed:
+    description: |
+      建立 fixture：1 個 Email + task_association + Account + 3 個綁定 contact + 5 個未綁定公司 contact。
+    sql_or_console: |
+      # rails console / runner:
+      vat = '22099131'
+      account_serial = 'A_5930714'
+      PowerWheeling::ActorsManagement::Models::Company.create!(vat_number: vat, abbreviation: 'TSMC', full_name: '台積電')
+      bound = [
+        ['kchong@tsmc.com', 1], ['ylchenbv@tsmc.com', 2], ['ykcho@tsmc.com', 3]
+      ].map { |email, idx|
+        PowerWheeling::ActorsManagement::Models::Contact.create!(vat_number: vat, index: idx, email: email, name: "Bound#{idx}", receive_emails: true)
+      }
+      5.times { |i|
+        PowerWheeling::ActorsManagement::Models::Contact.create!(vat_number: vat, index: 10 + i, email: "other#{i}@tsmc.com", name: "Other#{i}", receive_emails: true)
+      }
+      acc = PowerWheeling::Account::Models::Account.create!(account_serial: account_serial, account_name: 'TSMC', owner_vat_number: vat)
+      bound.each { |c|
+        PowerWheeling::Account::Models::AccountContact.create!(account_serial: account_serial, vat_number: vat, contact_id: c.id)
+      }
+      task = PowerWheeling::ProgressManagement::Models::Task.create!(account_id: acc.id, wheeling_month: '202605', task_type: 'after_wheeling', actor_type: 'consumer')
+      email = PowerWheeling::ExternalCommunication::Models::Email.create!(company_vat_number: vat, email_subject: 'E2E', email_body: 'body')
+      PowerWheeling::ExternalCommunication::Models::EmailTaskAssociation.create!(email_id: email.id, task_id: task.id)
+      puts "EMAIL_ID=#{email.id} TASK_ID=#{task.id} ACCOUNT_SERIAL=#{account_serial}"
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/external_communication/preview_communication_emails/$EMAIL_ID"
+      description: "進入預覽頁"
+      expected: "200 OK，頁面標題顯示『預覽信件』"
+
+    - id: step-2
+      action: verify
+      target: "頁面 DOM 內『寄件對象 (to)』欄位"
+      description: |
+        透過 read_page / find 取得『寄件對象』input value 或顯示文字
+      expected:
+        element: "input[name*='to'], [data-field='to'], .mail-info-to"
+        textEquals: "kchong@tsmc.com,ylchenbv@tsmc.com,ykcho@tsmc.com"
+
+    - id: step-3
+      action: verify
+      target: "頁面不含未綁定 contact emails"
+      description: "regression guard：公司其他 5 個 contact email 不得出現"
+      expected:
+        pageContains: false
+        textAny:
+          - "other0@tsmc.com"
+          - "other1@tsmc.com"
+          - "other2@tsmc.com"
+          - "other3@tsmc.com"
+          - "other4@tsmc.com"
+
+    - id: step-4
+      action: db_assert
+      target: "AC1: preview.to == SendCommunicationEmail dto_hash[:to]"
+      description: |
+        透過 rails runner 跑 SendCommunicationEmail (mock Postmark mailer) 取 dto_hash[:to]，
+        與 preview 頁顯示值比對 byte-for-byte。
+      expected:
+        equality: |
+          preview_to = (頁面抓取的 to 文字)
+          dto_hash = SendCommunicationEmail.new.call(email_id: $EMAIL_ID).value!（mock Postmark）
+          preview_to == dto_hash[:to]
+          # 兩者皆 == "kchong@tsmc.com,ylchenbv@tsmc.com,ykcho@tsmc.com"
+
+    - id: step-5
+      action: db_assert
+      target: "Email.sent_at"
+      description: "預覽不應修改 sent_at"
+      expected:
+        query: "PowerWheeling::ExternalCommunication::Models::Email.find($EMAIL_ID).sent_at"
+        equals: null
+
+  result:
+    pass: |
+      - 頁面 200
+      - 寄件對象 textEquals "kchong@tsmc.com,ylchenbv@tsmc.com,ykcho@tsmc.com"
+      - 頁面不含 5 個 other*@tsmc.com
+      - preview.to == SendCommunicationEmail dto_hash[:to]
+      - Email.sent_at 仍為 nil
+    fail: |
+      - 寄件對象顯示公司全體 (含 other*) → 即重現 Production bug
+      - preview.to ≠ dto_hash[:to]
+      - 頁面 5xx

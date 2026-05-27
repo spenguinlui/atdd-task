@@ -1,0 +1,36 @@
+---
+suite:
+  id: GRE-248-send-mail-missing-key
+  title: "task_communications 寄送信件缺檔中文錯誤 + 正常寄送 E2E"
+  taskId: 0e784e8f-1a50-46af-913e-8129f75b50db
+  project: e_trading
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 admin/power_wheeling/external_communication/task_communications 的「寄送信件」按鈕：
+      S2: 缺檔時 flash[:alert] 顯示中文「附件檔案缺失，請聯絡系統管理員」（非英文系統訊息）
+      S3: 正常情況寄送成功，flash[:notice] = 既有「指令成功」訊息（regression guard）
+
+  baseUrl: "http://localhost:3000"
+
+  prerequisites:
+    - admin 帳號已登入，具備 power_wheeling 權限
+    - 存在 task_communication（task_id=5525 或同等替代）
+    - 對應 Email + 至少一個 EmailAttachment
+    - S2 fixture：對應 EmailAttachment id=B 的 staging S3 key 不存在（可透過暫時 rename / S3 stub achieve）
+    - S3 fixture：對應 Email 有 2 個 EmailAttachment，皆存在於 S3
+
+  scenarios:
+    - file: scenarios/S2.yml
+      id: S2
+      title: "缺檔時顯示中文 flash，且 Mailer 未被呼叫"
+      dependencies: []
+    - file: scenarios/S3.yml
+      id: S3
+      title: "正常寄送：flash[:notice] = 指令成功，attachments 與 in-scope 外欄位不變"
+      dependencies: []
+
+  popupWarning: |
+    寄送信件流程目前無 popup window；若實作改為 modal 確認，請依 /test-pause 協議轉人工。

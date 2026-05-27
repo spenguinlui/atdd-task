@@ -1,0 +1,74 @@
+---
+scenario:
+  id: S1
+  title: "GC040002：首版取消異動 → status=draft + ApprovalProcess 刪除"
+
+  given: |
+    Project GC040002 在 DB 中存在，
+    其 project_version v1 status=pending_approval，
+    該 project 無任何 status=approved 的 version（即 first_approval? == true）。
+
+  when: |
+    Admin 進入 /admin/project_management/projects/GC040002 show 頁，
+    點擊「取消異動」按鈕（DELETE /admin/project_management/approvals/GC040002）。
+
+  then: |
+    1. UI 跳轉回 show 頁且 flash notice 顯示「已退回草稿」。
+    2. DB 層：該 project v1 status 變為 'draft'。
+    3. DB 層：該 version 對應的 ApprovalProcess 紀錄全被刪除（count == 0）。
+    4. UI 層：v1 狀態文字變成 draft，且不再顯示「取消異動」按鈕（版本不是 pending_approval）。
+
+  acceptanceCriteria:
+    - AC1: "flash[:notice] 顯示 '已退回草稿'"
+    - AC2: "ProjectVersion.status == 'draft'"
+    - AC3: "對應 ApprovalProcess count == 0"
+    - AC4: "show 頁不再顯示『取消異動』按鈕"
+
+  preconditions:
+    - "admin 已登入 localhost:3001"
+    - "Project GC040002 v1 pending_approval"
+    - "GC040002 無任何 approved version"
+
+  steps:
+    - id: step-1
+      action: preflight_db_check
+      description: "DB 確認 GC040002 v1 為 pending_approval 且有 2 筆 ApprovalProcess，無 approved version"
+      expected:
+        v1_status: "pending_approval"
+        approval_process_count_gt: 0
+        approved_versions_count: 0
+
+    - id: step-2
+      action: navigate
+      target: "/admin/project_management/projects/GC040002"
+      expected: "show 頁載入，看得到『取消異動』按鈕"
+
+    - id: step-3
+      action: click
+      target: "『取消異動』按鈕"
+      description: "透過 JS fetch DELETE /admin/project_management/approvals/GC040002（避開 confirm dialog）"
+      expected: "HTTP 302 導回 show 頁"
+
+    - id: step-4
+      action: verify_flash
+      target: "flash notice"
+      expected:
+        flashText: "已退回草稿"
+
+    - id: step-5
+      action: verify_db
+      description: "reload DB，驗證 v1.status=draft + ApprovalProcess 已刪除"
+      expected:
+        v1_status: "draft"
+        approval_process_count: 0
+        v1_version_serial_number: "1"
+
+    - id: step-6
+      action: verify_ui
+      description: "show 頁刷新後，v1 狀態文字不為 pending_approval，且無『取消異動』按鈕"
+      expected:
+        cancelButtonPresent: false
+
+  result:
+    pass: "v1 狀態退回 draft，ApprovalProcess 清空，UI flash 顯示『已退回草稿』"
+    fail: "v1 仍為 pending_approval/canceled，或 ApprovalProcess 未清除，或 flash 錯誤"

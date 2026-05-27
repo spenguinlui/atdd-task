@@ -1,0 +1,64 @@
+---
+suite:
+  id: CST-154-version-diff-numeric
+  title: "版本差異頁版本比對錯亂修正 E2E 測試套件"
+  taskId: 0fb98002-b608-472e-b642-8ea869b1d15c
+  jira: CST-154
+  project: sf_project
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 admin/project_management/version_differences 頁面在 URL 帶
+    version_serial_number 時，「當前版本」與「比對版本」的取值正確。
+
+    Code 層修復：
+      - domains/project_management/project/use_cases/compare_difference_version.rb
+        retreive_current_version：URL 有 version_serial_number 時不再 fallback 到
+        VersionRecord#last_updated。
+      - domains/project_management/project/repositories/project.rb
+        find_previous_approved_version / find_newest_approved_version 改用
+        version_serial_number 數值比較與排序，跨 9→10 / 99→100 邊界正確。
+
+  baseUrl: "http://sf.local"
+
+  prerequisites:
+    - admin 帳號已登入 localhost:3001
+    - DB 可建立測試專案
+    - 測試專案需依各 scenario 預先建立版本資料
+
+  scenarios:
+    - file: scenarios/S1-happy-current-10-previous-9.yml
+      id: S1
+      title: "S1-happy: 點擊版本 10 → current=10, previous=9"
+      dependencies: []
+
+    - file: scenarios/S2-edge-cross-digit-boundary.yml
+      id: S2
+      title: "S2-edge: 1..10 全 approved，URL=10 → previous=9（RT020040 重現）"
+      dependencies: []
+
+    - file: scenarios/S6-error-nonexistent-version.yml
+      id: S6
+      title: "S6-error: 指定不存在版本不可 fallback 到 draft (R-003)"
+      dependencies: []
+
+  popupWarning: |
+    版本差異頁本身為 GET，不應有彈出視窗；如出現 confirm dialog 則停止。
+
+stats:
+  latestRunId: round2-2026-05-07T03-16Z
+  latestRunAt: "2026-05-07T03:16:00Z"
+  totalScenarios: 3
+  passed: 2
+  failed: 1
+  note: |
+    Round 2（Fix-Review R-003 後）：
+      S1 PASS — current=v10 (2026-04-03)、previous=v09 (2026-04-02)，DB regression OK。
+      S2 PASS — previous=v09 (2026-04-09)，跨 9→10 邊界正確，未抓字典序錯版本。
+      S6 FAIL — HTTP 500 NoMethodError in VersionDifferencesController#show:
+                undefined method `join' for "version_serial_number=99 not found for project E2E_CST154_S6":String
+                根因：use case R-003 fix 回傳 Failure(<String>)，view show.rb L17 假設 Array 並 .join(',')。
+                修正方向：use case 改回 Failure([msg])，或 view 改 Array.wrap(result.failure).join(',')。
+                DB regression：v1=approved、v2=draft 不變。

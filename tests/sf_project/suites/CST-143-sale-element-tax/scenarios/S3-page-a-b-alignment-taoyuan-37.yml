@@ -1,0 +1,88 @@
+---
+scenario:
+  id: S3
+  title: "潤特桃園37 三頁含稅金額對齊 135,802"
+  description: |
+    驗證潤特桃園37號（RT080037）設備登記款 SaleElement 含稅金額
+    在 Page A 與 Page B 兩處顯示一致。
+
+  given: |
+    DB 中 SaleElement（key_name=construction_contract_equipment_registration_income）
+    project_serial_number=RT080037，quantity=1，price=129336，tax=6466
+    應計含稅 = price + tax = 135,802
+
+  when: |
+    admin 分別開啟 Page A 與 Page B，定位潤特桃園37的設備登記款列，讀取含稅金額。
+
+  then: |
+    Page A 與 Page B 顯示皆為 "135,802" 且相等。
+
+  acceptanceCriteria:
+    - AC1: "Page A 潤特桃園37 設備登記款的含稅金額顯示 135,802"
+    - AC2: "Page B 潤特桃園37 設備登記款的含稅金額顯示 135,802"
+    - AC3: "Page A 與 Page B 金額完全相等"
+
+  preconditions:
+    - "admin 帳號已登入，具備 project_management 權限"
+    - "本地 DB 已有潤特桃園37（RT080037）及其 SaleElement"
+    - "Coder 已完成 view_model 修正 + Backfill rake 已執行"
+
+  seed:
+    model: SaleElement
+    conditions:
+      project_serial_number: "RT080037"
+      key_name: "construction_contract_equipment_registration_income"
+    expectedState:
+      price: 129336
+      tax: 6466
+      quantity: 1
+      amount_with_tax_after_backfill: 135802
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/project_management/project_fund/sale_elements?q[project_serial_number_eq]=RT080037"
+      description: "進入應收工程款列表並以 project_serial_number 過濾潤特桃園37"
+      expected: "列表顯示潤特桃園37的 SaleElement，且設備登記款列可見"
+
+    - id: step-2
+      action: verify
+      target: "Page A 設備登記款列的含稅金額欄位"
+      description: "讀取設備登記款列中的含稅金額數值"
+      expected:
+        element: "tr containing '設備登記' for 潤特桃園37"
+        amountColumnText: "135,802"
+
+    - id: step-3
+      action: navigate
+      target: "/admin/project_management/finalized_projects/RT080037/edit"
+      description: "直接進入潤特桃園37 finalized_projects edit 頁（Page B = 該 project 唯一的可閱讀期程 UI；route 以 serial_number 為 param）"
+      expected: "進入 edit 頁，看得到工程合約期程款表格"
+      waitAfter: "document.readyState==='complete' && typeof updateIncomeTotals==='function'"
+
+    - id: step-4
+      action: verify
+      target: "Page B 設備登記款列的含稅金額欄位（.progress-fee-with-tax[data-progress-key=\"equipment_registration\"]）"
+      description: |
+        讀取 Edit 頁 equipment_registration 列的「期程金額（含稅）」td 的 textContent（JS updateIncomeTotals 跑完後）。
+        Chrome MCP 若 innerText 讀到舊值請再 sleep 500ms 重讀（JS 是 $(document).ready 觸發）。
+      expected:
+        jsSelector: ".progress-fee-with-tax[data-progress-key='equipment_registration']"
+        textContent: "135,802"
+
+    - id: step-5
+      action: verify
+      target: "Page A 與 Page B 金額一致"
+      description: "比對 step-2 與 step-4 讀到的字串是否完全相等"
+      expected:
+        pageA_eq_pageB: true
+
+  expected:
+    pageA_equipment_registration_amount: "135,802"
+    pageB_equipment_registration_amount: "135,802"
+    pageA_eq_pageB: true
+    warning_shown: false
+
+  result:
+    pass: "Page A 與 Page B 設備登記款含稅金額皆顯示 135,802，兩頁相等"
+    fail: "任一頁顯示錯值或兩頁不相等"

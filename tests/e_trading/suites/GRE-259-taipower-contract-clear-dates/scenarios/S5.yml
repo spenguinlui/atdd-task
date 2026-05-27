@@ -1,0 +1,62 @@
+---
+scenario:
+  id: S5
+  title: "改寫 start_wheeling_date 為新日期 → DB 持久化新值（正向 regression）"
+  description: |
+    驗證修復不破壞「將日期改為另一個具體日期」的既有行為。
+    從原值 → 改為 2026-02-01 → DB 應為 2026-02-01。
+
+  acceptanceCriteria:
+    - AC4: 從具體日期改為另一個具體日期仍可成功
+
+  preconditions:
+    - admin 已登入 staging
+    - 存在 TaipowerContract row（$TARGET_ID）start_wheeling_date 非 nil
+
+  steps:
+    - id: step-0
+      action: snapshot
+      target: "baseline"
+      description: |
+        SELECT start_wheeling_date FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID
+      expected:
+        capture:
+          targetId: "$TARGET_ID"
+          originalStart: "$ORIG_START"
+        nonNull:
+          - start_wheeling_date
+
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/composition_management/taipower_contracts/$TARGET_ID/edit"
+      expected: "頁面 200 OK"
+
+    - id: step-2
+      action: set_input
+      target: "input[name='form[start_wheeling_date]']"
+      value: "2026-02-01"
+      description: "改寫 start_wheeling_date 為 2026-02-01"
+      expected: "input value == '2026-02-01'"
+
+    - id: step-3
+      action: click
+      target: "submit button"
+      expected:
+        flashNotice:
+          eq: "變更成功"
+
+    - id: step-4
+      action: db_assert
+      target: "DB start_wheeling_date == 2026-02-01"
+      description: |
+        SELECT start_wheeling_date FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID
+      expected:
+        fieldsEq:
+          start_wheeling_date: "2026-02-01"
+
+  result:
+    pass: |
+      - DB start_wheeling_date = 2026-02-01
+    fail: |
+      - DB 仍為 $ORIG_START（修復破壞了正向 update path）
+      - flash 顯示「變更成功」但 DB 未更新（假綠）

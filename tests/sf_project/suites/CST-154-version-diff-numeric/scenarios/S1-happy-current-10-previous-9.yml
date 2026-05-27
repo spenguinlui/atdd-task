@@ -1,0 +1,64 @@
+---
+scenario:
+  id: S1
+  title: "S1-happy: 點擊版本 10 → current=10, previous=9"
+
+  given: |
+    測試專案 (serial_number = E2E_CST154_S1) 有版本 8 / 9 / 10 status=approved，
+    版本 11 status=draft。
+
+  when: |
+    Admin 開啟
+    /admin/project_management/version_differences/E2E_CST154_S1?version_serial_number=10
+
+  then: |
+    1. 頁面正常載入（HTTP 200，無 error flash）。
+    2. 「當前版本」欄位顯示 "v10 (YYYY-MM-DD)"（含 ApprovalProcess 提交日）。
+    3. 「比對版本」欄位顯示 "v09 (YYYY-MM-DD)"。
+    4. DB regression guard：版本 11 仍維持 status=draft（未被 use case 動到）；
+       三個 approved 版本的 status 不被改寫。
+
+  acceptanceCriteria:
+    - AC1: "comparison_info.current_version 顯示以 'v10 (' 開頭"
+    - AC2: "comparison_info.previous_version 顯示以 'v09 (' 開頭"
+    - AC3: "頁面無 server error / flash[:alert]"
+    - AC4: "DB 回讀 v8/v9/v10 status 仍為 'approved'，v11 status 仍為 'draft'"
+
+  preconditions:
+    - "admin 已登入 localhost:3001"
+    - "測試 project E2E_CST154_S1 已建立並有 v8 v9 v10 (approved) v11 (draft)"
+
+  steps:
+    - id: step-1
+      action: preflight_db_check
+      description: "確認 fixture 資料正確"
+      expected:
+        v8_status: "approved"
+        v9_status: "approved"
+        v10_status: "approved"
+        v11_status: "draft"
+
+    - id: step-2
+      action: navigate
+      target: "/admin/project_management/version_differences/E2E_CST154_S1?version_serial_number=10"
+      expected: "差異頁載入"
+
+    - id: step-3
+      action: verify_ui
+      description: "讀取頁面上「當前版本」與「比對版本」欄位文字"
+      expected:
+        current_version_text_prefix: "v10 ("
+        previous_version_text_prefix: "v09 ("
+
+    - id: step-4
+      action: verify_db
+      description: "regression guard：use case 不應動到任何 ProjectVersion.status"
+      expected:
+        v8_status: "approved"
+        v9_status: "approved"
+        v10_status: "approved"
+        v11_status: "draft"
+
+  result:
+    pass: "頁面正確顯示 current=10, previous=9，DB 無副作用"
+    fail: "current 顯示為 draft 內容、previous 抓錯版本，或 DB status 被改寫"

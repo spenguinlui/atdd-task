@@ -1,0 +1,79 @@
+---
+suite:
+  id: CST-171-finance-sheets-nil-panels
+  title: "財務預估表缺模組片數開啟即 500 修正 E2E + Unit 測試套件"
+  taskId: 649bc99a-17b5-47f6-bb5c-eee5972eeb2e
+  jira: CST-171
+  project: sf_project
+  branch: master
+  executor: chrome-mcp
+  mode: auto
+
+  description: |
+    驗證 admin/project_management/document_download/finance_sheets.html 頁面在案場
+    detail.number_of_panels 為 nil/0 時，不再回 HTTP 500，而是顯示明確中文提示頁
+    點名缺漏欄位「模組片數」；正常完整案場財務數值 zero-diff regression。
+
+    根因（已 production + local 重現確認）：
+      domains/project_management/project_document/use_cases/retrieve_finance_sheets_dto.rb:57
+      capacity_per_panel: (entity.detail.total_capacity * 1000 / entity.detail.number_of_panels).to_i
+      當 number_of_panels 為 nil → TypeError: nil can't be coerced into BigDecimal → 整頁 500。
+      同檔 sale_price_per_kw / total_cost 有 zero guard，此 method 缺 nil/zero 防護。
+
+  baseUrl: "http://sf.local"
+
+  prerequisites:
+    - admin 帳號已登入 sf.local
+    - local DB 已含 RT020056 v1（number_of_panels=nil）與 RT130033 v1（number_of_panels=22 完整案場）
+
+  dataBoundary:
+    method: "local DB 真實資料（非 stub）"
+    RT020056_v1:
+      version_id: 1761
+      total_capacity: 13.0
+      number_of_panels: nil
+      financial_plan_present: true
+      note: "與 production 一致，nil panels 根因案場"
+    RT130033_v1:
+      version_id: 462
+      total_capacity: 9.79
+      number_of_panels: 22
+      total_income_without_tax: 708796
+      note: "正常完整案場，regression 基準"
+
+  regressionBaseline:
+    source: "RT130033 v1, build_dto 修復前實測值（2026-05-25）"
+    capacity_per_panel: 445
+    sale_price_per_kw: "72,400"
+    total_cost: "708,796"
+    net_income: "432,675"
+    irr: 0.0501
+    cash_flow_count: 21
+    cash_flow_year0_due: "-708,796"
+
+  scenarios:
+    - file: scenarios/S1-error-nil-panels.yml
+      id: S1
+      title: "S1-error: number_of_panels=nil 不得 500，顯示缺『模組片數』提示"
+      dependencies: []
+
+    - file: scenarios/S2-edge-zero-panels.yml
+      id: S2
+      title: "S2-edge: number_of_panels=0 不拋 ZeroDivisionError，走缺資料路徑"
+      dependencies: []
+
+    - file: scenarios/S4-regression-normal-project.yml
+      id: S4
+      title: "S4-regression: 正常案場 RT130033 v1 財務數值 zero-diff"
+      dependencies: []
+
+  popupWarning: |
+    finance_sheets 為 GET，不應有彈出視窗；如出現 confirm dialog 則停止。
+
+stats:
+  latestRunId: round1-redbar-2026-05-25
+  latestRunAt: "2026-05-25T00:00:00Z"
+  totalScenarios: 3
+  note: |
+    TDD red bar 基線：fix 尚未實作，S1/S2 預期 FAIL（紅燈，守住根因）。
+    詳見各 scenario result 與 rspec/ 測試檔。

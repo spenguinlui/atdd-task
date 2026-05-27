@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATDD Dashboard - Causation Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #6B9EB3;
+  --primary-light: #EEF5F7;
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+  --blue: #2563EB;
+  --purple: #7C3AED;
+  --teal: #059669;
+  --bg-main: #F3F4F6;
+  --bg-card: #FFFFFF;
+  --border: #E5E7EB;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-hover: 0 4px 12px rgba(0,0,0,0.08);
+  --font-family: 'Inter', -apple-system, sans-serif;
+  --font-cjk: 'Noto Sans TC', sans-serif;
+  --sidebar-icon-w: 56px;
+  --sidebar-panel-w: 220px;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-main);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+}
+
+/* ── Icon Strip (far left) ── */
+.icon-strip {
+  width: var(--sidebar-icon-w);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 200;
+}
+
+.icon-strip .logo {
+  width: 36px;
+  height: 36px;
+  background: var(--primary);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+  text-decoration: none;
+}
+
+.icon-strip .strip-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 0.25rem;
+  border: none;
+  background: transparent;
+}
+
+.icon-strip .strip-btn:hover {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.icon-strip .strip-btn.active {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.icon-strip .strip-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-strip .strip-bottom {
+  margin-top: auto;
+}
+
+.icon-strip .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), #8AB5C5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Sidebar Panel ── */
+.sidebar {
+  width: var(--sidebar-panel-w);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-icon-w);
+  bottom: 0;
+  overflow-y: auto;
+  z-index: 150;
+  padding: 1rem 0;
+}
+
+.sidebar-header {
+  padding: 0.5rem 1rem 1rem;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.sidebar-header small {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.sidebar-section {
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-section-title {
+  padding: 0.375rem 1rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.12s;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-family);
+}
+
+.sidebar-item:hover {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.sidebar-item.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.sidebar-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.sidebar-item .badge {
+  margin-left: auto;
+  font-size: 0.625rem;
+  font-weight: 600;
+  background: var(--danger);
+  color: white;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Nested / collapsible */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s;
+  border: none;
+  background: none;
+  width: 100%;
+  font-family: var(--font-family);
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.sidebar-toggle .chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+
+.sidebar-toggle.open .chevron {
+  transform: rotate(90deg);
+}
+
+.sidebar-nested {
+  display: none;
+  padding-left: 0.75rem;
+}
+
+.sidebar-nested.open {
+  display: block;
+}
+
+.sidebar-nested .sidebar-item {
+  font-size: 0.75rem;
+  padding: 0.3rem 1rem 0.3rem 1.25rem;
+  border-left: 2px solid transparent;
+}
+
+.sidebar-nested .sidebar-item:hover {
+  border-left-color: var(--border);
+}
+
+.sidebar-nested .sidebar-item.active {
+  border-left-color: var(--primary);
+}
+
+.sidebar-nested .sidebar-nested { padding-left: 0.5rem; }
+.sidebar-nested .sidebar-nested .sidebar-item { padding-left: 1.5rem; font-size: 0.6875rem; }
+.sidebar-nested .sidebar-toggle { font-size: 0.75rem; padding: 0.3rem 1rem 0.3rem 1.25rem; }
+.sidebar-nested .sidebar-toggle .chevron { width: 12px; height: 12px; }
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.5rem 1rem;
+}
+
+/* ── Main Content ── */
+.main-wrapper {
+  margin-left: calc(var(--sidebar-icon-w) + var(--sidebar-panel-w));
+  flex: 1;
+  min-height: 100vh;
+}
+
+.main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.page-title { font-size: 1.5rem; font-weight: 700; }
+
+.filters { display: flex; gap: 0.75rem; align-items: center; }
+
+.filter-select {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.375rem 0.875rem; font-size: 0.8125rem; font-weight: 500;
+  color: var(--text-secondary); background: var(--bg-card);
+  cursor: pointer; font-family: var(--font-family); outline: none;
+}
+
+/* ── Summary Cards ── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+.summary-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+}
+
+.summary-value {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.summary-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.summary-card.danger {
+  border-left: 3px solid var(--danger);
+}
+
+.summary-card.danger .summary-value {
+  color: var(--danger);
+}
+
+.summary-card.warning {
+  border-left: 3px solid var(--warning);
+}
+
+.summary-card.warning .summary-value {
+  color: var(--warning);
+}
+
+/* ── Table ── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.card-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.625rem 1rem;
+  border-bottom: 2px solid var(--border);
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #FAFAFA; }
+
+.type-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.type-tag.fix { background: #FEF2F2; color: #DC2626; }
+.type-tag.fix-regression { background: #DC2626; color: white; }
+
+.status-badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+}
+
+.status-badge.completed { background: #DCFCE7; color: #16A34A; }
+.status-badge.in-progress { background: #EFF6FF; color: #2563EB; }
+.status-badge.review { background: #FEF3C7; color: #92400E; }
+
+/* ── Regression highlight ── */
+tr.regression {
+  background: #FEF2F2;
+}
+
+tr.regression td {
+  border-bottom-color: #FECACA;
+}
+
+tr.regression:hover td {
+  background: #FEE2E2;
+}
+
+.cause-link {
+  color: var(--blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cause-link:hover {
+  text-decoration: underline;
+}
+
+.stage-path {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.stage-path .arrow {
+  font-size: 0.625rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .summary-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main-wrapper { margin-left: var(--sidebar-icon-w); }
+  .main { padding: 1rem; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  table { font-size: 0.8125rem; }
+  th, td { padding: 0.5rem; }
+}
+
+@media (max-width: 640px) {
+  .main { padding: 1rem; }
+  table { font-size: 0.8125rem; }
+  th, td { padding: 0.5rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Icon Strip -->
+<aside class="icon-strip">
+  <a href="overview.html" class="logo">A</a>
+
+  <button class="strip-btn active" title="Dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </button>
+  <button class="strip-btn" title="Reports">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  </button>
+  <button class="strip-btn" title="Knowledge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+  </button>
+
+  <div class="strip-bottom">
+    <button class="strip-btn" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <div class="avatar" style="margin-top:0.5rem;">L</div>
+  </div>
+</aside>
+
+<!-- Sidebar Panel -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    ATDD Dashboard
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Views</div>
+    <a href="overview.html" class="sidebar-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Overview
+    </a>
+    <a href="task_board.html" class="sidebar-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+      Task Board
+    </a>
+    <a href="causation.html" class="sidebar-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Causation
+    </a>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <button class="sidebar-toggle open" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+      <span>
+        <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Domains
+      </span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="sidebar-nested open">
+      <a href="domain_health.html" class="sidebar-item">Health Map</a>
+      <button class="sidebar-toggle open" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+        <span>core_web</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="sidebar-nested open">
+        <a href="domain_detail.html" class="sidebar-item">authentication</a>
+        <a href="domain_detail.html" class="sidebar-item">rent_management</a>
+        <a href="domain_detail.html" class="sidebar-item" style="color:var(--warning);">tax_info</a>
+        <a href="domain_detail.html" class="sidebar-item" style="color:var(--danger);">roof_rental <span class="badge">2</span></a>
+        <a href="domain_detail.html" class="sidebar-item" style="color:var(--warning);">data_export</a>
+        <a href="domain_detail.html" class="sidebar-item">account_matching</a>
+      </div>
+      <button class="sidebar-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+        <span>core_api</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="sidebar-nested">
+        <a href="domain_detail.html" class="sidebar-item">api_gateway</a>
+        <a href="domain_detail.html" class="sidebar-item">notification</a>
+        <a href="domain_detail.html" class="sidebar-item" style="color:var(--warning);">report_engine</a>
+        <a href="domain_detail.html" class="sidebar-item" style="color:var(--danger);">scheduler <span class="badge">1</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <button class="sidebar-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+      <span>
+        <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Projects
+      </span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="sidebar-nested">
+      <a href="#" class="sidebar-item">core_web</a>
+      <a href="#" class="sidebar-item">core_api</a>
+      <a href="#" class="sidebar-item">mobile_app</a>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-section">
+    <button class="sidebar-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+      <span>
+        <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Reports
+      </span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="sidebar-nested">
+      <a href="#" class="sidebar-item">Weekly Report</a>
+      <a href="#" class="sidebar-item">Domain Report</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<div class="main-wrapper">
+  <div class="main">
+    <div class="page-header">
+      <h1 class="page-title">Causation Explorer</h1>
+      <div class="filters">
+        <select class="filter-select">
+          <option>All Projects</option>
+          <option>core_web</option>
+          <option>core_api</option>
+          <option>mobile_app</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Total Fix Tasks</div>
+        <div class="summary-value">38</div>
+        <div class="summary-sub">Out of 147 total tasks (25.9%)</div>
+      </div>
+      <div class="summary-card danger">
+        <div class="summary-label">Fix Regressions</div>
+        <div class="summary-value">5</div>
+        <div class="summary-sub">13.2% of fix tasks caused new issues</div>
+      </div>
+      <div class="summary-card warning">
+        <div class="summary-label">Avg Fix Cycle Time</div>
+        <div class="summary-value">3.2d</div>
+        <div class="summary-sub">From creation to deployment</div>
+      </div>
+    </div>
+
+    <!-- Fix Tasks Table -->
+    <div class="card">
+      <div class="card-title">Fix Task Causation Chain</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Fix Task</th>
+            <th>Root Cause</th>
+            <th>Discovered In</th>
+            <th>Caused By</th>
+            <th>Domain</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="regression">
+            <td>
+              <span class="type-tag fix-regression">FIX-REGRESSION</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix account matching after roof rental refactor</div>
+            </td>
+            <td>Refactor changed data format without updating downstream</td>
+            <td>
+              <div class="stage-path">Testing <span class="arrow">-></span> Gate</div>
+            </td>
+            <td><a href="#" class="cause-link">Refactor rental agreement PDF generation</a></td>
+            <td style="font-size: 0.8125rem;">roof_rental</td>
+            <td><span class="status-badge in-progress">In Progress</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="type-tag fix">FIX</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix year filter source in tax export</div>
+            </td>
+            <td>Wrong variable used for fiscal year lookup</td>
+            <td>
+              <div class="stage-path">Production</div>
+            </td>
+            <td><span style="color: var(--text-muted);">Original bug</span></td>
+            <td style="font-size: 0.8125rem;">tax_info</td>
+            <td><span class="status-badge in-progress">In Progress</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="type-tag fix">FIX</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix export missing owner records</div>
+            </td>
+            <td>NULL owner_id not handled in JOIN query</td>
+            <td>
+              <div class="stage-path">Testing</div>
+            </td>
+            <td><span style="color: var(--text-muted);">Original bug</span></td>
+            <td style="font-size: 0.8125rem;">data_export</td>
+            <td><span class="status-badge review">Review</span></td>
+          </tr>
+          <tr class="regression">
+            <td>
+              <span class="type-tag fix-regression">FIX-REGRESSION</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix notification delivery after API refactor</div>
+            </td>
+            <td>Queue configuration lost during migration</td>
+            <td>
+              <div class="stage-path">Production</div>
+            </td>
+            <td><a href="#" class="cause-link">Extract notification service from monolith</a></td>
+            <td style="font-size: 0.8125rem;">notification</td>
+            <td><span class="status-badge completed">Completed</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="type-tag fix">FIX</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix pricing calc for multi-unit rooftops</div>
+            </td>
+            <td>Rounding error in per-unit price calculation</td>
+            <td>
+              <div class="stage-path">Testing <span class="arrow">-></span> Gate</div>
+            </td>
+            <td><span style="color: var(--text-muted);">Original bug</span></td>
+            <td style="font-size: 0.8125rem;">roof_rental</td>
+            <td><span class="status-badge completed">Completed</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="type-tag fix">FIX</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix scheduler retry logic for failed jobs</div>
+            </td>
+            <td>Exponential backoff not applied correctly</td>
+            <td>
+              <div class="stage-path">Production</div>
+            </td>
+            <td><span style="color: var(--text-muted);">Original bug</span></td>
+            <td style="font-size: 0.8125rem;">scheduler</td>
+            <td><span class="status-badge in-progress">In Progress</span></td>
+          </tr>
+          <tr class="regression">
+            <td>
+              <span class="type-tag fix-regression">FIX-REGRESSION</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix CSV encoding after export refactor</div>
+            </td>
+            <td>Character set not preserved in new export path</td>
+            <td>
+              <div class="stage-path">Testing</div>
+            </td>
+            <td><a href="#" class="cause-link">Optimize data export batch processing</a></td>
+            <td style="font-size: 0.8125rem;">data_export</td>
+            <td><span class="status-badge completed">Completed</span></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="type-tag fix">FIX</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix rent management monthly summary report</div>
+            </td>
+            <td>Date range off-by-one in monthly aggregation</td>
+            <td>
+              <div class="stage-path">Gate</div>
+            </td>
+            <td><span style="color: var(--text-muted);">Original bug</span></td>
+            <td style="font-size: 0.8125rem;">rent_management</td>
+            <td><span class="status-badge completed">Completed</span></td>
+          </tr>
+          <tr class="regression">
+            <td>
+              <span class="type-tag fix-regression">FIX-REGRESSION</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix gateway auth token validation</div>
+            </td>
+            <td>Token cache invalidation missed edge case</td>
+            <td>
+              <div class="stage-path">Production</div>
+            </td>
+            <td><a href="#" class="cause-link">Upgrade JWT library to v3</a></td>
+            <td style="font-size: 0.8125rem;">api_gateway</td>
+            <td><span class="status-badge in-progress">In Progress</span></td>
+          </tr>
+          <tr class="regression">
+            <td>
+              <span class="type-tag fix-regression">FIX-REGRESSION</span>
+              <div style="margin-top: 0.25rem; font-weight: 500;">Fix report date range after engine update</div>
+            </td>
+            <td>Timezone handling changed in new engine version</td>
+            <td>
+              <div class="stage-path">Testing <span class="arrow">-></span> Gate</div>
+            </td>
+            <td><a href="#" class="cause-link">Simplify report query builder</a></td>
+            <td style="font-size: 0.8125rem;">report_engine</td>
+            <td><span class="status-badge review">Review</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

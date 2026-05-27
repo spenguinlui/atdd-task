@@ -1,0 +1,27 @@
+---
+scenario:
+  id: S2
+  title: "S2-edge: number_of_panels=0 不拋 ZeroDivisionError，走缺資料路徑"
+  purpose: "除數為 0 與 nil 同樣安全，0 片數無法算單片容量"
+
+  given: |
+    entity.detail.number_of_panels 為 0、total_capacity present（以 stub detail 還原，
+    local 無天然 0 panels 案場；走 RSpec unit 層驗證 capacity_per_panel 行為）。
+
+  when: |
+    呼叫 RetrieveFinanceSheetsDto#capacity_per_panel（build_dto 內部）。
+
+  then: |
+    1. 不拋 ZeroDivisionError。
+    2. 走與 S1 相同的缺資料提示路徑（不回傳偽造的單片容量數字）；
+       capacity_per_panel 不得回傳有限整數除法結果（0 除法為非法）。
+
+  acceptanceCriteria:
+    - AC1: "capacity_per_panel 不拋 ZeroDivisionError / ArgumentError / FloatDomainError"
+    - AC2: "build_dto 不因 number_of_panels=0 拋未捕捉例外"
+
+  result:
+    pass: "number_of_panels=0 時不拋例外，走缺資料降級路徑"
+    fail: "拋 ZeroDivisionError 或回傳偽造容量值"
+    redBarExpected: true
+    redBarReason: "fix 未實作前 13.0*1000/0 → ZeroDivisionError（或 Float Infinity 後 to_i 拋 FloatDomainError）。"

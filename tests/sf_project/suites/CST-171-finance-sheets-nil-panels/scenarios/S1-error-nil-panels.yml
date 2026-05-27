@@ -1,0 +1,52 @@
+---
+scenario:
+  id: S1
+  title: "S1-error: number_of_panels=nil 不得 500，顯示缺『模組片數』提示"
+  purpose: "守住已 production + local 重現的確切根因 TypeError: nil can't be coerced into BigDecimal"
+
+  given: |
+    案場 RT020056 v1「潤特臺中56號」的 entity.detail.number_of_panels 為 nil，
+    其餘 detail.total_capacity=13.0、financial_plan 皆 present（local DB 真實資料，
+    version_id=1761，與 production 一致）。
+
+  when: |
+    Admin 開啟
+    http://sf.local/admin/project_management/document_download/finance_sheets.html?serial_number=RT020056&version_serial_number=1
+
+  then: |
+    1. 頁面不得拋 TypeError: nil can't be coerced into BigDecimal。
+    2. HTTP status 不得為 500。
+    3. 頁面須回傳成功頁並顯示明確中文提示，內容點名缺漏欄位為「模組片數」
+       （例如「該案場財務資料尚未填寫完整（缺模組片數），無法產生財務預估表」）。
+
+  acceptanceCriteria:
+    - AC1: "HTTP status 不為 500（200 或 4xx 皆可，但不可未捕捉例外）"
+    - AC2: "回應 body 不含 'TypeError' / 'nil can't be coerced into BigDecimal' / 通用錯誤頁『此頁面暫時發生錯誤』"
+    - AC3: "回應 body 含中文字串『模組片數』作為缺漏欄位提示"
+
+  steps:
+    - id: step-1
+      action: preflight_db_check
+      description: "確認 RT020056 v1 number_of_panels 仍為 nil"
+      expected:
+        number_of_panels: null
+        total_capacity: 13.0
+    - id: step-2
+      action: navigate
+      target: "http://sf.local/admin/project_management/document_download/finance_sheets.html?serial_number=RT020056&version_serial_number=1"
+      expected: "頁面回應（不可為 500）"
+    - id: step-3
+      action: verify_http_status
+      expected:
+        status_not: 500
+    - id: step-4
+      action: verify_ui
+      expected:
+        body_must_not_contain: ["TypeError", "nil can't be coerced", "此頁面暫時發生錯誤"]
+        body_must_contain: ["模組片數"]
+
+  result:
+    pass: "頁面非 500 且顯示缺『模組片數』中文提示"
+    fail: "頁面 500 / 顯示 TypeError / 通用錯誤頁，或無『模組片數』提示文字"
+    redBarExpected: true
+    redBarReason: "fix 未實作前，line 57 對 nil number_of_panels 無防護 → 頁面 500，無提示文字。"

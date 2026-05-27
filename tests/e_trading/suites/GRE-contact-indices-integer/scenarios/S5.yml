@@ -1,0 +1,109 @@
+---
+scenario:
+  id: S5
+  title: "不動欄位直接儲存，不報「須為整數」，DB 中 contact_indices 保留 [3]"
+  description: |
+    Scenario 5 (AC4) — 使用者進入契約編輯頁後，不更動任何欄位直接按儲存，
+    應該成功（HTTP 302 redirect），頁面不出現「須為整數」錯誤訊息，
+    並且 DB 中該單據帳戶 A 的 contact_indices 維持為 [3]（regression guard：
+    精確值比對，不是 be_present / include）。
+
+  acceptanceCriteria:
+    - AC4: 契約編輯頁不動欄位儲存時，不報「須為整數」錯誤，DB contact_indices 保留不變
+
+  preconditions:
+    - "admin 帳號已登入（具 power_wheeling 權限）"
+    - "存在 consumer 契約 C（id = $CONTRACT_ID）"
+    - "C 下有單據帳戶 A（account_serial = $ACCOUNT_SERIAL），且 A.contact_indices == [3]"
+    - "C 的 vat_number 下存在 Contact(index=3, receive_emails=true)"
+
+  seed:
+    description: |
+      測試前於 local DB 確認或建立以下資料。
+      若以 console seed，紀錄 $CONTRACT_ID / $ACCOUNT_SERIAL / $VAT_NUMBER 三個變數。
+    sql_or_console: |
+      # 範例（rails console）：
+      # vat = '12345678'
+      # account = PowerWheeling::Account::Models::Account.find_by(account_serial: $ACCOUNT_SERIAL)
+      # account.update!(contact_indices: [3])
+      # PowerWheeling::ActorsManagement::Models::Contact.find_or_create_by(vat_number: vat, index: 3) do |c|
+      #   c.name = '測試收件人'
+      #   c.email = 'tester@example.com'
+      #   c.receive_emails = true
+      # end
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/contract_management/v2/consumer_contracts/$CONTRACT_ID/edit"
+      description: "進入目標契約的編輯頁"
+      expected: "頁面 200 OK 載入，顯示「單據帳戶」區塊，且該 account 的「電費單指定收件人」multi-select 中 index=3 的 option 處於已選狀態"
+
+    - id: step-2
+      action: verify
+      target: "頁面載入後 multi-select 預選值"
+      description: "確認進入頁面時「電費單指定收件人」multi-select 顯示已選中 index=3"
+      expected:
+        element: "select[name='form[accounts][][contact_indices][]'] option[value='3'][selected]"
+        exists: true
+
+    - id: step-3
+      action: click
+      target: "儲存按鈕（表單 submit）"
+      description: |
+        不動任何欄位，直接點選儲存。
+        瀏覽器 submit 時，multi-select 若無新選取，會送出 contact_indices: [""]
+        （selectize/simple_form 的預設行為）。
+      expected: "Form submit 觸發，瀏覽器開始導頁"
+
+    - id: step-4
+      action: verify
+      target: "HTTP 回應"
+      description: "驗證回應為 302 redirect（成功儲存），而非 422/200 帶表單錯誤"
+      expected:
+        httpStatus: 302
+        responseBehavior: "redirect 回列表或 show 頁"
+
+    - id: step-5
+      action: verify
+      target: "頁面內容不含錯誤訊息"
+      description: "確認頁面文字中不出現「須為整數」"
+      expected:
+        pageContains: false
+        text: "須為整數"
+
+    - id: step-6
+      action: db_assert
+      target: "PowerWheeling::Account::Models::Account"
+      description: |
+        重新從 DB 撈取該 account（reload），驗證 contact_indices 精確等於 [3]。
+        這是 regression guard：不能是 [] 也不能是 nil，也不能被誤轉成字串 ['3']。
+      expected:
+        query: |
+          PowerWheeling::Account::Models::Account.find_by(account_serial: $ACCOUNT_SERIAL).tap(&:reload).contact_indices
+        equals: [3]
+
+    - id: step-7
+      action: db_assert
+      target: "同一 record 的其他欄位未被誤改（regression guard）"
+      description: |
+        驗證非本次 in-scope 欄位在 save 前後保持不變。
+        至少檢查 account_name, internal_alias, account_type, disabled, retailer_invoice_paper_strategy。
+      expected:
+        note: |
+          step-1 前記錄 account.attributes.slice(
+            'account_name', 'internal_alias', 'account_type',
+            'disabled', 'retailer_invoice_paper_strategy'
+          )
+          step-6 reload 後比對應完全相等（eq，不是 include）。
+
+  result:
+    pass: |
+      - HTTP 302 redirect 成功
+      - 頁面不含「須為整數」
+      - account.reload.contact_indices == [3]（精確）
+      - 其他 in-scope 外的欄位未被誤改
+    fail: |
+      - 仍回表單頁且顯示「須為整數」（bug 未修）
+      - contact_indices 變成 [] 或 nil（normalize 過頭）
+      - 其他欄位被意外覆蓋（regression）

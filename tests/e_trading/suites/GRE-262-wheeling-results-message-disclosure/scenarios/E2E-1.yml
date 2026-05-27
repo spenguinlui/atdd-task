@@ -1,0 +1,114 @@
+---
+scenario:
+  id: E2E-1
+  title: "新訊息結構：4 方向差集分段 + 最後上傳時間 + 重觸發指引"
+  description: |
+    驗證 admin wheeling_results show modal 顯示 1-11304-08-01607 / 2026/04 期
+    error_message 為 D2 新格式（取代舊「對稱差集 + 發電電號(...) [...]」格式）。
+
+  acceptanceCriteria:
+    - AC3: 系統契約缺方向訊息出現
+    - AC4: 台電結果缺方向訊息（若反向有差集）
+    - AC6: deep link <a> 元素正確 render
+    - AC7: 「最後上傳時間：」label 對應 FileHistory.created_at
+    - AC8: 結尾出現「補登完成後 / 上傳轉供結果 / 重新上傳」指引
+
+  preconditions:
+    - admin 已登入 staging（具 power_wheeling 權限）
+    - 1-11304-08-01607 / 2026/04 期 FileHistory 為 halt 狀態、差集存在
+
+  steps:
+    - id: step-0
+      action: snapshot
+      target: "DB baseline (FileHistory)"
+      description: |
+        透過 blazer 或 admin DB 查詢頁面查詢：
+          SELECT id, status, error_message, created_at, updated_at
+          FROM power_wheeling_raw_result_file_histories
+          WHERE tp_service_serial='1-11304-08-01607' AND wheeling_month='202604'
+          ORDER BY created_at DESC LIMIT 1
+        記錄 created_at 作為 step-3 斷言時的預期值。
+      expected:
+        capture:
+          fileHistoryId: "$FH_ID"
+          createdAt: "$FH_CREATED_AT"
+          status: "halt"
+
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/progress_management/wheeling_results"
+      description: "進入轉供結果管理頁面"
+      expected: "頁面 200 OK，列出 1-11304-08-01607 / 2026/04 的列"
+
+    - id: step-2
+      action: click
+      target: "1-11304-08-01607 / 2026/04 列的「檢視」或展開按鈕"
+      description: "開啟該筆轉供結果的 show modal（呈現 _entity.slim partial）"
+      expected: "modal 出現，含「錯誤訊息」區塊（ibox-title）"
+
+    - id: step-3
+      action: verify
+      target: "modal 錯誤訊息文字內容"
+      description: |
+        以 chrome-mcp read_page 或 find 取得錯誤訊息區塊純文字後逐項斷言。
+      expected:
+        textIncludes:
+          - "[系統契約缺"
+          - "筆發電電號]"
+          - "《 開啟「轉供契約電廠管理」批次上傳 》"
+          - "最後上傳時間："
+          - "補登完成後"
+          - "上傳轉供結果"
+          - "重新上傳"
+        textNotIncludes:
+          # 舊格式必須完全消失
+          - "轉供結果與系統資料不一致：\n發電電號"
+
+    - id: step-4
+      action: verify
+      target: "「最後上傳時間：」對應 FileHistory.created_at"
+      description: |
+        從 step-3 取出的文字中提取「最後上傳時間：YYYY-MM-DD HH:MM:SS」
+        應 eq step-0 snapshot 的 createdAt（不是 updated_at）。
+      expected:
+        regexMatch: "最後上傳時間：(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})"
+        capturedEquals: "$FH_CREATED_AT"
+
+    - id: step-5
+      action: db_assert
+      target: "FileHistory.error_message 新格式持久化"
+      description: |
+        重新查詢 step-0 同 row，error_message 應已為新格式（reload 不變）。
+        驗證 DB 寫入而非僅 view 端 render。
+      expected:
+        query: "SELECT error_message FROM power_wheeling_raw_result_file_histories WHERE id=$FH_ID"
+        textIncludes:
+          - "[系統契約缺"
+          - "最後上傳時間："
+          - "補登完成後"
+
+    - id: step-6
+      action: db_assert
+      target: "in-scope 外欄位 regression guard"
+      description: |
+        FileHistory.status / tp_service_serial / wheeling_month / s3_file_info 不應變動。
+      expected:
+        query: |
+          SELECT status, tp_service_serial, wheeling_month
+          FROM power_wheeling_raw_result_file_histories WHERE id=$FH_ID
+        fieldsEq:
+          status: "halt"
+          tp_service_serial: "1-11304-08-01607"
+          wheeling_month: "202604"
+
+  result:
+    pass: |
+      - modal 顯示新訊息結構（4 方向差集分段 + 上傳時間 + 重觸發指引）
+      - 「最後上傳時間：」字串 eq FileHistory.created_at（非 updated_at）
+      - DB 中 error_message 持久化為新格式
+      - in-scope 外欄位未動
+    fail: |
+      - 出現舊格式「發電電號(...) [...]」
+      - 「最後上傳時間：」eq updated_at（誤用）
+      - 缺少重觸發指引
+      - status / wheeling_month / tp_service_serial 被改動（regression）

@@ -1,0 +1,101 @@
+---
+scenario:
+  id: E2E-2
+  title: "deep link 點擊跳轉 + dispatch_serial 預填搜尋條件"
+  description: |
+    驗證 wheeling_results modal 內錯誤訊息的 deep link
+    `《 開啟「轉供契約電廠管理」批次上傳 》` 點擊後：
+      1. 跳轉到 admin/power_wheeling/composition_management/taipower_contract_producers
+      2. URL 含 query string `q[contract_dispatch_serial_eq]=<dispatch_serial>` (可為 URL-encoded)
+      3. 目標頁搜尋欄預填該 dispatch_serial
+
+  acceptanceCriteria:
+    - AC6: deep link 正確跳轉並預填 ransack 搜尋條件
+
+  preconditions:
+    - E2E-1 已通過（modal 已開啟且訊息含 deep link）
+    - 1-11304-08-01607 對應 2026/04 期 dispatch_serial 已知（從 DB 查得，記為 $DISPATCH_SERIAL）
+
+  steps:
+    - id: step-0
+      action: snapshot
+      target: "1-11304-08-01607 / 2026/04 對應的 dispatch_serial"
+      description: |
+        SELECT t.dispatch_serial FROM power_wheeling_taipower_contracts t
+        WHERE t.tp_service_serial='1-11304-08-01607'
+          AND t.start_wheeling_date <= '2026-04-01'
+          AND t.end_wheeling_date >= '2026-04-30'
+      expected:
+        capture:
+          dispatchSerial: "$DISPATCH_SERIAL"
+
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/progress_management/wheeling_results"
+      description: "進入轉供結果管理頁面"
+      expected: "頁面 200 OK"
+
+    - id: step-2
+      action: click
+      target: "1-11304-08-01607 / 2026/04 列的「檢視」按鈕"
+      description: "開啟 show modal"
+      expected: "modal 出現"
+
+    - id: step-3
+      action: verify
+      target: "deep link <a> 元素的 href 屬性"
+      description: |
+        使用 chrome-mcp find 或 javascript_tool 取得 <a> 元素 href 屬性值。
+      expected:
+        elementSelector: "a:contains('開啟「轉供契約電廠管理」批次上傳')"
+        attributeMatches:
+          # 接受 raw 或 URL-encoded 方括號
+          href: "/admin/power_wheeling/composition_management/taipower_contract_producers\\?q(\\[|%5B)contract_dispatch_serial_eq(\\]|%5D)=$DISPATCH_SERIAL"
+          target: "_blank"
+
+    - id: step-4
+      action: click
+      target: "deep link <a> 元素"
+      description: |
+        點擊 deep link；因 target="_blank"，會在新分頁開啟。
+        chrome-mcp 需切換到新分頁；若新分頁在不同 tab group，請依 popupWarning
+        指示 — 改為人工驗證或用 javascript_tool 改寫 target 後再點。
+      expected: "新分頁載入 taipower_contract_producers 頁面"
+
+    - id: step-5
+      action: verify
+      target: "新分頁 URL"
+      description: |
+        URL pathname 為 /admin/power_wheeling/composition_management/taipower_contract_producers
+        URL 含 q[contract_dispatch_serial_eq]=$DISPATCH_SERIAL (或 URL-encoded)
+      expected:
+        urlPathnameEquals: "/admin/power_wheeling/composition_management/taipower_contract_producers"
+        urlSearchMatches: "q(\\[|%5B)contract_dispatch_serial_eq(\\]|%5D)=$DISPATCH_SERIAL"
+
+    - id: step-6
+      action: verify
+      target: "目標頁搜尋欄預填 dispatch_serial"
+      description: |
+        ransack search form 的 dispatch_serial input value 應 eq $DISPATCH_SERIAL。
+      expected:
+        elementSelector: "input[name='q[contract_dispatch_serial_eq]'], input[name='q[dispatch_serial_eq]']"
+        valueEquals: "$DISPATCH_SERIAL"
+
+    - id: step-7
+      action: verify
+      target: "搜尋結果列表"
+      description: |
+        頁面 table 應列出該 dispatch_serial 對應的 TaipowerContractProducer rows。
+      expected:
+        elementVisible: "table tbody tr"
+        rowCountAtLeast: 1
+
+  result:
+    pass: |
+      - deep link href 含正確 ransack 查詢 + dispatch_serial
+      - 點擊跳轉到 taipower_contract_producers
+      - 目標頁搜尋欄預填 dispatch_serial 且列出對應 rows
+    fail: |
+      - href 缺 dispatch_serial 或查詢 attribute 名錯（如 dispatch_serial vs contract_dispatch_serial）
+      - 跳轉後搜尋欄為空（預填失敗）
+      - 列表為空（attribute 名不被 Ransack 接受）

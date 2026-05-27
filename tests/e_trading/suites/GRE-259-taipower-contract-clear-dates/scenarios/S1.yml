@@ -1,0 +1,93 @@
+---
+scenario:
+  id: S1
+  title: "清空 start_wheeling_date → DB nil；end / application 保留"
+  description: |
+    在 staging /admin/power_wheeling/composition_management/taipower_contracts/:id/edit
+    把「轉供開始日 (start_wheeling_date)」欄位清空後送出，flash 顯示「變更成功」，
+    且 DB 對應 row 的 start_wheeling_date 必須為 nil；end_wheeling_date / application_date
+    保留原值。
+
+  acceptanceCriteria:
+    - AC1: 清空 start_wheeling_date 後 DB 為 nil
+    - AC4-partial: end_wheeling_date / application_date 不被誤清空
+    - regression: dispatch_serial / dispatch_name / tp_service_serial / producers 不變
+
+  preconditions:
+    - admin 已登入 staging
+    - 存在一筆 TaipowerContract row（記為 $TARGET_ID）三日期皆非 nil
+
+  steps:
+    - id: step-0
+      action: snapshot
+      target: "DB baseline (TaipowerContract row)"
+      description: |
+        透過 blazer / admin DB 查詢頁查：
+          SELECT id, dispatch_serial, dispatch_name, tp_service_serial,
+                 application_date, start_wheeling_date, end_wheeling_date
+          FROM power_wheeling_taipower_contracts
+          WHERE id = $TARGET_ID
+        記錄 application_date / end_wheeling_date 原值供 step-5 斷言。
+      expected:
+        capture:
+          targetId: "$TARGET_ID"
+          dispatchSerial: "$DISPATCH_SERIAL"
+          applicationDate: "$APP_DATE"
+          endWheelingDate: "$END_DATE"
+        nonNull:
+          - start_wheeling_date
+          - end_wheeling_date
+          - application_date
+
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/composition_management/taipower_contracts/$TARGET_ID/edit"
+      description: "進入該筆台電契約編輯頁"
+      expected: "頁面 200 OK；start_wheeling_date / end_wheeling_date / application_date 三 datepicker 已預填"
+
+    - id: step-2
+      action: clear_input
+      target: "input[name='form[start_wheeling_date]']"
+      description: "清空轉供開始日 datepicker（三擊選取 + Delete）"
+      expected: "input value 為空字串"
+
+    - id: step-3
+      action: click
+      target: "submit button (儲存 / 更新)"
+      description: "送出 form"
+      expected:
+        urlChangedFrom: "/edit"
+        flashNotice:
+          eq: "變更成功"
+
+    - id: step-4
+      action: db_assert
+      target: "TaipowerContract.find($TARGET_ID).start_wheeling_date == nil"
+      description: |
+        透過 blazer 查詢：
+          SELECT start_wheeling_date FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID
+      expected:
+        fieldsEq:
+          start_wheeling_date: null
+
+    - id: step-5
+      action: db_assert
+      target: "in-scope 外欄位 regression guard"
+      description: |
+        SELECT application_date, end_wheeling_date, dispatch_serial
+        FROM power_wheeling_taipower_contracts WHERE id = $TARGET_ID
+      expected:
+        fieldsEq:
+          application_date: "$APP_DATE"
+          end_wheeling_date: "$END_DATE"
+          dispatch_serial: "$DISPATCH_SERIAL"
+
+  result:
+    pass: |
+      - flash 顯示「變更成功」
+      - DB start_wheeling_date = nil
+      - end_wheeling_date / application_date / dispatch_serial 不變
+    fail: |
+      - DB start_wheeling_date 仍為原值（修復未生效 — 根因 Mapper#nullable_fields 未補）
+      - end_wheeling_date 或 application_date 被誤清空（修復過度）
+      - dispatch_serial 被改動（regression）

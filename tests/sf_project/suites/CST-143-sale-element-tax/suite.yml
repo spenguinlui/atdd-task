@@ -1,0 +1,83 @@
+---
+suite:
+  id: CST-143-sale-element-tax
+  title: "應收工程款含稅金額 Page A / Page B / Edit 頁對齊 E2E 測試套件"
+  taskId: 174c8d4b-6864-412b-a291-5d8ae787a80b
+  jira: CST-143
+  project: sf_project
+  branch: master
+  executor: chrome-mcp
+  mode: manual
+
+  description: |
+    驗證「應收工程款 Index 頁（Page A）」、「finalized_projects Show 頁（Page B）」、
+    「finalized_projects Edit 頁」三處的設備登記款含稅金額顯示一致且等於 (price + tax) * quantity。
+
+    CST-143 的止血目標：SaveSaleElements 改以 price + tax 存，同時
+    (a) view_model 對工程款 category 一律以 (price + tax) * quantity 重算顯示，忽略 DB 殘留
+    (b) Backfill rake task 將歷史 SaleElement.amount_with_tax 修正為 price + tax
+    (c) Edit 頁不再出現「本次案件計入項目合計與結算金額不符」警告
+
+    驗收標的為 production 三案場設備登記款 SaleElement（三案場資料來自使用者回覆 Q3）：
+      - 潤特新竹41 RT090041：price=75263, tax=3764  → 含稅應為 79,027
+      - 潤特嘉義17 RT080017：price=117295, tax=5865 → 含稅應為 123,160
+      - 潤特桃園37 RT060037：price=129335, tax=6467 → 含稅應為 135,802
+
+  baseUrl: "http://localhost:3001"
+
+  prerequisites:
+    - admin 帳號已登入，具備 project_management 權限
+    - 本地 DB 已同步 production 三案場的 SaleElement 狀態（price / tax / quantity）
+    - Coder 已完成以下實作（E2E 依賴）：
+        1. Index view_model 對工程款 category 改以 (price + tax) * quantity 重算
+        2. SaveSaleElements 以 price + tax 寫入 amount_with_tax
+        3. FixSaleElementTax rake task 已執行過並將三案場 amount_with_tax 修正為正確值
+
+  scenarios:
+    - file: scenarios/S1-page-a-b-alignment-hsinchu-41.yml
+      id: S1
+      title: "潤特新竹41 三頁含稅金額對齊 79,027"
+      dependencies: []
+
+    - file: scenarios/S2-page-a-b-alignment-chiayi-17.yml
+      id: S2
+      title: "潤特嘉義17 三頁含稅金額對齊 123,160"
+      dependencies: []
+
+    - file: scenarios/S3-page-a-b-alignment-taoyuan-37.yml
+      id: S3
+      title: "潤特桃園37 三頁含稅金額對齊 135,802"
+      dependencies: []
+
+    - file: scenarios/S4-no-warning-on-edit-page.yml
+      id: S4
+      title: "finalized_projects Edit 頁無金額不符警告"
+      dependencies: [S1]
+
+  precondition: |
+    本 E2E 套件依賴 coder 完成以下實作；Coder 尚未完成前執行預期失敗：
+      - app/slices/admin/view_models/admin/project_management/project_fund/sale_elements/index.rb L74
+        修正為對工程款 category 以 (price + tax) * quantity 重算
+      - app/domains/project_management/project/repositories/project/wrapper/save_sale_elements.rb
+        以 price + tax 寫入 amount_with_tax
+      - lib/tasks/fix_sale_element_tax_cst143.rake（Backfill）已執行
+
+  popupWarning: |
+    sf_project admin 部分動作可能透過 popup-window 觸發彈出視窗。
+    Chrome MCP 無法操控不在同一個 tab group 的彈出視窗。
+    若彈出視窗不在 MCP tab group 內，需呼叫 /test-pause 請人工處理。
+
+stats:
+  latestRunId: "run_20260421_150813_2074"
+  latestRunAt: "2026-04-21T15:19:30+08:00"
+  totalScenarios: 4
+  passed: 4
+  failed: 0
+  note: |
+    All 4 scenarios passed after scenario revision (S1/S2/S3 step-3/4 改走 edit route，
+    S4 改讀 JS updateIncomeTotals 跑完後的 DOM)。
+    Page A / Page B Edit 三案場含稅金額完全一致：
+      - RT090041: 79,027 == 79,027
+      - RT140017: 123,160 == 123,160
+      - RT080037: 135,802 == 135,802
+    S4: #income-total-warning 保持 display:none (visible === false)，equipment_registration 顯示 79,027，合計顯示 "790,272 (含稅)"。

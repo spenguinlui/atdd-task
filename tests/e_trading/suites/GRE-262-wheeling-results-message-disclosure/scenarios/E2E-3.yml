@@ -1,0 +1,99 @@
+---
+scenario:
+  id: E2E-3
+  title: "XSS guard — sanitize 攔截 <script> / onerror / javascript: payload"
+  description: |
+    驗證 _entity.slim 第 7 行 sanitize 白名單（br + a，attributes href + target）
+    在 admin wheeling_results modal 上能正確攔截 XSS payload。
+
+  acceptanceCriteria:
+    - AC5a: <script> / <img onerror> / href="javascript:" 三種 payload 經 sanitize 後消失或變純文字
+
+  preconditions:
+    - admin 已登入 staging
+    - 在 staging DB 構造一筆測試 FileHistory（建議用測試用 tp_service_serial，例如 TEST-XSS-001 / 202604）
+      error_message 內容含三段 payload：
+        A: <script>alert('xss')</script>系統契約缺 producer X
+        B: <img src=x onerror=alert(1)>系統契約缺 consumer Y
+        C: <a href="javascript:alert(1)">點我</a>系統契約缺 Z
+      status='halt'
+
+  steps:
+    - id: step-0
+      action: navigate
+      target: "/admin/power_wheeling/progress_management/wheeling_results?form[tp_service_serial]=TEST-XSS-001"
+      description: "進入測試 row 對應的轉供結果管理頁"
+      expected: "頁面 200 OK"
+
+    - id: step-1
+      action: click
+      target: "TEST-XSS-001 列的「檢視」按鈕"
+      description: "開啟 show modal"
+      expected: "modal 出現，含「錯誤訊息」區塊"
+
+    - id: step-2
+      action: verify
+      target: "錯誤訊息區塊 innerHTML — payload A (<script>)"
+      description: |
+        使用 chrome-mcp javascript_tool 取得 .ibox-content innerHTML：
+          document.querySelector('.ibox-content').innerHTML
+        並斷言 sanitize 後結果。
+      expected:
+        htmlNotContains:
+          - "<script>"
+          - "</script>"
+          - "alert('xss')"
+        textContains: "系統契約缺 producer X"
+
+    - id: step-3
+      action: verify
+      target: "錯誤訊息區塊 innerHTML — payload B (<img onerror>)"
+      expected:
+        htmlNotContains:
+          - "<img"
+          - "onerror="
+        textContains: "系統契約缺 consumer Y"
+
+    - id: step-4
+      action: verify
+      target: "錯誤訊息區塊 innerHTML — payload C (href=javascript:)"
+      expected:
+        htmlNotContains:
+          - 'href="javascript:'
+          - "javascript:alert"
+        textContains: "系統契約缺 Z"
+
+    - id: step-5
+      action: verify
+      target: "白名單元素正常存活（regression guard）"
+      description: |
+        除了三種被攔截的 payload，<br> 與安全的 <a href="/admin/..."> 應正常 render。
+      expected:
+        elementExists: ".ibox-content br"
+        elementExistsConditional: |
+          若 error_message 中有合法 deep link，<a href="/admin/..."> 應存在於 DOM。
+
+    - id: step-6
+      action: log_assert
+      target: "瀏覽器 console / alert"
+      description: |
+        驗證頁面載入 / modal 開啟過程中沒有任何 alert 被觸發。
+      expected:
+        alertCallsEq: 0
+        consoleErrorsRelatedToXss: 0
+
+  result:
+    pass: |
+      - <script> / <img onerror> / href="javascript:" payload 三者全部從 DOM 消失
+      - 純文字內容（系統契約缺 ...）保留
+      - 無 alert 被觸發
+    fail: |
+      - 任一 payload 殘留於 DOM
+      - alert() 被觸發
+      - 純文字內容遺失
+
+  fallbackNote: |
+    若 staging 政策禁止人工注入 XSS payload，本場景可降級為「unit + integration 已覆蓋
+    sanitize 行為」並在報告中說明。對應 spec 的 S5a 在 integration spec (AC5a-A/B/C/D)
+    已用 ActionController::Base.helpers.sanitize 模擬 _entity.slim 第 7 行的行為，
+    斷言精確（4 個 RSpec example）。

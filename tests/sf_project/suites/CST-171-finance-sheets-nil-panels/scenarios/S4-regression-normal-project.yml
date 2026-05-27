@@ -1,0 +1,49 @@
+---
+scenario:
+  id: S4
+  title: "S4-regression: 正常案場 RT130033 v1 財務數值 zero-diff"
+  purpose: "fix 不得破壞既有計算；正常案場所有財務數值與修復前完全一致"
+
+  given: |
+    正常完整案場 RT130033 v1（local DB 真實資料，version_id=462）：
+    number_of_panels=22、total_capacity=9.79、incoming_contract present
+    (total_income_without_tax=708796)。
+
+  when: |
+    開啟財務表 finance_sheets.html?serial_number=RT130033&version_serial_number=1
+    / 呼叫 RetrieveFinanceSheetsDto#build_dto。
+
+  then: |
+    capacity_per_panel 正常回傳整數單片容量 445(W)，且下列欄位與修復前 zero-diff：
+      sale_price_per_kw = "72,400"
+      total_cost        = "708,796"
+      net_income        = "432,675"  (in-scope guard)
+      irr               = 0.0501
+      cash_flow.count   = 21
+      cash_flow[0].due  = "-708,796"
+
+  acceptanceCriteria:
+    - AC1: "capacity_per_panel == 445"
+    - AC2: "sale_price_per_kw == '72,400'"
+    - AC3: "total_cost == '708,796'"
+    - AC4: "net_income == '432,675'（非 in-scope 欄位 regression guard）"
+    - AC5: "irr == 0.0501"
+    - AC6: "cash_flow.size == 21 且 cash_flow[0][:due] == '-708,796'"
+    - AC7: "build_dto 不拋例外，HTTP 200 正常渲染財務表"
+
+  steps:
+    - id: step-1
+      action: navigate
+      target: "http://sf.local/admin/project_management/document_download/finance_sheets.html?serial_number=RT130033&version_serial_number=1"
+      expected: "HTTP 200 正常渲染財務表"
+    - id: step-2
+      action: verify_ui
+      expected:
+        body_must_not_contain: ["此頁面暫時發生錯誤", "模組片數"]
+        page_renders_finance_table: true
+
+  result:
+    pass: "正常案場財務表正常渲染，所有 baseline 欄位 zero-diff"
+    fail: "任一財務數值與 baseline 不符 / 頁面誤判為缺資料"
+    redBarExpected: false
+    redBarReason: "RT130033 number_of_panels present，fix 前後皆應正常 → 此案應為綠燈（守住 regression）。"

@@ -1,0 +1,109 @@
+---
+scenario:
+  id: S3
+  title: "正常寄送：flash[:notice] = 指令成功，attachments 與 in-scope 外欄位不變"
+  description: |
+    Scenario 3 (regression guard) — 附件皆存在於 S3 時，寄送信件流程不應受
+    本次修改（rescue + I18n）影響：成功訊息為既有「指令成功」，
+    Email.sent_at 被正確更新，EmailAttachment / TaskCommunication 非 in-scope 欄位不變。
+
+  acceptanceCriteria:
+    - regression: 正常寄送流程不變，2 個 attachments 成功送達
+
+  preconditions:
+    - "admin 帳號已登入（具 power_wheeling 權限）"
+    - "存在 Email id=$EMAIL_OK_ID，attachments 數量 == 2，且兩個 S3 key 皆存在"
+    - "Email.sent_at 為 nil（未寄送過）"
+    - "Postmark API 走 sandbox / mock，可監聽呼叫"
+
+  seed:
+    description: |
+      於 local DB 與 S3 確保 Email + 2 個 EmailAttachment，且兩個 S3 object 皆存在。
+    sql_or_console: |
+      # email = PowerWheeling::ExternalCommunication::Models::Email.find($EMAIL_OK_ID)
+      # email.attachments.count # => 2
+      # email.attachments.each { |a| raise unless S3_HEAD(store_path(a)).exists? }
+      # email.update!(sent_at: nil)
+
+  steps:
+    - id: step-0
+      action: snapshot
+      target: "in-scope 外欄位 baseline"
+      description: |
+        記錄 Email / 兩個 EmailAttachment / 對應 TaskCommunication 的非 in-scope 欄位，
+        於 step-6 reload 後比對 eq。
+      expected:
+        capture:
+          email: "Email.find($EMAIL_OK_ID).attributes.slice('email_subject','email_body','company_vat_number','button_link','button_text','created_at')"
+          attachments: "email.attachments.map { |a| a.attributes.slice('file','file_size','email_id','created_at') }"
+          task_communication: "TaskCommunication.find_by(task_id: $TASK_ID).attributes.slice('task_id','status','created_at')"
+
+    - id: step-1
+      action: navigate
+      target: "/admin/power_wheeling/external_communication/task_communications/search?form%5Btask_id%5D=$TASK_ID_OK"
+      description: "進入 task_communications 頁面"
+      expected: "頁面 200 OK"
+
+    - id: step-2
+      action: click
+      target: "「寄送信件」按鈕（email_id=$EMAIL_OK_ID）"
+      description: "點擊寄送"
+      expected: "form submit"
+
+    - id: step-3
+      action: verify
+      target: "HTTP 回應"
+      description: "成功 redirect"
+      expected:
+        httpStatus: 302
+
+    - id: step-4
+      action: verify
+      target: "頁面 flash 區塊（notice）"
+      description: "驗證顯示既有成功訊息（精確比對，不可改變）"
+      expected:
+        element: ".flash.notice, [data-flash='notice']"
+        textEquals: "指令成功"
+
+    - id: step-5
+      action: log_assert
+      target: "Postmark / ExternalCommunicationMailer 呼叫紀錄"
+      description: |
+        驗證寄出的 mail 含 2 個 attachments，且每個附件 size 等於 S3 object size。
+      expected:
+        mailerCalled: true
+        attachmentsCount: 2
+        attachmentSizesMatchS3: true
+
+    - id: step-6
+      action: db_assert
+      target: "Email.sent_at 應被更新"
+      description: |
+        驗證 Email.sent_at 從 nil 變為非 nil（成功寄送 marker）。
+      expected:
+        query: "Email.find($EMAIL_OK_ID).reload.sent_at.present?"
+        equals: true
+
+    - id: step-7
+      action: db_assert
+      target: "in-scope 外欄位（Email / EmailAttachment / TaskCommunication）"
+      description: |
+        將 step-0 snapshot 與 reload 後值精確比對（eq，不是 include），
+        確保非 in-scope 欄位皆未被異動。EmailAttachment 數量必須仍為 2。
+      expected:
+        emailFieldsEq: true
+        attachmentsCountEq: 2
+        attachmentFieldsEq: true
+        taskCommunicationFieldsEq: true
+
+  result:
+    pass: |
+      - HTTP 302
+      - flash[:notice] == "指令成功"
+      - Mailer 呼叫，含 2 個 attachments，size 與 S3 一致
+      - Email.sent_at 被更新
+      - 非 in-scope 欄位 eq baseline
+    fail: |
+      - flash 文字改變（regression）
+      - attachments 數量不等於 2 或 size 不符
+      - 任何 in-scope 外欄位被異動
