@@ -43,7 +43,9 @@ environment:
 setup:
   script:
     path: "db/seeds/acceptance/{task_id}_setup.rb"
-    command: "cd {project_path} && rails runner {path}"
+    # seed 腳本放在 rails 專案內（容器 mount 為 /app），故 {path} 相對專案根即可。
+    # 走 docker（Tilt 環境，4 個 Rails 專案皆 test.mode=docker）：
+    command: "docker exec -i {test.container} bundle exec rails runner {path}"
   creates:
     - entity: "Invoice"
       identifier: { serial: "ACC-INV-001" }

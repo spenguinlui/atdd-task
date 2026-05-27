@@ -85,7 +85,11 @@ test_run_id = "run_{timestamp}_{random_hex}"
 ### 5. 執行 Setup（Seed）
 
 ```bash
-cd {project_path} && rails runner tests/{project}/suites/{suite-id}/fixtures/seed.rb {test_run_id}
+# 走 docker（Tilt 環境）。seed 腳本在 atdd-task repo（不在容器 /app 內），
+# 故用 `rails runner -` 從 stdin 餵腳本進容器，{test_run_id} 以 ARGV 傳入。
+# 從 atdd-task repo 根目錄執行（相對路徑才解析得到）。
+docker exec -i {test.container} bundle exec rails runner - {test_run_id} \
+  < tests/{project}/suites/{suite-id}/fixtures/seed.rb
 ```
 
 - 記錄建立的資料數量
@@ -114,10 +118,15 @@ cd {project_path} && rails runner tests/{project}/suites/{suite-id}/fixtures/see
 
 #### 6b. Capybara 場景 → 執行 RSpec
 
-**執行指令**：
+**執行指令**（Capybara 是唯一 host-native 例外：需 host chromedriver / 瀏覽器，容器內沒有）：
 ```bash
-cd {project_path} && bundle exec rspec {spec_file} --tag {scenario_tag} --format documentation --format json --out {run_dir}/capybara_results.json
+# 本機 .env 的 DATABASE_PORT 已對齊 Tilt PG16 host port（sf=15433/jv=15435/core=15437/et=15439），
+# 故一般情況直接 host 跑即可。若你的 .env 仍是舊 PG12 port（如新 clone 從 .env.example），
+# 則 inline 覆寫：DATABASE_HOST=localhost DATABASE_PORT={pg16_host_port} DATABASE_PASSWORD=1111
+cd {project_path} && bundle exec rspec {spec_file} --tag {scenario_tag} \
+  --format documentation --format json --out {run_dir}/capybara_results.json
 ```
+> 其餘（seed / cleanup / 非 capybara rspec / migrate）一律走 `docker exec`，見 rails-local-dev skill。
 
 - `spec_file`：從 `suite.yml` 的 `executors.capybara.specFile` 取得
 - `scenario_tag`：場景 ID 對應的 RSpec tag（如 `S1`、`S2`）
@@ -137,7 +146,9 @@ cd {project_path} && bundle exec rspec {spec_file} --tag {scenario_tag} --format
 ### 7. 執行 Cleanup
 
 ```bash
-cd {project_path} && rails runner tests/{project}/suites/{suite-id}/fixtures/cleanup.rb {test_run_id}
+# 同 Setup：docker exec + stdin 餵 cleanup 腳本進容器（從 atdd-task repo 根目錄執行）。
+docker exec -i {test.container} bundle exec rails runner - {test_run_id} \
+  < tests/{project}/suites/{suite-id}/fixtures/cleanup.rb
 ```
 
 - 根據 `suite.yml` 的 `cleanup.onFailure` 設定處理失敗情況
