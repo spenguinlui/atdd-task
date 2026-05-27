@@ -1,0 +1,74 @@
+{
+  "target": "atdd-task",
+  "generated_at": "2026-05-27T15:54:25Z",
+  "runner": "experiments/atdd-eval/run-self-verify.sh",
+  "scorers": [
+    {
+      "name": "test-budget-gate.sh",
+      "pattern": "B",
+      "checks": 4,
+      "last_pass": true
+    },
+    {
+      "name": "test-confidence-gate.sh",
+      "pattern": "B",
+      "checks": 5,
+      "last_pass": true
+    },
+    {
+      "name": "test-enforce-e2e-decision.sh",
+      "pattern": "B",
+      "checks": 6,
+      "last_pass": true
+    },
+    {
+      "name": "test-model-routing.sh",
+      "pattern": "A",
+      "checks": 27,
+      "last_pass": true
+    },
+    {
+      "name": "test-safety-gate.sh",
+      "pattern": "B",
+      "checks": 5,
+      "last_pass": true
+    },
+    {
+      "name": "test-validate-review-persisted.sh",
+      "pattern": "B",
+      "checks": 6,
+      "last_pass": true
+    },
+    {
+      "name": "test-validate-spec-format.sh",
+      "pattern": "B",
+      "checks": 5,
+      "last_pass": true
+    }
+  ],
+  "totals": {
+    "scorers": 7,
+    "checks_total": 58,
+    "checks_passed": 58
+  },
+  "mechanisms_inventory": {
+    "total": 15,
+    "covered": 7,
+    "coverage_pct": 47,
+    "uncovered": [
+      "validate-deliverables-hook",
+      "validate-agent-call-hook",
+      "protect-e2e-mode-hook",
+      "guard-skill-invoke-hook",
+      "workflow-router-hook",
+      "record-metrics-hook",
+      "coder-eval-quality-pattern-C",
+      "tester-eval-quality-pattern-C"
+    ],
+    "_note": "builder 手動維護 total / uncovered；covered / coverage_pct 由 generate-coverage.sh 自動算"
+  },
+  "last_run": {
+    "timestamp": "2026-05-27T15:54:25Z",
+    "rc": 0
+  }
+}
