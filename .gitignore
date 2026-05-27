@@ -64,3 +64,9 @@ design/references/
 
 # Local user identity (per-developer, not shared)
 .atdd/user.json
+
+# atdd-eval 原始產物（per 設計圖 D.4；報告 results-*.md 與腳本不在此列）
+experiments/atdd-eval/results/
+
+# Production / runtime logs — 含敏感資料（user_ids、record_ids），勿入版
+logs/
