@@ -191,6 +191,21 @@ Makes "commit without verifying" an OS-level impossibility. Three-piece kit:
 3. Run `bash experiments/atdd-eval/generate-coverage.sh` to update `coverage.json` (auto-computes scorers/checks/totals; `mechanisms_inventory.total / uncovered` maintained manually)
 4. Run `bash experiments/atdd-eval/run-self-verify.sh` to confirm all green
 
+### Maintainer lab (behavioral comparison / agent×model eval)
+
+Maintainer-only; runnable but burns tokens. **These never appear in the viewer's README** — they are meaningless to viewers.
+
+| Command / script | Purpose |
+|---|---|
+| `/eval-coder <project> <ticket>` | Compare engines on a **real ticket** for code-fixing ability — `gold` (real human fix) + `claude:claude-sonnet-4-6` + `codex:gpt-5.5` each run in a sandbox; hidden acceptance tests judge pass/fail; report tokens / cost / wall time |
+| `bash experiments/atdd-eval/eval-reviewer.sh` | Same-ticket comparison for a review task (controlled instance + ground truth) |
+| `bash experiments/atdd-eval/eval-specist.sh` / `eval-tester.sh` / `eval-gatekeeper.sh` | Pattern C scorer entry points for the matching agent |
+| `bash experiments/atdd-eval/run-matrix.sh` | Batch matrix across agent × model (resumability marker; restart-safe if docker / session quota dies mid-run) |
+| `python experiments/atdd-eval/aggregate.py` | Aggregate raw matrix results into a readable report |
+| `bash experiments/atdd-eval/list-candidates.sh <project>` | List candidate tickets for comparison (sorted by edit size; pick large edits or you can't tell engines apart) |
+
+> Token counts across engines are **not directly comparable**: the codex CLI's "tokens used" is a grand total that includes cache; Claude's `input_tokens + output_tokens` excludes cache → similar magnitudes are misleading. Compare `pass/total` primarily; tokens only as a within-engine trend.
+
 ---
 
 ## How to Validate Changes

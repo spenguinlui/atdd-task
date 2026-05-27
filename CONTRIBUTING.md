@@ -191,6 +191,21 @@ Inner gatekeeper 回答「這張任務好不好」；outer eval（`experiments/a
 3. 跑 `bash experiments/atdd-eval/generate-coverage.sh` 更新 `coverage.json`（自動算 scorers/checks/totals；`mechanisms_inventory.total / uncovered` 由 builder 維護）
 4. 跑 `bash experiments/atdd-eval/run-self-verify.sh` 確認全綠
 
+### 維護者實驗室（行為比較 / agent×model 評測）
+
+僅維護者用，跑得起來但會花 token。**這些不會出現在 viewer 的 README**——對 viewer 沒意義。
+
+| 指令 / 腳本 | 用途 |
+|---|---|
+| `/eval-coder <project> <ticket>` | 對一張**真實票**比較各引擎改 code 的能力——`gold`（真實人類修復）+ `claude:claude-sonnet-4-6` + `codex:gpt-5.5` 各自在沙箱跑，由隱藏驗收測試判 pass/fail，附 token / cost / 耗時 |
+| `bash experiments/atdd-eval/eval-reviewer.sh` | 對一張 review 任務跑同票比較（受控實例 + ground truth） |
+| `bash experiments/atdd-eval/eval-specist.sh` / `eval-tester.sh` / `eval-gatekeeper.sh` | 對應 agent 的 Pattern C scorer 入口 |
+| `bash experiments/atdd-eval/run-matrix.sh` | 跨 agent × model 的批次矩陣（含 resumability 標記；docker / session quota 中途斷掉可續跑） |
+| `python experiments/atdd-eval/aggregate.py` | 彙整矩陣 raw 結果為可讀報告 |
+| `bash experiments/atdd-eval/list-candidates.sh <project>` | 列出比較候選票（按改動規模排序，挑大改動才分得出強弱） |
+
+> 跨引擎 token 數**不可直接比較**：codex CLI 報的「tokens used」是含 cache 的 grand total，Claude `input_tokens + output_tokens` 不含 cache → 同數量級也是表象。比 `pass/total` 為主，token 只看同引擎內趨勢。
+
 ---
 
 ## 怎麼驗證改動

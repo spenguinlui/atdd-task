@@ -149,6 +149,7 @@ Every task runs through the full loop. AI executes automatically for most stages
 
 | Command | Description |
 |---------|-------------|
+| `/atdd {natural-language requirement}` | **Natural-language entry**: describe your need in a sentence; AI auto-classifies (feature / fix / refactor / health-check / spec-update) and starts |
 | `/feature {project}, {title}` | Start new feature development |
 | `/fix {project}, {title}` | Start a bug fix |
 | `/refactor {project}, {title}` | Start a code refactor |
@@ -158,9 +159,11 @@ Every task runs through the full loop. AI executes automatically for most stages
 | `/status` | View all task progress |
 | `/abort [task_id]` | Abandon current task |
 | `/done [task_id]` | Close task after gatekeeper GO (commit) |
+| `/commit` | **Git commit only**, no task close (when you need staged commits) |
 | `/close [task_id]` | Close without deploying |
 | `/deploy` | Deploy framework to remote server |
 | `/verify [task_id]` | Confirm production is working after deploy |
+| `/escape {task_id}, {issue}` | **Production issue report**: escalation flow when a deployed task hits a production issue |
 
 ### Post-review fixes
 
@@ -181,13 +184,44 @@ Every task runs through the full loop. AI executes automatically for most stages
 
 ### E2E test management
 
+#### Test suite management
+
 | Command | Description |
 |---------|-------------|
+| `/test-create {project}, {suite description}` | Create a new E2E test suite |
 | `/test-run {project}, {suite-id}` | Run an E2E test suite |
 | `/test-list [project]` | List test suites |
 | `/test-edit {project}, {suite-id}` | Edit an existing test suite |
 | `/test-history {project}, {suite-id}` | View test execution history |
 | `/e2e-manual` | E2E test operation guide |
+
+#### Test flow control (used mid-test)
+
+| Command | Description |
+|---------|-------------|
+| `/test-pause` | Pause the current E2E test, wait for manual intervention |
+| `/test-resume` | Resume a paused E2E test |
+| `/test-fail` | Mark current test as failed and stop |
+| `/test-skip` | Skip the current test step or scenario |
+| `/test-revise` | Fix the expected value (system correct, test wrong); pause for confirmation, then continue |
+
+#### Issues found mid-test → spawn follow-up tasks
+
+When testing surfaces work that lives outside the test itself, these commands log issues and spin out tasks:
+
+| Command | Description |
+|---------|-------------|
+| `/test-feature` | Log missing feature, create a Feature task, continue testing |
+| `/test-fix` | Log issue, create a Fix task, continue testing |
+| `/test-fix-stop` | Log issue, create a Fix task, **stop** testing |
+| `/test-refactor` | Log architectural issue, create a Refactor task, continue testing |
+| `/test-knowledge` | Log knowledge gap, stop testing and roll back to the requirement stage |
+
+### Other / help
+
+| Command | Description |
+|---------|-------------|
+| `/guide` | Show command cheat sheet |
 
 ## What Comes Out and How to Verify Success
 
