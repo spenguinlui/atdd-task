@@ -164,6 +164,33 @@ The inner gatekeeper answers: "is this task good?" The outer eval (`experiments/
 - **Plane-1 (orchestrator)**: The `/continue` / `/feature` command layer; survives any delegation.
 - **Delegation = Plane-2 silently disabled**: Every delegated agent's Plane-2 guarantees must be patched at Plane-1, or they become silent gaps. Patch-up record is in `shared/agent-dispatch.md`.
 
+### Self-verify infrastructure
+
+Makes "commit without verifying" an OS-level impossibility. Three-piece kit:
+
+- `experiments/atdd-eval/run-self-verify.sh` — single entry point, runs all `test-*.sh`
+- `experiments/atdd-eval/test-*.sh` — wiring-specific scorers (per the four Patterns; header marks `# pattern: A|B|C|D`)
+- `experiments/atdd-eval/coverage.json` — data dashboard (scorers / check totals / mechanism coverage)
+- `.claude/hooks/self-verify-on-stop.sh` + `settings.json` Stop registration — any scorer failing → exit 2 physically blocks session end
+
+**Four Patterns** (pick one when writing a new scorer, don't invent):
+
+| Pattern | When | How |
+|---|---|---|
+| **A. Single source of truth + drift detection** | Config / wiring cross-file consistency | Hardcode source of truth, parse N files to compare |
+| **B. Trigger + assert** | Whether the hook / middleware gets triggered correctly | Build stdin / env, invoke hook, assert exit / stderr |
+| **C. Scorer + METRICS line** | Behavioral quality / agent output | Controlled instance + ground truth + quantification (e.g., `eval-coder.sh`) |
+| **D. Snapshot + diff** | Whether side effects are correct | Snapshot pre-run, compare post-run |
+
+**Current landing progress**: 7 scorers / 58 checks / **47% mechanism coverage (7/15)** — `coverage.json.mechanisms_inventory.uncovered` lists the remaining 8 (validate-deliverables / validate-agent-call / protect-e2e-mode / guard-skill-invoke / workflow-router / record-metrics — 6 hooks — plus coder-eval / tester-eval — 2 Pattern C scorers).
+
+**Steps to add a new scorer**:
+
+1. Write `experiments/atdd-eval/test-<name>.sh`, header `# pattern: A|B|C|D`
+2. `chmod +x`; runner picks it up automatically
+3. Run `bash experiments/atdd-eval/generate-coverage.sh` to update `coverage.json` (auto-computes scorers/checks/totals; `mechanisms_inventory.total / uncovered` maintained manually)
+4. Run `bash experiments/atdd-eval/run-self-verify.sh` to confirm all green
+
 ---
 
 ## How to Validate Changes
@@ -177,6 +204,8 @@ The inner gatekeeper answers: "is this task good?" The outer eval (`experiments/
 | Hook log | Trigger any hook, then `cat .claude/hooks/.hook-log.jsonl` | Trigger/block record present |
 | Stale knowledge | `/knowledge-stale` + create a stale node | Correctly marked stale; same-slug conflict blocked |
 | Engine delegation | Set `risk-reviewer` to `engine: codex`, run a review task | findings land in correct MCP nested path; `/continue` unaffected; plane-1 fuse active |
+| **Self-verify suite** | `bash experiments/atdd-eval/run-self-verify.sh` | All 7 scorers green (any scorer drift → exit 1 + Stop hook blocks session end) |
+| **Interactive model picker** | `/continue {task_id}` reaching Step 2.9 | Menu pops: "Which model for {agent} this run?" first option marked Recommended (from `agent-engines.yml`); skipped in headless mode or with `--model` flag |
 
 ---
 

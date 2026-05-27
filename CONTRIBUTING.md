@@ -164,6 +164,33 @@ Inner gatekeeper 回答「這張任務好不好」；outer eval（`experiments/a
 - **Plane-1（orchestrator）**：`/continue` / `/feature` 等 command 層，任何委派都倖存。
 - **委派 = Plane-2 靜默失效**：每委派一個 agent，其 Plane-2 保證必須在 Plane-1 補等效，否則是靜默漏洞。補洞記錄在 `shared/agent-dispatch.md`。
 
+### 自驗基建（self-verify infrastructure）
+
+讓「沒驗就 commit」變成 OS 級不可能事件。三件套：
+
+- `experiments/atdd-eval/run-self-verify.sh` — 跑所有 `test-*.sh` 的單一 entry point
+- `experiments/atdd-eval/test-*.sh` — wiring 對應的 scorer（依四種 Pattern；檔頭標 `# pattern: A|B|C|D`）
+- `experiments/atdd-eval/coverage.json` — 數據面板（scorers / check 總數 / mechanism 覆蓋率）
+- `.claude/hooks/self-verify-on-stop.sh` + `settings.json` Stop 註冊 — 任一 scorer 失敗 → exit 2 物理擋住 session 結束
+
+**四 Pattern**（寫新 scorer 時挑一個套，不發明）：
+
+| Pattern | 適用 | 招式 |
+|---|---|---|
+| **A. 單一真實來源 + drift 偵測** | 配置 / wiring 跨檔一致性 | hardcode 真實來源，parse N 個檔比對 |
+| **B. 觸發 + 斷言** | hook / 中介機制是否被正確 trigger | 構造 stdin / env，呼叫 hook，斷 exit / stderr |
+| **C. Scorer + METRICS 行** | 行為品質 / agent 輸出 | 受控實例 + ground truth + 量化（如 `eval-coder.sh`）|
+| **D. 快照 + Diff** | 副作用是否正確 | 跑前 snapshot、跑後比 |
+
+**目前落地進度**：7 scorer / 58 check / **47% mechanism 覆蓋（7/15）**——`coverage.json.mechanisms_inventory.uncovered` 列出剩 8 個未覆蓋 hook + eval scorer（validate-deliverables / validate-agent-call / protect-e2e-mode / guard-skill-invoke / workflow-router / record-metrics 6 個 hook + coder-eval / tester-eval 2 個 Pattern C scorer）。
+
+**加新 scorer 的步驟**：
+
+1. 在 `experiments/atdd-eval/test-<name>.sh` 寫腳本，檔頭加 `# pattern: A|B|C|D`
+2. `chmod +x`，runner 自動撿到
+3. 跑 `bash experiments/atdd-eval/generate-coverage.sh` 更新 `coverage.json`（自動算 scorers/checks/totals；`mechanisms_inventory.total / uncovered` 由 builder 維護）
+4. 跑 `bash experiments/atdd-eval/run-self-verify.sh` 確認全綠
+
 ---
 
 ## 怎麼驗證改動
@@ -177,6 +204,8 @@ Inner gatekeeper 回答「這張任務好不好」；outer eval（`experiments/a
 | Hook 日誌 | 觸發任一 hook 後 `cat .claude/hooks/.hook-log.jsonl` | 有觸發/阻擋記錄 |
 | 過期知識 | `/knowledge-stale` 盤點 + 造 stale 節點 | 正確標示 stale；同名 slug 衝突被攔 |
 | 引擎委派 | `risk-reviewer` 設 `engine: codex`，跑一張 review | findings 落 MCP 正確巢狀位置；`/continue` 後續無感；plane-1 保險絲生效 |
+| **自驗基建** | `bash experiments/atdd-eval/run-self-verify.sh` | 7 scorer 全綠（drift 任一支 → exit 1 + Stop hook 擋本輪結束）|
+| **互動 model 選擇** | `/continue {task_id}`，進到 Step 2.9 | 彈 menu「本次 {agent} 用哪個 model？」第一個是 Recommended（讀 `agent-engines.yml`）；headless 或帶 `--model` 旗標時跳過此步 |
 
 ---
 
