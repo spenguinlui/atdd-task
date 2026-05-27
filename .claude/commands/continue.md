@@ -215,12 +215,58 @@ metadata.context.reviewFindings.styleReview.issues    # 必為 array
 
 ---
 
+## Step 2.9: 互動式 model 選擇（呼叫 next_agent 前）
+
+> 目的：每次進 subagent 前讓用戶決定本次用哪個 model；沒選＝走 `agent-engines.yml` 的 default（eval 推薦）。
+
+### 跳過條件（任一成立就跳過此步驟，直接用 default）
+
+1. 環境變數 `$ATDD_NO_PROMPT=1`（headless / `run-matrix.sh` 等自動化跑）。
+2. 用戶在 `/continue` 帶了 inline 旗標 `--model <name>`（直接用旗標值）。
+3. stdin 非 tty。
+
+### 互動格式
+
+用 `AskUserQuestion` 工具彈一題。**推薦選項放第一位且標 `(Recommended)`**：
+
+| next_agent | Recommended | 其他選項 |
+|---|---|---|
+| specist | Opus 4.7 | Sonnet 4.6 / Haiku 4.5 / GPT-5.5 |
+| tester | Opus 4.7 | Sonnet 4.6 / Haiku 4.5 / GPT-5.5 |
+| risk-reviewer | Sonnet 4.6 | Opus 4.7 / Haiku 4.5 / GPT-5.5 |
+| style-reviewer | Sonnet 4.6 | Opus 4.7 / Haiku 4.5 / GPT-5.5 |
+| gatekeeper | Sonnet 4.6 | Opus 4.7 / Haiku 4.5 / GPT-5.5 |
+| coder | GPT-5.5 | Opus 4.7 / Sonnet 4.6 / Haiku 4.5 |
+| curator | （沿用 yml default） | Opus 4.7 / Sonnet 4.6 / Haiku 4.5 |
+
+題目文字：`本次 {next_agent} 要用哪個 model？沒選＝預設（推薦）`；header：`Model 選擇`；multiSelect: false。
+每個 option 的 description 用一句話交代取捨（深度 / 性價比 / 便宜快 / GPT 路徑會觸發 codex bypass）。
+
+### 結果映射
+
+| 用戶選 | engine | model |
+|---|---|---|
+| Recommended | （讀 `agent-engines.yml` 的 `agents.<next_agent>.engine`） | （讀同檔 `agents.<next_agent>.model`，沒設就用該引擎預設） |
+| Opus 4.7 | claude | opus |
+| Sonnet 4.6 | claude | sonnet |
+| Haiku 4.5 | claude | haiku |
+| GPT-5.5 | codex | gpt-5.5 |
+
+把結果存成本輪變數 `chosen_engine` / `chosen_model`，傳給 Step 3。
+
+---
+
 ## Step 3: 呼叫 next_agent 並記錄 Metrics
 
 > **禁止**從任務 JSON 的 `metadata.workflow.currentAgent` 決定呼叫對象。
 > **必須**使用 Step 2 轉移表產出的 `next_agent`。
 
-參考：`shared/agent-call-patterns.md`，以 `next_agent` 作為 `subagent_type`。
+依 Step 2.9 的 `chosen_engine` / `chosen_model`（未跑 2.9 就讀 `.claude/config/agent-engines.yml` 取 default）分派，協議見 `shared/agent-dispatch.md`：
+- `engine: claude` → 照 `shared/agent-call-patterns.md`，以 `next_agent` 作為 `subagent_type` 呼叫 `Task`，**並把 `chosen_model` 透過 Task 工具的 `model` 參數傳入**（覆寫 frontmatter）。
+- `engine: codex` → 改跑 Bash `.claude/scripts/run-agent-codex.sh <next_agent> <project> <task_id> "<title>" <type> <chosen_model>`，把回傳當作該 agent 報告。
+  ⚠️ codex 路徑 in-agent hook 不觸發 → 完成後**必照 plane-1 補洞**（見 `agent-dispatch.md`）：用 `atdd_task_get` 確認 findings 已落 MCP 正確巢狀位置，缺失則退回重跑。Metrics 解析 `ENGINE_METRICS` 的 tokens。
+
+呼叫 `atdd_task_add_metrics` 時把 `chosen_engine` / `chosen_model` 一併記錄（便於 eval 飛輪比對）。
 
 **Agent 完成後的輸出格式**（必須嚴格遵守，所有命令帶 task_id）：
 ```
