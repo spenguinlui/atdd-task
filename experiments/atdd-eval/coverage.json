@@ -1,6 +1,6 @@
 {
   "target": "atdd-task",
-  "generated_at": "2026-05-27T15:54:25Z",
+  "generated_at": "2026-05-27T16:06:51Z",
   "runner": "experiments/atdd-eval/run-self-verify.sh",
   "scorers": [
     {
@@ -68,7 +68,7 @@
     "_note": "builder 手動維護 total / uncovered；covered / coverage_pct 由 generate-coverage.sh 自動算"
   },
   "last_run": {
-    "timestamp": "2026-05-27T15:54:25Z",
+    "timestamp": "2026-05-27T16:06:51Z",
     "rc": 0
   }
 }

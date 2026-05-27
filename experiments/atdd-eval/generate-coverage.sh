@@ -58,9 +58,12 @@ scorers = json.loads("[" + scorers_raw + "]")
 # 若 builder 已填 total + 有 scorers covers，計算 covered = sum unique covers
 # 目前 scorers 還沒記 covers list（builder 後續可在 coverage.json 加），先讓 covered 由 total 推算或 manual
 if isinstance(inv.get("total"), int) and inv["total"] > 0:
-    # 簡單策略：covered = scorer 數（每 scorer 視為覆蓋 1 個 mechanism；builder 可手動精修）
-    if not isinstance(inv.get("covered"), int):
-        inv["covered"] = int(ns)
+    # 優先：covered = total - len(uncovered)（uncovered 是 source of truth；1 scorer 可涵蓋多 mechanism）
+    uncov = inv.get("uncovered")
+    if isinstance(uncov, list):
+        inv["covered"] = inv["total"] - len(uncov)
+    elif not isinstance(inv.get("covered"), int):
+        inv["covered"] = int(ns)  # fallback：scorer 數
     inv["coverage_pct"] = round(inv["covered"] / inv["total"] * 100)
 out = {
     "target": target,
