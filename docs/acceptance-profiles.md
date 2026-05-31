@@ -1,6 +1,6 @@
 # 驗收 Profile 指南
 
-本文件為驗收 Profile 的索引頁。ATDD Hub 的驗收分為 Feature 與 Fix 兩大類：
+本文件為驗收 Profile 的索引頁。ATDD task 的驗收分為 Feature 與 Fix 兩大類：
 
 | 文件 | 說明 |
 |------|------|

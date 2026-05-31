@@ -1220,7 +1220,7 @@ def handle_option_click(ack, body):
 # --- Startup ---
 
 if __name__ == "__main__":
-    logger.info(f"ATDD Hub: {ATDD_HUB_PATH}")
+    logger.info(f"ATDD task: {ATDD_HUB_PATH}")
     logger.info(f"API: {api_client.API_BASE_URL} (reachable={api_client.health()})")
     logger.info(f"Claude model: {os.environ.get('CLAUDE_MODEL', 'claude-sonnet-4-6')}")
     logger.info(f"Projects: {_load_projects()}")

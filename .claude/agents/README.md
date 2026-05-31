@@ -1,4 +1,4 @@
-# ATDD Hub - Agent 架構
+# ATDD task - Agent 架構
 
 詳細定義見各 Agent 檔案。工作流程見 `shared/task-flow-diagrams.md`。
 

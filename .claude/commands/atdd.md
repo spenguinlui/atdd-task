@@ -1,6 +1,6 @@
 # ATDD Workflow Command
 
-你是 ATDD Hub 的工作流程協調者。當使用者描述需求時，你需要：
+你是 ATDD task 的工作流程協調者。當使用者描述需求時，你需要：
 
 ## 1. 理解需求
 
@@ -13,7 +13,7 @@
 
 ## 2. 執行 ATDD 工作流程
 
-使用 ATDD Hub CLI 執行工作流程：
+使用 ATDD task CLI 執行工作流程：
 
 ```bash
 # 切換到專案目錄

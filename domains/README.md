@@ -1,18 +1,18 @@
-# ATDD Hub 知識體系指南
+# ATDD task 知識體系指南
 
-> 幫助 PM 與工程師快速理解 ATDD Hub 的架構、知識管理方式、以及各目錄的用途。
+> 幫助 PM 與工程師快速理解 ATDD task 的架構、知識管理方式、以及各目錄的用途。
 
 **Last Updated**: 2026-02-11
 **Maintained By**: Development Team + curator
 
 ---
 
-## ATDD Hub 是什麼
+## ATDD task 是什麼
 
-ATDD Hub 是團隊的 **AI 驅動開發工作台**，管理從需求到交付的完整流程。它不是一個程式碼專案，而是一個「工作流程 + 知識」的中央倉庫，搭配多個實際程式碼專案（如 core_web、sf_project）協同運作。
+ATDD task 是團隊的 **AI 驅動開發工作台**，管理從需求到交付的完整流程。它不是一個程式碼專案，而是一個「工作流程 + 知識」的中央倉庫，搭配多個實際程式碼專案（如 core_web、sf_project）協同運作。
 
 ```
-ATDD Hub（本 Repo）              各程式碼專案（外部 Repo）
+ATDD task（本 Repo）             各程式碼專案（外部 Repo）
 ┌──────────────────────┐         ┌──────────────────┐
 │ 需求、規格、任務追蹤   │         │ core_web         │
 │ 領域知識庫            │ ──────▶ │  app/            │
@@ -363,7 +363,7 @@ tests/{project}/suites/{suite-id}/
 
 | 文檔 | 說明 |
 |------|------|
-| [README.md](../README.md) | ATDD Hub 主頁（工作流程、命令速查） |
+| [README.md](../README.md) | ATDD task 主頁（工作流程、命令速查） |
 | [操作手冊](../docs/operation-manual.md) | 完整操作指南 |
 | [Fix 工作流程](../docs/fix-workflow.md) | Fix 任務詳細流程 |
 | [Agent 定義](../.claude/agents/) | 6 個 Agent 的職責定義 |

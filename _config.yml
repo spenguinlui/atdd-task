@@ -1,4 +1,4 @@
-# Minimal Jekyll config for ATDD Hub GitHub Pages
+# Minimal Jekyll config for ATDD task GitHub Pages
 # Renders only .md files that explicitly declare `layout: page` in front-matter
 # (CONTRIBUTING.md + docs/operation-manual.md). index.html / maintainer.html have
 # no front-matter so they pass through unchanged.
