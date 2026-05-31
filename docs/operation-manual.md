@@ -122,34 +122,63 @@ specist: 明白。還有幾個問題：
 
 ### Epic 建立流程
 
-```
-/epic sf_project, 發票折讓體系
-         │
-         ▼
-┌─────────────────────────────────┐
-│ specist: Epic Planning（提案）  │
-│ • 識別涉及的 Domains           │
-│ • 拆分 Phases                   │
-│ • 識別子任務                    │
-│ • 建立依賴關係                  │
-└─────────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│ 輸出提案，等待用戶確認         │
-│ • 確認 → 建立 Epic + 子任務    │
-│ • 調整 → 修改後重新確認        │
-│ • 取消 → 放棄建立              │
-└─────────────────────────────────┘
-         │
-         ▼ 確認後
-┌─────────────────────────────────┐
-│ 建立檔案：                      │
-│ • Epic YAML                     │
-│ • 子任務 JSON（T1.1, T1.2...） │
-│ • 更新 MCP 任務狀態             │
-└─────────────────────────────────┘
-```
+<div class="flow-svg" markdown="0" style="margin:20px 0;">
+<svg viewBox="0 0 640 644" role="img" aria-labelledby="epf-title" style="width:100%;height:auto;max-width:600px;display:block;font-family:Inter,-apple-system,'Segoe UI',sans-serif;">
+  <title id="epf-title">Epic 建立流程</title>
+  <defs>
+    <marker id="epf-ah" markerWidth="10" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#B6C0CC"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="638" height="642" rx="16" fill="#F7F9FB" stroke="#EEF1F5"/>
+
+  <!-- command you type -->
+  <rect x="150" y="20" width="340" height="34" rx="17" fill="#EFF6FF" stroke="#BFDBFE"/>
+  <text x="320" y="42" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="13" fill="#2563EB">/epic sf_project, 發票折讓體系</text>
+  <line x1="320" y1="58" x2="320" y2="83" stroke="#B6C0CC" stroke-width="2" marker-end="url(#epf-ah)"/>
+
+  <!-- step 1: planning -->
+  <rect x="60" y="88" width="520" height="168" rx="12" fill="#FFFFFF" stroke="#E5E9EF"/>
+  <rect x="60" y="102" width="4" height="140" rx="2" fill="#3B82F6"/>
+  <circle cx="92" cy="118" r="5" fill="#3B82F6"/>
+  <text x="106" y="123" font-size="15" font-weight="600" fill="#1F2D3D">specist：Epic Planning（提案）</text>
+  <line x1="84" y1="140" x2="556" y2="140" stroke="#EEF1F5" stroke-width="1"/>
+  <g fill="#54606E" font-size="13.5">
+    <circle cx="92" cy="162" r="2.2" fill="#CBD5E1"/><text x="104" y="166">識別涉及的 Domains</text>
+    <circle cx="92" cy="188" r="2.2" fill="#CBD5E1"/><text x="104" y="192">拆分 Phases</text>
+    <circle cx="92" cy="214" r="2.2" fill="#CBD5E1"/><text x="104" y="218">識別子任務</text>
+    <circle cx="92" cy="240" r="2.2" fill="#CBD5E1"/><text x="104" y="244">建立依賴關係</text>
+  </g>
+  <line x1="320" y1="256" x2="320" y2="283" stroke="#B6C0CC" stroke-width="2" marker-end="url(#epf-ah)"/>
+
+  <!-- step 2: wait for confirmation -->
+  <rect x="60" y="288" width="520" height="146" rx="12" fill="#FFFFFF" stroke="#E5E9EF"/>
+  <rect x="60" y="302" width="4" height="118" rx="2" fill="#F59E0B"/>
+  <circle cx="92" cy="318" r="5" fill="#F59E0B"/>
+  <text x="106" y="323" font-size="15" font-weight="600" fill="#1F2D3D">輸出提案，等待用戶確認</text>
+  <line x1="84" y1="340" x2="556" y2="340" stroke="#EEF1F5" stroke-width="1"/>
+  <g font-size="13.5">
+    <circle cx="92" cy="362" r="2.2" fill="#CBD5E1"/><text x="104" y="366" fill="#54606E"><tspan fill="#1F2D3D" font-weight="600">確認</tspan> → 建立 Epic + 子任務</text>
+    <circle cx="92" cy="388" r="2.2" fill="#CBD5E1"/><text x="104" y="392" fill="#54606E"><tspan fill="#1F2D3D" font-weight="600">調整</tspan> → 修改後重新確認</text>
+    <circle cx="92" cy="414" r="2.2" fill="#CBD5E1"/><text x="104" y="418" fill="#54606E"><tspan fill="#1F2D3D" font-weight="600">取消</tspan> → 放棄建立</text>
+  </g>
+  <line x1="320" y1="434" x2="320" y2="469" stroke="#B6C0CC" stroke-width="2" marker-end="url(#epf-ah)"/>
+  <rect x="332" y="442" width="58" height="20" rx="10" fill="#FFFFFF" stroke="#E5E9EF"/>
+  <text x="361" y="456" text-anchor="middle" font-size="11.5" fill="#7B8794">確認後</text>
+
+  <!-- step 3: create files -->
+  <rect x="60" y="474" width="520" height="146" rx="12" fill="#FFFFFF" stroke="#E5E9EF"/>
+  <rect x="60" y="488" width="4" height="118" rx="2" fill="#10B981"/>
+  <circle cx="92" cy="504" r="5" fill="#10B981"/>
+  <text x="106" y="509" font-size="15" font-weight="600" fill="#1F2D3D">建立檔案</text>
+  <line x1="84" y1="526" x2="556" y2="526" stroke="#EEF1F5" stroke-width="1"/>
+  <g font-size="13.5" fill="#54606E">
+    <circle cx="92" cy="548" r="2.2" fill="#CBD5E1"/><text x="104" y="552"><tspan font-family="'JetBrains Mono',monospace" font-size="12.5" fill="#3E4C5A">Epic YAML</tspan></text>
+    <circle cx="92" cy="574" r="2.2" fill="#CBD5E1"/><text x="104" y="578">子任務 <tspan font-family="'JetBrains Mono',monospace" font-size="12.5" fill="#3E4C5A">JSON</tspan>（T1.1, T1.2…）</text>
+    <circle cx="92" cy="600" r="2.2" fill="#CBD5E1"/><text x="104" y="604">更新 MCP 任務狀態</text>
+  </g>
+</svg>
+</div>
 
 ### Feature → Epic 上升流程
 
