@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ATDD Hub · Maintainer edition</title>
+<meta name="description" content="For engineers extending or maintaining the ATDD Hub framework itself: the four-plane architecture, MCP state, hook wiring, engine dispatch (Claude / GPT), self-verify infrastructure and design rationale." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="name">ATDD<em>·</em>Hub</div>
+    </div>
+    <div class="nav-right">
+      <div class="audience-toggle">
+        <a href="index.en.html">User</a>
+        <a class="active" href="maintainer.en.html">Maintainer</a>
+      </div>
+      <div class="audience-toggle">
+        <a href="maintainer.html">中</a>
+        <a class="active" href="maintainer.en.html">EN</a>
+      </div>
+      <nav class="nav-links">
+        <a href="#arch">Architecture</a>
+        <a href="#extend">Extend</a>
+        <a href="#wiring">Wiring</a>
+        <a href="#engines">Engines</a>
+        <a href="#self-verify">Self-verify</a>
+      </nav>
+      <a class="btn-signup" href="https://github.com/spenguinlui/atdd-task">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============== HERO ============== -->
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Extend the <strong>framework</strong>,<br/>not just the task.</h1>
+    <p class="lede">
+      For engineers <strong>extending or maintaining the ATDD Hub framework itself</strong>: add a command / agent / hook,
+      run an agent on GPT, add a self-verify scorer, tune the budget and confidence gates.
+      <br/><span style="color:var(--ink-light)">Just want to <em>use</em> the framework → switch to the <a href="index.en.html">user edition</a></span>
+    </p>
+    <div class="search">
+      <input id="kb-search" type="search" placeholder="Search topics… (e.g. add hook, codex, plane-1, scorer, MCP state)" aria-label="search" />
+      <button class="search-btn" aria-label="search">→</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============== ARCHITECTURE ============== -->
+<section id="topics">
+  <div class="container">
+    <div class="section-head">
+      <h2>Maintainer's <strong>Knowledgebase</strong></h2>
+      <p>Six cards: four-plane architecture, three extension entries, hook wiring, the engine-dispatch safety model, self-verify infrastructure and design rationale.</p>
+    </div>
+
+    <div class="kb-grid" id="kb-grid">
+
+      <!-- 1. Architecture -->
+      <article class="kb-card blue" id="arch">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Architecture Overview</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>Four planes</strong>: Orchestrator → Commands (<code>.claude/commands/</code>) → Agents (<code>.claude/agents/</code>) → MCP state</li>
+          <li>7 agents: specist / tester / coder / style-reviewer / risk-reviewer / gatekeeper / curator</li>
+          <li><strong>Core design</strong>: context is never passed via conversation — it all lands in MCP state</li>
+          <li>→ <code>/continue</code> can resume from any session, any engine</li>
+          <li>Config centralized in <code>.claude/config/</code> (engines / budget / tool safety / confidence)</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>4 planes</span>
+          <span class="level"><a href="CONTRIBUTING.en.html">→ Details</a></span>
+        </div>
+      </article>
+
+      <!-- 2. Extend -->
+      <article class="kb-card violet" id="extend">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">How to Extend</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>Add a Command</strong>: <code>.claude/commands/&lt;name&gt;.md</code> + shared logic into <code>shared/</code></li>
+          <li><strong>Add / change an Agent</strong>: edit <code>.claude/agents/&lt;name&gt;.md</code> + add a row in <code>agent-engines.yml</code></li>
+          <li><strong>Add a Project</strong>: follow <code>projects.yml.example</code> — id + path</li>
+          <li><strong>Tune budget</strong>: global <code>budget.yml</code>; per-task override via the JSON <code>budget</code> field</li>
+          <li>New deliverable to verify → add a rule in <code>hooks/lib/validate_deliverables.py</code></li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>5 entries</span>
+          <span class="level"><a href="CONTRIBUTING.en.html">→ Steps</a></span>
+        </div>
+      </article>
+
+      <!-- 3. Wiring & Hooks -->
+      <article class="kb-card amber" id="wiring">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Wiring &amp; Hooks</div>
+        </div>
+        <ul class="kb-list">
+          <li>Hooks bind by "event + matcher" in <code>.claude/settings.json</code></li>
+          <li>10 hooks: confidence hard-block, deliverable completeness, E2E decision, spec format, metrics recording…</li>
+          <li><strong>Body ≤100 lines</strong>: read stdin, basic checks, call <code>lib/</code> (Python heavy logic, independently testable)</li>
+          <li><code>lib/hooklog.sh</code> writes <code>.hook-log.jsonl</code> for observability</li>
+          <li>Add a hook: write body → bind event in <code>settings.json</code> → call hooklog at the end</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>10 hooks</span>
+          <span class="level"><a href="CONTRIBUTING.en.html">→ Binding table</a></span>
+        </div>
+      </article>
+
+      <!-- 4. Engine dispatch -->
+      <article class="kb-card green" id="engines">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Engine Dispatch</div>
+        </div>
+        <ul class="kb-list">
+          <li>One agent prompt, multiple engines: <code>engine: claude</code> (default) or <code>codex</code> (GPT)</li>
+          <li><code>shared/agent-dispatch.md</code> checks <code>agent-engines.yml</code> before each call</li>
+          <li><strong>Plane-2</strong> (in-agent hooks) silently goes dark once delegated to codex</li>
+          <li>→ you must add equivalent checks in <strong>Plane-1</strong> (orchestrator), or it's a hole</li>
+          <li>specist / curator have a human in the loop — not for headless delegation</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>Plane-1 / Plane-2</span>
+          <span class="level"><a href="CONTRIBUTING.en.html">→ Safety model</a></span>
+        </div>
+      </article>
+
+      <!-- 5. Self-verify -->
+      <article class="kb-card red" id="self-verify">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Self-verify Infrastructure</div>
+        </div>
+        <ul class="kb-list">
+          <li><code>bash experiments/atdd-eval/run-self-verify.sh</code> — single entry point for all scorers</li>
+          <li>Any scorer fails → Stop hook <code>exit 2</code> physically blocks the session from ending</li>
+          <li><strong>Four patterns</strong> (pick one for a new scorer): A source+drift · B trigger+assert · C scorer+METRICS · D snapshot+diff</li>
+          <li>Progress: 7 scorers / 58 checks / 47% mechanism coverage (7/15)</li>
+          <li>Add a scorer: write <code>test-&lt;name&gt;.sh</code> (tag the pattern in the header) → <code>chmod +x</code> → update coverage.json</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>7 scorers · 58 checks</span>
+          <span class="level"><a href="CONTRIBUTING.en.html">→ Add a scorer</a></span>
+        </div>
+      </article>
+
+      <!-- 6. Rationale & verify -->
+      <article class="kb-card slate" id="governance">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Design Rationale &amp; Verifying Changes</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>Why MCP state</strong> over conversation memory: resumable across sessions and engines</li>
+          <li><strong>Why confidence is a hard block</strong>: soft reminders get ignored by the AI</li>
+          <li><strong>Why hook bodies stay ≤100 lines</strong>: business logic shouldn't seep into the hook layer</li>
+          <li><strong>Why outer eval is separate from the inner gatekeeper</strong>: one asks "is this task good", the other "did the framework get better or worse"</li>
+          <li>Change acceptance: budget ceiling / hook size / engine dispatch / all scorers green (see the verify table)</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>Rationale</span>
+          <span class="level"><a href="CONTRIBUTING.en.html">→ Verify table</a></span>
+        </div>
+      </article>
+
+      <div class="kb-empty">No matching topic — try other keywords, or <a href="https://github.com/spenguinlui/atdd-task">browse the source</a>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CTA ============== -->
+<section class="cta-strip">
+  <h3>Checklist before you start</h3>
+  <p>
+    Delegated agents must get equivalent Plane-1 checks · hook bodies ≤100 lines (heavy logic into lib/) · run <code>run-self-verify.sh</code> green after changes · add a deliverables rule for new deliverables
+  </p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="https://github.com/spenguinlui/atdd-task">→ Fork repo</a>
+    <a class="btn btn-ghost" href="CONTRIBUTING.en.html">Full CONTRIBUTING</a>
+    <a class="btn btn-ghost" href="index.en.html">← Back to user edition</a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div>
+      <div class="brand" style="margin-bottom:6px"><div class="logo"></div><div class="name">ATDD<em>·</em>Hub</div></div>
+      <div>Extend the framework itself</div>
+    </div>
+    <div class="foot-toggle">
+      <span style="color:var(--ink-mute)">You're viewing:</span>
+      <strong style="color:var(--ink)">Maintainer edition</strong>
+      <span style="color:var(--ink-mute)">·</span>
+      <a href="index.en.html">← Switch to user edition</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var input = document.getElementById('kb-search');
+    var grid  = document.getElementById('kb-grid');
+    var cards = grid.querySelectorAll('.kb-card');
+    if(!input || !cards.length) return;
+    input.addEventListener('input', function(e){
+      var q = e.target.value.toLowerCase().trim();
+      var visible = 0;
+      cards.forEach(function(c){
+        var hit = q === '' || c.textContent.toLowerCase().indexOf(q) !== -1;
+        c.style.display = hit ? '' : 'none';
+        if(hit) visible++;
+      });
+      grid.classList.toggle('is-empty', visible === 0);
+    });
+  })();
+</script>
+
+</body>
+</html>

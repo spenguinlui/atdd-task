@@ -1,3 +1,8 @@
+---
+layout: page-en
+eyebrow: Maintainer Guide
+---
+
 > 🌐 [繁體中文](CONTRIBUTING.md) | **English**
 
 # ATDD Hub — Maintainer Guide

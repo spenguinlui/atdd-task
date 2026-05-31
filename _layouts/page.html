@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>{{ page.title | default: "ATDD Hub" }} · ATDD Hub</title>
+<meta name="description" content="{{ page.description | default: 'ATDD Hub documentation' }}" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ '/style.css' | relative_url }}">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <a href="{{ '/' | relative_url }}" class="brand" style="color:inherit">
+      <div class="logo"></div>
+      <div class="name">ATDD<em>·</em>Hub</div>
+    </a>
+    <div class="nav-right">
+      <div class="audience-toggle">
+        <a href="{{ '/' | relative_url }}">使用者</a>
+        <a href="{{ '/maintainer.html' | relative_url }}">維護者</a>
+      </div>
+      <a class="btn-signup" href="https://github.com/spenguinlui/atdd-task">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="doc-main">
+  <div class="container-narrow">
+    {% if page.eyebrow %}
+    <div class="doc-eyebrow-strip">{{ page.eyebrow }}</div>
+    {% endif %}
+
+    <article class="doc-prose">
+      {{ content }}
+    </article>
+
+    <nav class="doc-foot-nav">
+      <a href="{{ '/' | relative_url }}">← 使用者版</a>
+      <a href="{{ '/maintainer.html' | relative_url }}">維護者版 →</a>
+    </nav>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div>
+      <a href="{{ '/' | relative_url }}" class="brand" style="margin-bottom:6px;color:inherit"><div class="logo"></div><div class="name">ATDD<em>·</em>Hub</div></a>
+      <div>把一個需求交給 AI，跑完整個 ATDD 流程</div>
+    </div>
+    <div>
+      <a href="https://github.com/spenguinlui/atdd-task/edit/master/{{ page.path }}">在 GitHub 編輯這頁 →</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ATDD Hub · 維護者版</title>
+<meta name="description" content="給擴充或維護 ATDD Hub 框架本身的工程師：四平面架構、MCP 狀態、hook wiring、引擎委派（Claude / GPT）、自驗基建、設計考量。" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="name">ATDD<em>·</em>Hub</div>
+    </div>
+    <div class="nav-right">
+      <div class="audience-toggle">
+        <a href="index.html">使用者</a>
+        <a class="active" href="maintainer.html">維護者</a>
+      </div>
+      <div class="audience-toggle">
+        <a class="active" href="maintainer.html">中</a>
+        <a href="maintainer.en.html">EN</a>
+      </div>
+      <nav class="nav-links">
+        <a href="#arch">架構</a>
+        <a href="#extend">擴充</a>
+        <a href="#wiring">Wiring</a>
+        <a href="#engines">引擎委派</a>
+        <a href="#self-verify">自驗</a>
+      </nav>
+      <a class="btn-signup" href="https://github.com/spenguinlui/atdd-task">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============== HERO ============== -->
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Extend the <strong>framework</strong>,<br/>not just the task.</h1>
+    <p class="lede">
+      給<strong>擴充或維護 ATDD Hub 框架本身</strong>的工程師：加 command / agent / hook、把 agent 改用 GPT 跑、
+      補自驗 scorer、調整預算與信心度閘門。
+      <br/><span style="color:var(--ink-light)">只是想「用」框架跑任務 → 切到 <a href="index.html">使用者版</a></span>
+    </p>
+    <div class="search">
+      <input id="kb-search" type="search" placeholder="搜尋主題…（例：加 hook、codex、plane-1、scorer、MCP state）" aria-label="搜尋" />
+      <button class="search-btn" aria-label="search">→</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============== ARCHITECTURE ============== -->
+<section id="topics">
+  <div class="container">
+    <div class="section-head">
+      <h2>Maintainer's <strong>Knowledgebase</strong></h2>
+      <p>六張卡片：四平面架構、三類擴充入口、hook wiring、引擎委派安全模型、自驗基建與設計考量。</p>
+    </div>
+
+    <div class="kb-grid" id="kb-grid">
+
+      <!-- 1. 架構概覽 -->
+      <article class="kb-card blue" id="arch">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">架構概覽 / Architecture</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>四平面</strong>：Orchestrator → Commands（<code>.claude/commands/</code>）→ Agents（<code>.claude/agents/</code>）→ MCP 狀態</li>
+          <li>7 個 agent：specist / tester / coder / style-reviewer / risk-reviewer / gatekeeper / curator</li>
+          <li><strong>核心設計</strong>：context 不靠對話傳遞，全部落 MCP state</li>
+          <li>→ <code>/continue</code> 可從任意 session、任意引擎恢復</li>
+          <li>config 集中在 <code>.claude/config/</code>（引擎登記 / 預算 / 工具安全 / 信心度）</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>4 平面</span>
+          <span class="level"><a href="CONTRIBUTING.html#架構概覽">→ 細節</a></span>
+        </div>
+      </article>
+
+      <!-- 2. 怎麼擴充 -->
+      <article class="kb-card violet" id="extend">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">怎麼擴充 / Extend</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>加 Command</strong>：<code>.claude/commands/&lt;name&gt;.md</code> + 共用邏輯抽 <code>shared/</code></li>
+          <li><strong>加 / 改 Agent</strong>：編 <code>.claude/agents/&lt;name&gt;.md</code> + <code>agent-engines.yml</code> 補一列</li>
+          <li><strong>加 Project</strong>：照 <code>projects.yml.example</code> 加 id + 路徑</li>
+          <li><strong>調預算</strong>：全局 <code>budget.yml</code>；單任務 JSON 的 <code>budget</code> 欄覆寫</li>
+          <li>新交付物要驗收 → <code>hooks/lib/validate_deliverables.py</code> 補規則</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>5 入口</span>
+          <span class="level"><a href="CONTRIBUTING.html#怎麼擴充">→ 步驟</a></span>
+        </div>
+      </article>
+
+      <!-- 3. Wiring & Hooks -->
+      <article class="kb-card amber" id="wiring">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Wiring &amp; Hooks</div>
+        </div>
+        <ul class="kb-list">
+          <li>Hook 以「事件 + matcher」掛在 <code>.claude/settings.json</code></li>
+          <li>10 支 hook：信心度硬阻擋、交付物完整性、E2E 決策、spec 格式、metrics 記錄…</li>
+          <li><strong>主體 ≤100 行</strong>：讀 stdin、基本判斷、呼叫 <code>lib/</code>（Python 重邏輯可獨立測試）</li>
+          <li><code>lib/hooklog.sh</code> 寫 <code>.hook-log.jsonl</code> 供觀測</li>
+          <li>加 hook：寫主體 → <code>settings.json</code> 綁事件 → 末段呼叫 hooklog</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>10 hook</span>
+          <span class="level"><a href="CONTRIBUTING.html#wiring-怎麼運作">→ 綁定表</a></span>
+        </div>
+      </article>
+
+      <!-- 4. 引擎委派 -->
+      <article class="kb-card green" id="engines">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">引擎委派 / Engine Dispatch</div>
+        </div>
+        <ul class="kb-list">
+          <li>同一份 agent prompt 可委派不同引擎：<code>engine: claude</code>（預設）或 <code>codex</code>（GPT）</li>
+          <li><code>shared/agent-dispatch.md</code> 每次呼叫前查 <code>agent-engines.yml</code></li>
+          <li><strong>Plane-2</strong>（in-agent hook）委派 codex 後靜默失效</li>
+          <li>→ 必在 <strong>Plane-1</strong>（orchestrator）補等效檢查，否則是漏洞</li>
+          <li>specist / curator 有人在環內互動，不適合委派 headless</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>Plane-1 / Plane-2</span>
+          <span class="level"><a href="CONTRIBUTING.html#設計考量">→ 安全模型</a></span>
+        </div>
+      </article>
+
+      <!-- 5. 自驗基建 -->
+      <article class="kb-card red" id="self-verify">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">自驗基建 / Self-verify</div>
+        </div>
+        <ul class="kb-list">
+          <li><code>bash experiments/atdd-eval/run-self-verify.sh</code> — 跑所有 scorer 的單一入口</li>
+          <li>任一 scorer 失敗 → Stop hook <code>exit 2</code> 物理擋住 session 結束</li>
+          <li><strong>四 Pattern</strong>（寫新 scorer 挑一個套）：A 真實來源+drift · B 觸發+斷言 · C scorer+METRICS · D 快照+diff</li>
+          <li>進度：7 scorer / 58 check / 47% mechanism 覆蓋（7/15）</li>
+          <li>加 scorer：寫 <code>test-&lt;name&gt;.sh</code>（檔頭標 pattern）→ <code>chmod +x</code> → 更新 coverage.json</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>7 scorer · 58 check</span>
+          <span class="level"><a href="CONTRIBUTING.html#怎麼擴充">→ 加 scorer</a></span>
+        </div>
+      </article>
+
+      <!-- 6. 設計考量 + 驗證 -->
+      <article class="kb-card slate" id="governance">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">設計考量 &amp; 驗證改動 / Rationale</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>為什麼用 MCP state</strong> 而非對話記憶：可跨 session / 跨引擎恢復</li>
+          <li><strong>為什麼信心度是硬阻擋</strong>：軟提醒會被 AI 忽略</li>
+          <li><strong>為什麼 hook 主體 ≤100 行</strong>：業務邏輯不該滲入 hook 層</li>
+          <li><strong>為什麼外層 eval 獨立於 inner gatekeeper</strong>：一個問「這張任務好不好」，一個問「框架整體升還是降」</li>
+          <li>改動驗收：預算天花板 / hook 大小 / 引擎委派 / 自驗全綠（見驗證表）</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>設計依據</span>
+          <span class="level"><a href="CONTRIBUTING.html#怎麼驗證改動">→ 驗證表</a></span>
+        </div>
+      </article>
+
+      <div class="kb-empty">沒找到對應主題——試試別的關鍵字，或 <a href="https://github.com/spenguinlui/atdd-task">直接看 source</a>。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CTA ============== -->
+<section class="cta-strip">
+  <h3>動手前的 checklist</h3>
+  <p>
+    委派 agent 必在 Plane-1 補等效檢查 · hook 主體 ≤100 行（重邏輯進 lib/）· 改完跑 <code>run-self-verify.sh</code> 確認全綠 · 新交付物補 deliverables 規則
+  </p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="https://github.com/spenguinlui/atdd-task">→ Fork repo</a>
+    <a class="btn btn-ghost" href="CONTRIBUTING.html">完整 CONTRIBUTING</a>
+    <a class="btn btn-ghost" href="index.html">← 切回使用者版</a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div>
+      <div class="brand" style="margin-bottom:6px"><div class="logo"></div><div class="name">ATDD<em>·</em>Hub</div></div>
+      <div>擴充框架本身</div>
+    </div>
+    <div class="foot-toggle">
+      <span style="color:var(--ink-mute)">你正在看：</span>
+      <strong style="color:var(--ink)">維護者版</strong>
+      <span style="color:var(--ink-mute)">·</span>
+      <a href="index.html">← 切到使用者版</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var input = document.getElementById('kb-search');
+    var grid  = document.getElementById('kb-grid');
+    var cards = grid.querySelectorAll('.kb-card');
+    if(!input || !cards.length) return;
+    input.addEventListener('input', function(e){
+      var q = e.target.value.toLowerCase().trim();
+      var visible = 0;
+      cards.forEach(function(c){
+        var hit = q === '' || c.textContent.toLowerCase().indexOf(q) !== -1;
+        c.style.display = hit ? '' : 'none';
+        if(hit) visible++;
+      });
+      grid.classList.toggle('is-empty', visible === 0);
+    });
+  })();
+</script>
+
+</body>
+</html>

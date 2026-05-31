@@ -1,3 +1,8 @@
+---
+layout: page
+eyebrow: 維護者指南
+---
+
 > 🌐 **繁體中文** | [English](CONTRIBUTING.en.md)
 
 # ATDD Hub — 維護者指南

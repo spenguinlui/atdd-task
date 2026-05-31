@@ -1,0 +1,56 @@
+# Minimal Jekyll config for ATDD Hub GitHub Pages
+# Renders only .md files that explicitly declare `layout: page` in front-matter
+# (CONTRIBUTING.md + docs/operation-manual.md). index.html / maintainer.html have
+# no front-matter so they pass through unchanged.
+
+theme: null
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  syntax_highlighter_opts:
+    css_class: highlight
+plugins: []
+
+# Keep framework internals, runtime data and methodology source off the public site.
+# Most of these are also gitignored, but list explicitly so future additions don't auto-leak.
+# When you add a new internal doc under docs/, add it here too.
+exclude:
+  # README.en.md + CONTRIBUTING.en.md are rendered (layout: page-en) — kept off this list.
+  - CLAUDE.md
+  - .env
+  - .env.example
+  - .mcp.json
+  - .mcp.json.example
+  - .claude/
+  - .claude-work/
+  - .atdd/
+  - experiments/
+  - tasks/
+  - specs/
+  - requirements/
+  - epics/
+  - tests/
+  - domains/
+  - knowledge/
+  - debug-knowledge/
+  - acceptance/
+  - style-guides/
+  - design/
+  - infrastructure/
+  - ports/
+  - server/
+  - poc/
+  - profiles/
+  - logs/
+  - data/
+  # docs/: only operation-manual.md is published; everything else is internal
+  - docs/acceptance-checklist.md
+  - docs/acceptance-profiles.md
+  - docs/atdd-server/
+  - docs/confidence-mechanism.md
+  - docs/feature-profiles.md
+  - docs/fix-profiles.md
+  - docs/fix-workflow.md
+  - docs/incidents/
+  - docs/platform-evolution.md
+  - docs/review-fix-workflow.md

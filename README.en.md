@@ -1,3 +1,8 @@
+---
+layout: page-en
+eyebrow: User Guide
+---
+
 > 🌐 [繁體中文](README.md) | **English**
 
 # ATDD Hub

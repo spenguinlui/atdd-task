@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ATDD Hub · Hand a requirement to AI, run the whole acceptance pipeline</title>
+<meta name="description" content="Give a requirement to AI and it handles requirement clarification, acceptance criteria, tests, implementation and code review — until the gatekeeper says ready to ship. You only confirm at key checkpoints." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="name">ATDD<em>·</em>Hub</div>
+    </div>
+    <div class="nav-right">
+      <div class="audience-toggle">
+        <a class="active" href="index.en.html">User</a>
+        <a href="maintainer.en.html">Maintainer</a>
+      </div>
+      <div class="audience-toggle">
+        <a href="index.html">中</a>
+        <a class="active" href="index.en.html">EN</a>
+      </div>
+      <nav class="nav-links">
+        <a href="#start">Quick Start</a>
+        <a href="#tasks">Task Types</a>
+        <a href="#loop">Workflow</a>
+        <a href="#commands">Commands</a>
+        <a href="#accept">Acceptance</a>
+      </nav>
+      <a class="btn-signup" href="https://github.com/spenguinlui/atdd-task">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ============== HERO ============== -->
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Hi, <strong>how can we help</strong> you<br/>ship a feature?</h1>
+    <p class="lede">
+      Hand a requirement to AI and it handles requirement clarification, acceptance criteria,
+      tests, implementation and code review — until the gatekeeper says it's ready to ship.
+      You only confirm at a few key checkpoints.<br />
+      <span style="color:var(--ink-light)">No technical knowledge needed — just answer in your own words</span>
+    </p>
+    <div class="search">
+      <input id="kb-search" type="search" placeholder="Search topics… (e.g. new feature, E2E test, fix scope, gatekeeper)" aria-label="search" />
+      <button class="search-btn" aria-label="search">→</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============== BROWSE TOPICS ============== -->
+<section id="topics">
+  <div class="container">
+    <div class="section-head">
+      <h2>Browse <strong>Help Topics</strong></h2>
+      <p>Six entry cards, from first-time setup to gatekeeper acceptance. Stuck? Filter with the search box above.</p>
+    </div>
+
+    <div class="kb-grid" id="kb-grid">
+
+      <!-- 1. Quick Start -->
+      <article class="kb-card blue" id="start">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Quick Start</div>
+        </div>
+        <ul class="kb-list">
+          <li>Copy <code>.env.example</code> to <code>.env</code>; fill in project path and test account</li>
+          <li>Start your first task: <code>/feature sf_project, Project approval workflow</code></li>
+          <li>The AI starts asking questions until it has 95% confidence in the requirements</li>
+          <li>Advance stage by stage: <code>/continue</code>; check progress anytime: <code>/status</code></li>
+          <li>Not sure how to fill a variable? Ask the framework administrator</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>4 steps</span>
+          <span class="level"><a href="README.en.html">→ Full guide</a></span>
+        </div>
+      </article>
+
+      <!-- 2. Task Types -->
+      <article class="kb-card green" id="tasks">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Task Types</div>
+        </div>
+        <ul class="kb-list">
+          <li><code>/atdd {one-line requirement}</code> — natural-language entry; AI picks the type</li>
+          <li><code>/feature</code> — develop a new feature (full pipeline)</li>
+          <li><code>/fix</code> — fix a bug (skips the spec stage)</li>
+          <li><code>/refactor</code> — refactor (review enforces "behavior unchanged")</li>
+          <li><code>/epic</code> — large feature; AI proposes a breakdown first</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>5 entries</span>
+          <span class="level">Front door</span>
+        </div>
+      </article>
+
+      <!-- 3. Workflow loop -->
+      <article class="kb-card violet" id="loop">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Workflow: what AI does, what you do</div>
+        </div>
+        <ul class="kb-list">
+          <li>Clarify → spec → tests → implement → review → gatekeeper decision</li>
+          <li>AI runs most stages automatically; you only confirm at handoff points</li>
+          <li><strong>Only six points need you</strong>: start task · answer requirements · E2E decision · confirm spec · choose fix scope · close after GO</li>
+          <li>You can review the previous stage's output before each <code>/continue</code></li>
+          <li>AI won't start implementing until confidence reaches 95%</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>6 handoffs</span>
+          <span class="level"><a href="README.en.html">→ Details</a></span>
+        </div>
+      </article>
+
+      <!-- 4. Commands -->
+      <article class="kb-card amber" id="commands">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Commands</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>Lifecycle</strong>: <code>/continue</code> · <code>/status</code> · <code>/done</code> · <code>/abort</code></li>
+          <li><strong>Fix after review</strong>: <code>/fix-critical</code> · <code>/fix-high</code> · <code>/fix-all</code></li>
+          <li><strong>E2E tests</strong>: <code>/test-run</code> · <code>/test-pause</code> · <code>/test-resume</code></li>
+          <li><strong>Deploy &amp; wrap up</strong>: <code>/deploy</code> · <code>/verify</code> · <code>/escape</code></li>
+          <li>Forgot a command? Type <code>/guide</code> for the cheat sheet</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>40 commands</span>
+          <span class="level"><a href="README.en.html">→ Full list</a></span>
+        </div>
+      </article>
+
+      <!-- 5. Outputs & acceptance -->
+      <article class="kb-card cyan" id="accept">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Outputs &amp; Acceptance</div>
+        </div>
+        <ul class="kb-list">
+          <li>Acceptance criteria (Given / When / Then) — confirm AI understood your requirement</li>
+          <li>Automated tests + reviewed, test-passing code changes</li>
+          <li><strong>Manual verification guide</strong>: step-by-step checklist from the gatekeeper</li>
+          <li>How you know it's right: gatekeeper GO → tick the guide → <code>/verify</code> done</li>
+          <li>A NO-GO explains why — adjust as directed, then <code>/continue</code></li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>GO / NO-GO</span>
+          <span class="level">Gatekeeper</span>
+        </div>
+      </article>
+
+      <!-- 6. Limits & troubleshooting -->
+      <article class="kb-card red" id="trouble">
+        <div class="kb-card-head">
+          <div class="kb-dot"></div>
+          <div class="kb-card-title">Limits &amp; Troubleshooting</div>
+        </div>
+        <ul class="kb-list">
+          <li><strong>Won't do</strong>: touch production data, implement before requirements are confirmed, change what you didn't ask for</li>
+          <li>The vaguer the requirement, the more questions — think through key business rules first</li>
+          <li>E2E needs Chrome open and reachable to staging, with test data on the account</li>
+          <li><code>/continue</code> does nothing → follow the AI's hint to complete the previous stage</li>
+          <li>Task stuck → <code>/abort</code> and restart, or check the operation manual</li>
+        </ul>
+        <div class="kb-card-foot">
+          <span>Troubleshoot</span>
+          <span class="level"><a href="README.en.html">→ Common issues</a></span>
+        </div>
+      </article>
+
+      <div class="kb-empty">No matching topic — try other keywords, or <a href="https://github.com/spenguinlui/atdd-task">browse the source on GitHub</a>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CTA ============== -->
+<section class="cta-strip">
+  <h3>Ready to hand over your first requirement?</h3>
+  <p>Set up <code>.env</code>, describe the requirement in one sentence, and leave the rest to AI.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="https://github.com/spenguinlui/atdd-task">→ Clone repo</a>
+    <a class="btn btn-ghost" href="README.en.html">Full guide</a>
+    <a class="btn btn-ghost" href="maintainer.en.html">For maintainers →</a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div>
+      <div class="brand" style="margin-bottom:6px"><div class="logo"></div><div class="name">ATDD<em>·</em>Hub</div></div>
+      <div>Hand a requirement to AI; it runs the whole ATDD pipeline</div>
+    </div>
+    <div class="foot-toggle">
+      <span style="color:var(--ink-mute)">You're viewing:</span>
+      <strong style="color:var(--ink)">User edition</strong>
+      <span style="color:var(--ink-mute)">·</span>
+      <a href="maintainer.en.html">Switch to maintainer edition →</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // simple client-side search filter
+  (function(){
+    var input = document.getElementById('kb-search');
+    var grid  = document.getElementById('kb-grid');
+    var cards = grid.querySelectorAll('.kb-card');
+    if(!input || !cards.length) return;
+    input.addEventListener('input', function(e){
+      var q = e.target.value.toLowerCase().trim();
+      var visible = 0;
+      cards.forEach(function(c){
+        var hit = q === '' || c.textContent.toLowerCase().indexOf(q) !== -1;
+        c.style.display = hit ? '' : 'none';
+        if(hit) visible++;
+      });
+      grid.classList.toggle('is-empty', visible === 0);
+    });
+  })();
+</script>
+
+</body>
+</html>

@@ -1,3 +1,8 @@
+---
+layout: page
+eyebrow: 操作手冊
+---
+
 # ATDD Hub 操作手冊
 
 本手冊說明如何使用 ATDD Hub 的 Command-Driven 工作流程進行專案任務開發。
