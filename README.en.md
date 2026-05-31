@@ -5,9 +5,9 @@ eyebrow: User Guide
 
 > 🌐 [繁體中文](README.md) | **English**
 
-# ATDD Hub
+# ATDD task
 
-Give a requirement to AI, and it will handle requirement clarification, acceptance criteria, tests, implementation, and code review — until the gatekeeper says "ready to ship." You only confirm at key checkpoints.
+The core of ATDD task is **accepting deliverables stage by stage** — requirements, spec, tests, implementation, review. Each deliverable must pass its acceptance gate before moving on, trading layered checks for **stable, predictable development**. Hand the requirement to AI and confirm at key checkpoints.
 
 ## What It Does
 

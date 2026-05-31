@@ -5,16 +5,16 @@ eyebrow: Maintainer Guide
 
 > 🌐 [繁體中文](CONTRIBUTING.md) | **English**
 
-# ATDD Hub — Maintainer Guide
+# ATDD task — Maintainer Guide
 
-This document is for engineers who need to extend or maintain the ATDD Hub framework itself.  
+This document is for engineers who need to extend or maintain the ATDD task framework itself.  
 If you are a PM / RD / business user running tasks, see [README.md](README.md).
 
 ---
 
 ## Architecture Overview
 
-ATDD Hub is structured around three planes:
+ATDD task is structured around three planes:
 
 ```
 Orchestrator plane (User issues slash command)

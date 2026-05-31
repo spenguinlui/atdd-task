@@ -5,16 +5,16 @@ eyebrow: 維護者指南
 
 > 🌐 **繁體中文** | [English](CONTRIBUTING.en.md)
 
-# ATDD Hub — 維護者指南
+# ATDD task — 維護者指南
 
-本文件面向需要擴充或維護 ATDD Hub 框架本身的工程師。  
+本文件面向需要擴充或維護 ATDD task 框架本身的工程師。  
 如果你是使用框架跑任務的 PM / RD / 業務，請看 [README.md](README.md)。
 
 ---
 
 ## 架構概覽
 
-ATDD Hub 由三個平面構成：
+ATDD task 由三個平面構成：
 
 ```
 Orchestrator 平面（User 下 slash command）
